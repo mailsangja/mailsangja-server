@@ -1,0 +1,22 @@
+name: "OPS Task"
+description: "OPS 파트의 Task를 작성합니다"
+title: "[OPS] "
+title: "[BE] "
+projects: ["mailsangja/1"]
+type: Task
+
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        ## 🛠️ OPS Task
+
+  - type: input
+    id: task
+    attributes:
+      label: 🛠️ OPS Task
+      description: 어떤 작업인지 작성해주세요
+      placeholder: 예) 테스트 환경 설정
+    validations:
+      required: true
