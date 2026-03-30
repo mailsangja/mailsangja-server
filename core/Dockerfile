@@ -1,0 +1,21 @@
+# Build stage
+FROM gradle:8.14-jdk21-alpine AS builder
+WORKDIR /app
+
+# Copy root settings and db module first (dependency)
+COPY settings.gradle /app/
+COPY db/ /app/db/
+COPY core/ /app/core/
+
+# Build core module (skipping tests)
+RUN gradle :core:bootJar -x test --no-daemon
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+COPY --from=builder /app/core/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -29,6 +29,27 @@ services:
       timeout: 5s
       retries: 5
 
+  core:
+    build:
+      context: .
+      dockerfile: core/Dockerfile
+    container_name: mailsangja-core
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-mailsangja}
+      DB_USERNAME: ${POSTGRES_USER:-mailsangja}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-mailsangja}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis-data:
