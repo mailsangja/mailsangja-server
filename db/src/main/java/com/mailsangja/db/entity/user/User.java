@@ -1,7 +1,6 @@
 package com.mailsangja.db.entity.user;
 
 import com.mailsangja.db.entity.common.BaseEntity;
-import com.mailsangja.db.entity.user.enums.Plan;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -36,6 +35,10 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "plan", nullable = false)
     private Plan plan;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private Role role;
 
     @Column(name = "credit_usage", nullable = false)
     private int creditUsage;

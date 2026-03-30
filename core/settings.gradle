@@ -1,1 +1,4 @@
 rootProject.name = 'core'
+
+include 'db'
+project(':db').projectDir = new File('../db')
