@@ -7,20 +7,23 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 @Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
 public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(columnDefinition = "CHAR(36)")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private UUID id;
 
     @Column(name = "name", nullable = false, length = 50)
@@ -44,6 +47,7 @@ public class User extends BaseEntity {
     private int creditUsage;
 
     @Column(name = "default_account", columnDefinition = "CHAR(36)")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private UUID defaultAccount;
 
     public void updatePassword(String encodedPassword) {
