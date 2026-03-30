@@ -17,7 +17,7 @@ When invoked:
 6. Review code against project standards
 7. Provide actionable feedback
 
-## Review Checklist (Total: 32 items)
+## Review Checklist (Total: 38 items)
 
 ### Layer Architecture (5 items)
 1. Controller → Facade → Service → Repository 단방향 의존성 준수
@@ -42,32 +42,40 @@ When invoked:
 14. 반환 타입은 반드시 `ResponseEntity<T>`
 15. 페이지네이션 타입 적합성: 무한 스크롤 → `SliceResponse`, 페이지 번호 → `PageResponse`
 
-### Repository Pattern (3 items)
-16. `port/{domain}/`에 순수 Java 인터페이스 정의
-17. `adapter/{domain}/`에 JpaRepository + Adapter 구현체 위치
-18. `common/redis/RedisService` 사용 금지 — 도메인별 `{Domain}CachePort` 인터페이스 사용
+### Repository Pattern (5 items)
+16. db 모듈 `port/` 패키지에 순수 Java 인터페이스(`{Domain}RepositoryPort`) 정의
+17. db 모듈 `adapter/{domain}/` 패키지에 `{Domain}RepositoryAdapter` 구현체 위치 (`@Repository`)
+18. db 모듈 `module/{domain}/` 패키지에 `{Domain}JpaRepositoryModule extends JpaRepository` 위치
+19. Service 레이어는 **Port 인터페이스만** 주입 — `JpaRepositoryModule` 직접 주입 금지
+20. `common/redis/RedisService` 사용 금지 — 도메인별 `{Domain}CachePort` 인터페이스 사용
 
-### Entity (3 items)
-19. `@NoArgsConstructor(access = AccessLevel.PROTECTED)` 필수
-20. ID 전략: `GenerationType.IDENTITY`
-21. Setter 금지 — 상태 변경은 명시적 메서드 (예: `updateName()`)
+### Multi-Module Integration (3 items)
+21. 실행 모듈 `settings.gradle`에 `include 'db'` 및 `project(':db').projectDir` 경로 선언
+22. 실행 모듈 `build.gradle`에 `implementation project(':db')` 의존성 선언
+23. `@SpringBootApplication` 클래스에 `@EnableJpaAuditing`, `@EntityScan(basePackages = "com.mailsangja.db")`, `@EnableJpaRepositories(basePackages = "com.mailsangja.db")`, `scanBasePackages`에 `"com.mailsangja.db"` 포함 여부 확인
+
+### Entity (4 items)
+24. `@NoArgsConstructor(access = AccessLevel.PROTECTED)` 필수
+25. ID 타입: `UUID`, 전략: `GenerationType.UUID` — `Long` + `IDENTITY` 사용 금지
+26. Setter 금지 — 상태 변경은 명시적 메서드 (예: `updateName()`)
+27. 모든 Entity는 `BaseEntity` 상속 — 물리 삭제 금지, `delete()` 메서드로 Soft Delete 처리
 
 ### Exception (2 items)
-22. `ErrorCode` 코드 형식: `MS-{DOMAIN}-{ERROR-NAME}` (예: `MS-USER-NOT-FOUND`)
-23. 도메인 Exception은 `{domain}/exception/`에 위치
+28. `ErrorCode` 코드 형식: `MS-{DOMAIN}-{ERROR-NAME}` (예: `MS-USER-NOT-FOUND`)
+29. 도메인 Exception은 `{domain}/exception/`에 위치
 
 ### @Transactional (2 items)
-24. 외부 I/O(FCM, 이메일, 외부 API) 트랜잭션 블록 내 포함 금지
-25. `@Transactional(readOnly = true)` 사용 금지
+30. 외부 I/O(FCM, 이메일, 외부 API) 트랜잭션 블록 내 포함 금지
+31. `@Transactional(readOnly = true)` 사용 금지
 
 ### General Quality (7 items)
-26. `@Async` 사용은 `PushFacade`에만 허용
-27. `@Autowired` 필드 주입 금지 — `@RequiredArgsConstructor` 생성자 주입 사용
-28. 하드코딩 금지 — 외부 설정값은 `@ConfigurationProperties` 사용
-29. 적절한 null 처리
-30. 의미 있는 변수/메서드 명명
-31. 미사용 import 또는 dead code 없음
-32. 보안 취약점 (SQL injection, XSS 등)
+32. `@Async` 사용은 `PushFacade`에만 허용
+33. `@Autowired` 필드 주입 금지 — `@RequiredArgsConstructor` 생성자 주입 사용
+34. 하드코딩 금지 — 외부 설정값은 `@ConfigurationProperties` 사용
+35. 적절한 null 처리
+36. 의미 있는 변수/메서드 명명
+37. 미사용 import 또는 dead code 없음
+38. 보안 취약점 (SQL injection, XSS 등)
 
 ## Output Format
 

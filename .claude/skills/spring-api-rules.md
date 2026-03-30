@@ -13,6 +13,112 @@ Standard rules for Spring Boot REST API development in this project.
 
 ---
 
+## Multi-Module Architecture
+
+### 프로젝트 모듈 구조
+
+```
+mailsangja_server/
+├── settings.gradle          # 루트: 모듈 목록 선언
+├── db/                      # 공유 인프라 라이브러리 (단독 실행 불가)
+└── {feature}/               # 실행 모듈 (Spring Boot App)
+```
+
+### db 모듈 패키지 구조
+
+```
+com.mailsangja.db
+├── entity/
+│   ├── common/
+│   │   └── BaseEntity.java              # 공통 시간 필드 + Soft Delete
+│   └── {domain}/
+│       ├── {Domain}.java                # JPA Entity
+│       └── {EnumName}.java              # 도메인 Enum (같은 패키지)
+├── port/
+│   └── {Domain}RepositoryPort.java      # 순수 Java 인터페이스
+├── adapter/{domain}/
+│   └── {Domain}RepositoryAdapter.java   # Port 구현체 (@Repository)
+└── module/{domain}/
+    └── {Domain}JpaRepositoryModule.java  # extends JpaRepository
+```
+
+### Port / Adapter / JpaModule 패턴
+
+```java
+// Port — 순수 Java 인터페이스 (db 모듈: port/)
+public interface UserRepositoryPort {
+    User save(User user);
+    Optional<User> findById(UUID id);
+    Optional<User> findByUsername(String username);
+    boolean existsByUsername(String username);
+}
+
+// JpaModule — JPA 저장소 (db 모듈: module/{domain}/)
+public interface UserJpaRepositoryModule extends JpaRepository<User, UUID> {
+    Optional<User> findByUsername(String username);
+    boolean existsByUsername(String username);
+}
+
+// Adapter — Port 구현체 (db 모듈: adapter/{domain}/)
+@Repository
+@RequiredArgsConstructor
+public class UserRepositoryAdapter implements UserRepositoryPort {
+    private final UserJpaRepositoryModule userJpaRepositoryModule;
+
+    @Override
+    public User save(User user) {
+        return userJpaRepositoryModule.save(user);
+    }
+}
+```
+
+**규칙:**
+- Service 레이어는 반드시 **Port 인터페이스**만 주입받음 — `JpaRepositoryModule` 직접 주입 금지
+- `JpaRepositoryModule`은 `Adapter` 내부에서만 사용
+
+### 실행 모듈에서 db 모듈 통합
+
+실행 모듈(`core` 등)이 `db` 모듈을 참조하려면 아래 세 가지 설정이 필요합니다.
+
+**1. settings.gradle — db 모듈 경로 포함**
+
+```gradle
+rootProject.name = 'core'
+include 'db'
+project(':db').projectDir = new File('../db')
+```
+
+**2. build.gradle — 의존성 추가**
+
+```gradle
+dependencies {
+    implementation project(':db')
+}
+```
+
+**3. @SpringBootApplication — 컴포넌트 스캔 범위 확장**
+
+```java
+@EnableJpaAuditing
+@EntityScan(basePackages = "com.mailsangja.db")
+@EnableJpaRepositories(basePackages = "com.mailsangja.db")
+@SpringBootApplication(scanBasePackages = {"com.mailsangja.{module}", "com.mailsangja.db"})
+public class {Module}Application {
+    public static void main(String[] args) {
+        SpringApplication.run({Module}Application.class, args);
+    }
+}
+```
+
+| 어노테이션 | 목적 |
+|-----------|------|
+| `@EnableJpaAuditing` | BaseEntity의 `@CreatedDate`, `@LastModifiedDate` 활성화 |
+| `@EntityScan` | db 모듈 Entity 클래스 인식 |
+| `@EnableJpaRepositories` | db 모듈 JpaRepository 빈 등록 |
+| `scanBasePackages` | db 모듈 `@Repository` Adapter 빈 등록 포함 |
+
+---
+
 ## Package Structure
 
 ```
@@ -259,9 +365,11 @@ public record RegisterRequest(String email, String password, String name) {
 
 ## Entity
 
+모든 Entity는 `db` 모듈(`com.mailsangja.db.entity`) 에 위치하며 `BaseEntity`를 상속합니다.
+
 ```java
 @Entity
-@Table(name = "user")
+@Table(name = "users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -269,16 +377,41 @@ public record RegisterRequest(String email, String password, String name) {
 public class User extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     public void updateName(String name) { this.name = name; }  // Setter 금지
 }
 ```
 
 - `@NoArgsConstructor(access = PROTECTED)` 필수
-- ID 전략: `GenerationType.IDENTITY`
+- **ID 타입: `UUID`, 전략: `GenerationType.UUID`** — `Long` + `IDENTITY` 사용 금지
 - **Setter 전면 금지** — 상태 변경은 명시적 메서드
+
+### BaseEntity
+
+```java
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+@Getter
+public abstract class BaseEntity {
+
+    @CreatedDate
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime modifiedAt;
+
+    private LocalDateTime deletedAt;
+
+    public void delete() { this.deletedAt = LocalDateTime.now(); }
+    public boolean isDeleted() { return this.deletedAt != null; }
+    public void restore() { this.deletedAt = null; }
+}
+```
+
+- **Soft Delete**: 물리 삭제(`DELETE` SQL) 금지 — `delete()` 메서드로 `deletedAt` 설정
+- `@EnableJpaAuditing`은 실행 모듈의 `@SpringBootApplication` 클래스에 선언
 
 ---
 

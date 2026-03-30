@@ -1,0 +1,39 @@
+name: "User Story"
+description: "사용자 관점의 기능 요구사항을 기술합니다"
+title: "[STORY-XXX] "
+projects: ["mailsangja/1"]
+type: Story
+
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        ## 👤 User Story
+
+  - type: input
+    id: as_a
+    attributes:
+      label: 👤 As a (사용자 유형)
+      description: 어떤 사용자 유형인지 작성해주세요
+      placeholder: 예) 서비스 사용자, 관리자, 운영자
+    validations:
+      required: true
+
+  - type: input
+    id: i_want
+    attributes:
+      label: 🎯 I want to (원하는 기능)
+      description: 사용자가 하고 싶은 행동을 작성해주세요
+      placeholder: 예) 이메일을 전송하고 싶다
+    validations:
+      required: true
+
+  - type: input
+    id: so_that
+    attributes:
+      label: 💡 so that (기대 효과 / 이유)
+      description: 왜 이 기능이 필요한지 작성해주세요
+      placeholder: 예) 다른 사용자와 빠르게 소통할 수 있도록
+    validations:
+      required: true

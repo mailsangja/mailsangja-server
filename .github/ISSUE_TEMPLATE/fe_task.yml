@@ -1,0 +1,21 @@
+name: "FE Task"
+description: "FE 파트의 Task를 작성합니다"
+title: "[FE] "
+projects: ["mailsangja/1"]
+type: Task
+
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        ## ✨ FE Task
+
+  - type: input
+    id: task
+    attributes:
+      label: ✨ FE Task
+      description: 어떤 작업인지 작성해주세요
+      placeholder: 예) 프로젝트 환경 설정 및 의존성 설정
+    validations:
+      required: true
