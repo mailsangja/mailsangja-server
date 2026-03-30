@@ -1,7 +1,7 @@
 package com.mailsangja.core.dto.auth;
 
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
-import com.mailsangja.db.entity.user.enums.Plan;
 
 import java.util.UUID;
 

@@ -7,6 +7,7 @@ import com.mailsangja.core.dto.auth.RegisterRequest;
 import com.mailsangja.core.dto.auth.UserInfoResponse;
 import com.mailsangja.core.service.user.UserCommandService;
 import com.mailsangja.core.service.user.UserQueryService;
+import com.mailsangja.db.entity.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,9 @@ public class AuthFacade {
             SecurityContextHolder.setContext(context);
             securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
-            return UserInfoResponse.from(
-                    userQueryService.findByUsername(request.username())
-            );
+            return UserInfoResponse.from(userQueryService.findByUsername(request.username()));
         } catch (BadCredentialsException e) {
             throw new UserException(UserErrorCode.INVALID_CREDENTIALS);
         }
     }
-
 }
