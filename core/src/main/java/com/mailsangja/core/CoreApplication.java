@@ -7,8 +7,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @EnableJpaAuditing
-@EntityScan(basePackages = "com.mailsangja.db.entity")
-@EnableJpaRepositories(basePackages = "com.mailsangja.db.repository")
+@EntityScan(basePackages = "com.mailsangja.db")
+@EnableJpaRepositories(basePackages = "com.mailsangja.db")
 @SpringBootApplication(scanBasePackages = {"com.mailsangja.core", "com.mailsangja.db"})
 public class CoreApplication {
 
