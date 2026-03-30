@@ -1,25 +1,21 @@
 package com.mailsangja.core.common.auth;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mailsangja.db.entity.user.User;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
 @Getter
-public class CustomUserDetails implements UserDetails {
+@RequiredArgsConstructor
+public class CustomUserDetails implements UserDetails, Serializable {
 
     private final User user;
-
-    @JsonCreator
-    public CustomUserDetails(@JsonProperty("user") User user) {
-        this.user = user;
-    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
