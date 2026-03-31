@@ -38,6 +38,16 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
+    public Optional<MailAccount> findByAccountIdAndProviderAndEmailAddress(UUID accountId, MailProvider provider, String emailAddress) {
+        return mailAccountJpaRepositoryModule.findByAccountIdAndProviderAndEmailAddress(accountId, provider, emailAddress);
+    }
+
+    @Override
+    public Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress) {
+        return mailAccountJpaRepositoryModule.findByProviderAndEmailAddress(provider, emailAddress);
+    }
+
+    @Override
     public List<MailAccount> findAllByAccountId(UUID accountId) {
         return mailAccountJpaRepositoryModule.findAllByAccountId(accountId);
     }

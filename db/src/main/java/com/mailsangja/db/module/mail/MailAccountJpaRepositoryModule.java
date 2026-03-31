@@ -11,5 +11,7 @@ import java.util.UUID;
 public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccount, UUID> {
     Optional<MailAccount> findByEmailAddress(String emailAddress);
     Optional<MailAccount> findByAccountIdAndProvider(UUID accountId, MailProvider provider);
+    Optional<MailAccount> findByAccountIdAndProviderAndEmailAddress(UUID accountId, MailProvider provider, String emailAddress);
+    Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByAccountId(UUID accountId);
 }

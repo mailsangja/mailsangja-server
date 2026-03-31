@@ -12,5 +12,7 @@ public interface MailAccountRepositoryPort {
     Optional<MailAccount> findById(UUID id);
     Optional<MailAccount> findByEmailAddress(String emailAddress);
     Optional<MailAccount> findByAccountIdAndProvider(UUID accountId, MailProvider provider);
+    Optional<MailAccount> findByAccountIdAndProviderAndEmailAddress(UUID accountId, MailProvider provider, String emailAddress);
+    Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByAccountId(UUID accountId);
 }
