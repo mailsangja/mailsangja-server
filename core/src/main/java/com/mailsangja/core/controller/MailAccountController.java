@@ -48,8 +48,6 @@ public class MailAccountController implements MailAccountControllerDocs {
             @RequestParam("state") String state,
             HttpSession session
     ) {
-        validateAuthorizationCode(code);
-
         String savedState = (String) session.getAttribute(GOOGLE_OAUTH_STATE);
         String savedUserId = (String) session.getAttribute(GOOGLE_OAUTH_USER_ID);
 
@@ -70,11 +68,5 @@ public class MailAccountController implements MailAccountControllerDocs {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(mailAccountFacade.handleGoogleCallback(user, code));
-    }
-
-    private void validateAuthorizationCode(String code) {
-        if (code == null || code.isBlank() || code.contains(" ") || code.length() > 2048) {
-            throw new MailAccountException(MailAccountErrorCode.INVALID_AUTHORIZATION_CODE);
-        }
     }
 }

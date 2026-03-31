@@ -221,6 +221,14 @@ public class UserQueryService {
 }
 ```
 
+- `find*`, `get*`, `read*`, `exists*`, 목록 조회, 상세 조회, 여부 확인 등 **읽기 성격의 메서드와 로직은 `QueryService`에서만 작성한다**
+- `save*`, `create*`, `register*`, `update*`, `delete*`, 상태 변경, 토큰/카운트 갱신 등 **쓰기 성격의 메서드와 로직은 `CommandService`에서만 작성한다**
+- Repository의 읽기 메서드 호출은 `QueryService`를 기본 위치로 한다. 단, 같은 도메인 내 상태 변경 흐름에서 필요한 읽기 검증은 `CommandService`가 같은 도메인의 `QueryService`를 호출해 재사용할 수 있다
+- **동일 도메인에서는 `CommandService -> QueryService` 호출을 허용한다**
+- **동일 도메인에서도 `QueryService -> CommandService` 호출은 금지한다**
+- QueryService는 상태 변경 메서드나 저장 메서드를 가지지 않는다
+- CommandService는 저장/수정/삭제 책임을 가지며, 필요한 읽기 검증은 직접 Repository를 다시 호출하기보다 같은 도메인의 QueryService를 우선 재사용한다
+
 메서드가 2개 이하이고 모두 같은 성격이면 단일 `{Domain}Service`로 유지 가능.
 
 ---
@@ -313,6 +321,13 @@ public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ...
 - Service 결과가 Entity와 동일한 의미를 가지지 않거나, Facade에서 추가 조합/가공이 필요하면 `*Result`를 사용한다
 - 단순히 Entity 하나를 조회해 바로 `*Response.from(entity)` 또는 `*Response.of(...)`로 변환하는 흐름은 `*Result`를 생략할 수 있다
 - 상태 변경 입력은 `*Command`, 내부 처리 결과는 `*Result`로 구분한다
+
+### `*Result` / `*Command` 변환 규칙
+
+- `*Result`는 `*Command`를 직접 생성하거나 반환하지 않는다
+- 상태 변경 입력으로 변환이 필요하면 `*Command` 쪽에 `from(result, ...)` 정적 팩토리 메서드를 우선 둔다
+- 외부 연동 결과를 상태 변경 입력으로 바꿀 때는 `*Command.from(...)` 형식을 우선 사용한다
+- `from(...)` 메서드는 매핑과 조립 책임만 가지며, 복잡한 비즈니스 판단까지 포함하지 않는다
 
 ### Presentation DTO 조립 책임
 

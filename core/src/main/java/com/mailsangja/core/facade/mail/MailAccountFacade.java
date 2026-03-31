@@ -26,8 +26,9 @@ public class MailAccountFacade {
     }
 
     public MailAccountResponse handleGoogleCallback(User user, String code) {
+        validateAuthorizationCode(code);
+
         GoogleMailAccountResult result = createStubGoogleMailAccountResult(code);
-        validateGoogleMailAccountResult(result);
 
         MailAccountCreateCommand command = new MailAccountCreateCommand(
                 MailProvider.GMAIL,
@@ -37,20 +38,9 @@ public class MailAccountFacade {
                 result.refreshToken(),
                 null
         );
+        validateCreateCommand(command);
 
         return MailAccountResponse.from(mailAccountCommandService.create(user, command));
-    }
-
-    private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
-        if (result == null
-                || isBlank(result.emailAddress())
-                || isBlank(result.accessToken())
-                || result.accessTokenExpiresAt() == null
-                || isBlank(result.refreshToken())) {
-            throw new MailAccountException(
-                    MailAccountErrorCode.INVALID_OAUTH_RESULT
-            );
-        }
     }
 
     private GoogleMailAccountResult createStubGoogleMailAccountResult(String code) {
@@ -61,6 +51,25 @@ public class MailAccountFacade {
                 LocalDateTime.now().plusHours(1),
                 "stub-refresh-token"
         );
+    }
+
+    private void validateAuthorizationCode(String code) {
+        if (isBlank(code) || code.contains(" ") || code.length() > 2048) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_AUTHORIZATION_CODE);
+        }
+    }
+
+    private void validateCreateCommand(MailAccountCreateCommand command) {
+        if (command.provider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (isBlank(command.emailAddress())
+                || isBlank(command.accessToken())
+                || command.accessTokenExpiresAt() == null
+                || isBlank(command.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
     }
 
     private boolean isBlank(String value) {

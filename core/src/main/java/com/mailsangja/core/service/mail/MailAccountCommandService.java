@@ -4,12 +4,13 @@ import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.MailAccountCreateCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
-import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,21 +20,17 @@ public class MailAccountCommandService {
 
     @Transactional
     public MailAccount create(User user, MailAccountCreateCommand command) {
-        validateCommand(command);
-
-        if (mailAccountRepositoryPort.findByAccountIdAndProviderAndEmailAddress(
+        validateSameOwnerDuplicate(
+                mailAccountRepositoryPort.findByAccountIdAndProviderAndEmailAddress(
                 user.getId(),
                 command.provider(),
                 command.emailAddress()
-        ).isPresent()) {
-            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED);
-        }
+        ));
 
-        mailAccountRepositoryPort.findByProviderAndEmailAddress(command.provider(), command.emailAddress())
-                .filter(existing -> !existing.getAccountId().equals(user.getId()))
-                .ifPresent(existing -> {
-                    throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER);
-                });
+        validateAnotherOwnerDuplicate(
+                mailAccountRepositoryPort.findByProviderAndEmailAddress(command.provider(), command.emailAddress()),
+                user
+        );
 
         MailAccount mailAccount = MailAccount.builder()
                 .accountId(user.getId())
@@ -46,23 +43,28 @@ public class MailAccountCommandService {
                 .syncHistoryId(command.syncHistoryId())
                 .build();
 
-        return mailAccountRepositoryPort.save(mailAccount);
+        MailAccount savedMailAccount = mailAccountRepositoryPort.save(mailAccount);
+        validateSavedMailAccount(savedMailAccount);
+        return savedMailAccount;
     }
 
-    private void validateCommand(MailAccountCreateCommand command) {
-        if (command.provider() != MailProvider.GMAIL) {
-            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+    private void validateSameOwnerDuplicate(Optional<MailAccount> existingMailAccount) {
+        if (existingMailAccount.isPresent()) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED);
         }
+    }
 
-        if (isBlank(command.emailAddress())
-                || isBlank(command.accessToken())
-                || command.accessTokenExpiresAt() == null
-                || isBlank(command.refreshToken())) {
+    private void validateAnotherOwnerDuplicate(Optional<MailAccount> existingMailAccount, User user) {
+        existingMailAccount
+                .filter(existing -> !existing.getAccountId().equals(user.getId()))
+                .ifPresent(existing -> {
+                    throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER);
+                });
+    }
+
+    private void validateSavedMailAccount(MailAccount mailAccount) {
+        if (mailAccount == null || mailAccount.getId() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 }
