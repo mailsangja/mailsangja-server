@@ -1,7 +1,7 @@
 CREATE TYPE plan_type AS ENUM ('FREE', 'PRO', 'ENTERPRISE');
 
 CREATE TABLE IF NOT EXISTS users (
-    id              CHAR(36)    NOT NULL,
+                                     id              CHAR(36)    NOT NULL,
     name            VARCHAR(50) NOT NULL,
     username        VARCHAR(255) NOT NULL,
     password        VARCHAR(255) NOT NULL,
@@ -13,4 +13,21 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at      TIMESTAMP   NULL,
 
     PRIMARY KEY (id)
-);
+    );
+
+CREATE TABLE IF NOT EXISTS mail_accounts (
+    id                      CHAR(36)                NOT NULL,
+    account_id              CHAR(36)                NULL,
+    provider                VARCHAR(50)             NOT NULL,
+    email_address           VARCHAR(255)            NOT NULL,
+    access_token            TEXT                    NOT NULL,
+    access_token_expires_at TIMESTAMP               NOT NULL,
+    refresh_token           TEXT                    NULL,
+    is_active               BOOLEAN                 NOT NULL,
+    sync_history_id         VARCHAR(255)            NULL,
+    created_at              TIMESTAMP               NOT NULL,
+    modified_at             TIMESTAMP               NOT NULL,
+    deleted_at              TIMESTAMP               NULL,
+
+    PRIMARY KEY (id)
+    );
