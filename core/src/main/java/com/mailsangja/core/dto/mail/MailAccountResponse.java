@@ -2,15 +2,23 @@ package com.mailsangja.core.dto.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.UUID;
 
+@Schema(description = "연결된 메일 계정 응답")
 public record MailAccountResponse(
+        @Schema(description = "메일 계정 ID")
         UUID id,
+        @Schema(description = "서비스 사용자 ID")
         UUID accountId,
+        @Schema(description = "메일 제공자", example = "GMAIL")
         MailProvider provider,
+        @Schema(description = "연결된 메일 주소", example = "user@gmail.com")
         String emailAddress,
+        @Schema(description = "메일 계정 활성화 여부", example = "true")
         boolean active,
+        @Schema(description = "메일 동기화 히스토리 ID", nullable = true)
         String syncHistoryId
 ) {
     public static MailAccountResponse from(MailAccount mailAccount) {

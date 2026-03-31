@@ -57,6 +57,7 @@ Mandatory constraints:
 - Do not use class-level `@RequestMapping`; write the full path on each handler method.
 - Controller return types must be `ResponseEntity<T>`.
 - Use `@AuthUser` or `@AuthAdmin` instead of `Principal`.
+- For OAuth callback flows, controllers own session-based validation such as `state` and initiating `userId`.
 
 ## DTO Rules
 
@@ -67,6 +68,7 @@ Mandatory constraints:
 - Services must not return controller response DTOs directly.
 - Facades assemble `*Response` DTOs.
 - Prefer `from(entity)` for single-domain responses and `of(...)` for composed responses.
+- Use `*Result` for external integration results before converting them into internal `*Command` objects.
 
 ## Persistence Rules
 
@@ -84,6 +86,9 @@ Mandatory constraints:
 - Keep external I/O outside transaction boundaries.
 - `@Async` is allowed only in `PushFacade`.
 - External settings must use `@ConfigurationProperties`.
+- Gmail account connection OAuth is separate from service login OAuth.
+- In Gmail account connection flows, validate session `state` and initiating `userId` before exchanging or persisting OAuth results.
+- Persisted mail account creation must validate provider support, duplicate ownership, and required token fields.
 
 ## Review Expectations
 

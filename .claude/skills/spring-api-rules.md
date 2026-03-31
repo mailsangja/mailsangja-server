@@ -270,6 +270,7 @@ public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ...
 - **판단 기준: Controller 메서드의 파라미터/반환 타입에 직접 등장하면 `*Request` / `*Response`, 그 외 레이어 간 내부 전달이면 `*Result` / `*Command`**
 - Controller 내부 지역 변수로만 사용하더라도 HTTP I/O 목적이 아니면 `*Result` / `*Command`
 - `*Dto` 접미사 사용 금지
+- 외부 OAuth / 외부 API 응답은 먼저 `*Result`로 정리한 뒤, 저장/상태 변경 입력은 `*Command`로 변환한다
 
 ### Presentation DTO 조립 책임
 
@@ -345,6 +346,17 @@ public record RegisterRequest(String email, String password, String name) {
     public User toEntity() { ... }  // DTO가 Entity를 알아서는 안 됨
 }
 ```
+
+---
+
+## OAuth Integration Rules
+
+- 서비스 로그인 OAuth와 외부 메일 계정 연결 OAuth를 혼동하지 않는다
+- Gmail 계정 연결 플로우는 로그인된 사용자가 자신의 외부 메일 계정을 추가하는 시나리오로 설계한다
+- OAuth 인가 시작 단계에서는 Controller가 세션에 `state`와 시작 사용자 식별값을 저장한다
+- OAuth callback 단계에서는 Controller가 세션 `state`와 현재 사용자 식별값을 먼저 검증한 후 Facade를 호출한다
+- Facade는 외부 OAuth 응답을 `*Result`로 정리하고, 저장 전용 입력은 `*Command`로 변환한다
+- CommandService는 provider 지원 여부, 동일 사용자 중복 연결, 타 사용자 선점, 필수 토큰/이메일 값 누락을 검증한 뒤 저장한다
 
 ---
 
