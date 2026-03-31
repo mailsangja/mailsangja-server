@@ -167,6 +167,41 @@ Controller → Facade → CommandService / QueryService → Repository
 
 ---
 
+## Validation Rules
+
+- Validation 메서드는 검증 책임이 있는 계층 내부의 `private` 메서드로 작성한다
+- **Facade는 위에서 아래로 들어오는 입력을 검증한다**
+- Controller에서 전달받은 `*Request`, 쿼리 파라미터, path variable, 세션 값 등은 Facade에서 private validation 메서드로 검증한다
+- Facade는 외부 연동 호출 전, 상위 계층에서 내려온 값이 도메인 흐름에 들어가도 되는지 판단하는 역할을 가진다
+- **Service는 아래에서 위로 올라오는 결과를 검증한다**
+- Repository에서 조회한 Entity, 외부 API 호출 결과, 캐시 조회 결과 등은 Service에서 private validation 메서드로 검증한다
+- Service는 저장/조회 결과가 비즈니스 규칙에 맞는지, null 또는 비정상 상태가 아닌지 판단하는 역할을 가진다
+- 단순 `null` 체크라도 계층 책임에 맞는 위치에서 수행한다. 상위 입력 검증은 Facade, 하위 결과 검증은 Service에서 처리한다
+
+```java
+// Facade: 상위 입력 검증
+public class MailAccountFacade {
+    public MailAccountResponse handleGoogleCallback(User user, String code) {
+        validateAuthorizationCode(code);
+        ...
+    }
+
+    private void validateAuthorizationCode(String code) { ... }
+}
+
+// Service: 하위 결과 검증
+public class MailAccountCommandService {
+    public MailAccount create(User user, MailAccountCreateCommand command) {
+        validateCommand(command);
+        ...
+    }
+
+    private void validateCommand(MailAccountCreateCommand command) { ... }
+}
+```
+
+---
+
 ## Command / Query Service Split
 
 ```java
@@ -271,6 +306,13 @@ public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ...
 - Controller 내부 지역 변수로만 사용하더라도 HTTP I/O 목적이 아니면 `*Result` / `*Command`
 - `*Dto` 접미사 사용 금지
 - 외부 OAuth / 외부 API 응답은 먼저 `*Result`로 정리한 뒤, 저장/상태 변경 입력은 `*Command`로 변환한다
+
+### `*Result` 사용 기준
+
+- 외부 API 응답을 내부 표준 형태로 변환할 때 `*Result`를 우선 고려한다
+- Service 결과가 Entity와 동일한 의미를 가지지 않거나, Facade에서 추가 조합/가공이 필요하면 `*Result`를 사용한다
+- 단순히 Entity 하나를 조회해 바로 `*Response.from(entity)` 또는 `*Response.of(...)`로 변환하는 흐름은 `*Result`를 생략할 수 있다
+- 상태 변경 입력은 `*Command`, 내부 처리 결과는 `*Result`로 구분한다
 
 ### Presentation DTO 조립 책임
 
