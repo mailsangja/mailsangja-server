@@ -10,6 +10,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 import static com.mailsangja.db.entity.user.Plan.FREE;
 import static com.mailsangja.db.entity.user.Role.USER;
 
@@ -36,5 +38,11 @@ public class UserCommandService {
                 .build();
 
         return userRepositoryPort.save(user);
+    }
+
+    @Transactional
+    public void updateDefaultAccount(User user, UUID mailAccountId) {
+        user.updateDefaultAccount(mailAccountId);
+        userRepositoryPort.save(user);
     }
 }
