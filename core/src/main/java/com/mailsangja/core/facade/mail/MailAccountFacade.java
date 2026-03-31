@@ -29,15 +29,7 @@ public class MailAccountFacade {
         validateAuthorizationCode(code);
 
         GoogleMailAccountResult result = createStubGoogleMailAccountResult(code);
-
-        MailAccountCreateCommand command = new MailAccountCreateCommand(
-                MailProvider.GMAIL,
-                result.emailAddress(),
-                result.accessToken(),
-                result.accessTokenExpiresAt(),
-                result.refreshToken(),
-                null
-        );
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result);
         validateCreateCommand(command);
 
         return MailAccountResponse.from(mailAccountCommandService.create(user, command));

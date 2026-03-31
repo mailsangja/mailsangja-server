@@ -12,4 +12,14 @@ public record MailAccountCreateCommand(
         String refreshToken,
         String syncHistoryId
 ) {
+    public static MailAccountCreateCommand from(MailProvider provider, GoogleMailAccountResult result) {
+        return new MailAccountCreateCommand(
+                provider,
+                result.emailAddress(),
+                result.accessToken(),
+                result.accessTokenExpiresAt(),
+                result.refreshToken(),
+                null
+        );
+    }
 }

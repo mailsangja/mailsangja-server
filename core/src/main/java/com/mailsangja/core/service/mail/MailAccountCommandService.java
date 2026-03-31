@@ -17,18 +17,19 @@ import java.util.Optional;
 public class MailAccountCommandService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
+    private final MailAccountQueryService mailAccountQueryService;
 
     @Transactional
     public MailAccount create(User user, MailAccountCreateCommand command) {
         validateSameOwnerDuplicate(
-                mailAccountRepositoryPort.findByAccountIdAndProviderAndEmailAddress(
+                mailAccountQueryService.findByAccountIdAndProviderAndEmailAddress(
                 user.getId(),
                 command.provider(),
                 command.emailAddress()
         ));
 
         validateAnotherOwnerDuplicate(
-                mailAccountRepositoryPort.findByProviderAndEmailAddress(command.provider(), command.emailAddress()),
+                mailAccountQueryService.findByProviderAndEmailAddress(command.provider(), command.emailAddress()),
                 user
         );
 
