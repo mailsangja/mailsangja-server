@@ -33,13 +33,13 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
-    public Optional<MailAccount> findByAccountIdAndProvider(UUID accountId, MailProvider provider) {
-        return mailAccountJpaRepositoryModule.findByAccountIdAndProvider(accountId, provider);
+    public Optional<MailAccount> findByUserIdAndProvider(UUID userId, MailProvider provider) {
+        return mailAccountJpaRepositoryModule.findByUserIdAndProvider(userId, provider);
     }
 
     @Override
-    public Optional<MailAccount> findByAccountIdAndProviderAndEmailAddress(UUID accountId, MailProvider provider, String emailAddress) {
-        return mailAccountJpaRepositoryModule.findByAccountIdAndProviderAndEmailAddress(accountId, provider, emailAddress);
+    public Optional<MailAccount> findByUserIdAndProviderAndEmailAddress(UUID userId, MailProvider provider, String emailAddress) {
+        return mailAccountJpaRepositoryModule.findByUserIdAndProviderAndEmailAddress(userId, provider, emailAddress);
     }
 
     @Override
@@ -48,7 +48,7 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
-    public List<MailAccount> findAllByAccountId(UUID accountId) {
-        return mailAccountJpaRepositoryModule.findAllByAccountId(accountId);
+    public List<MailAccount> findAllByUserId(UUID userId) {
+        return mailAccountJpaRepositoryModule.findAllByUserId(userId);
     }
 }

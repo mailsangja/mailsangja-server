@@ -15,7 +15,8 @@ public enum MailAccountErrorCode implements ErrorCode {
     UNSUPPORTED_MAIL_PROVIDER(400, "MS-MAIL-UNSUPPORTED-PROVIDER", "지원하지 않는 메일 제공자입니다."),
     INVALID_OAUTH_RESULT(400, "MS-MAIL-INVALID-OAUTH-RESULT", "OAuth 응답값이 올바르지 않습니다."),
     MAIL_ACCOUNT_ALREADY_CONNECTED(409, "MS-MAIL-ACCOUNT-ALREADY-CONNECTED", "이미 연결된 메일 계정입니다."),
-    MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER(409, "MS-MAIL-ACCOUNT-ALREADY-CONNECTED-BY-ANOTHER-USER", "다른 사용자가 이미 연결한 메일 계정입니다.");
+    MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER(409, "MS-MAIL-ACCOUNT-ALREADY-CONNECTED-BY-ANOTHER-USER", "다른 사용자가 이미 연결한 메일 계정입니다."),
+    MAIL_ACCOUNT_NOT_FOUND(404, "MS-MAIL-ACCOUNT-NOT-FOUND", "메일 계정을 찾을 수 없습니다.");
 
     private final int status;
     private final String code;
