@@ -167,6 +167,41 @@ Controller → Facade → CommandService / QueryService → Repository
 
 ---
 
+## Validation Rules
+
+- Validation 메서드는 검증 책임이 있는 계층 내부의 `private` 메서드로 작성한다
+- **Facade는 위에서 아래로 들어오는 입력을 검증한다**
+- Controller에서 전달받은 `*Request`, 쿼리 파라미터, path variable, 세션 값 등은 Facade에서 private validation 메서드로 검증한다
+- Facade는 외부 연동 호출 전, 상위 계층에서 내려온 값이 도메인 흐름에 들어가도 되는지 판단하는 역할을 가진다
+- **Service는 아래에서 위로 올라오는 결과를 검증한다**
+- Repository에서 조회한 Entity, 외부 API 호출 결과, 캐시 조회 결과 등은 Service에서 private validation 메서드로 검증한다
+- Service는 저장/조회 결과가 비즈니스 규칙에 맞는지, null 또는 비정상 상태가 아닌지 판단하는 역할을 가진다
+- 단순 `null` 체크라도 계층 책임에 맞는 위치에서 수행한다. 상위 입력 검증은 Facade, 하위 결과 검증은 Service에서 처리한다
+
+```java
+// Facade: 상위 입력 검증
+public class MailAccountFacade {
+    public MailAccountResponse handleGoogleCallback(User user, String code) {
+        validateAuthorizationCode(code);
+        ...
+    }
+
+    private void validateAuthorizationCode(String code) { ... }
+}
+
+// Service: 하위 결과 검증
+public class MailAccountCommandService {
+    public MailAccount create(User user, MailAccountCreateCommand command) {
+        validateCommand(command);
+        ...
+    }
+
+    private void validateCommand(MailAccountCreateCommand command) { ... }
+}
+```
+
+---
+
 ## Command / Query Service Split
 
 ```java
@@ -185,6 +220,14 @@ public class UserQueryService {
     // findById(), getList() 등 조회 전용 메서드 (@Transactional 불필요)
 }
 ```
+
+- `find*`, `get*`, `read*`, `exists*`, 목록 조회, 상세 조회, 여부 확인 등 **읽기 성격의 메서드와 로직은 `QueryService`에서만 작성한다**
+- `save*`, `create*`, `register*`, `update*`, `delete*`, 상태 변경, 토큰/카운트 갱신 등 **쓰기 성격의 메서드와 로직은 `CommandService`에서만 작성한다**
+- Repository의 읽기 메서드 호출은 `QueryService`를 기본 위치로 한다. 단, 같은 도메인 내 상태 변경 흐름에서 필요한 읽기 검증은 `CommandService`가 같은 도메인의 `QueryService`를 호출해 재사용할 수 있다
+- **동일 도메인에서는 `CommandService -> QueryService` 호출을 허용한다**
+- **동일 도메인에서도 `QueryService -> CommandService` 호출은 금지한다**
+- QueryService는 상태 변경 메서드나 저장 메서드를 가지지 않는다
+- CommandService는 저장/수정/삭제 책임을 가지며, 필요한 읽기 검증은 직접 Repository를 다시 호출하기보다 같은 도메인의 QueryService를 우선 재사용한다
 
 메서드가 2개 이하이고 모두 같은 성격이면 단일 `{Domain}Service`로 유지 가능.
 
@@ -270,6 +313,21 @@ public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ...
 - **판단 기준: Controller 메서드의 파라미터/반환 타입에 직접 등장하면 `*Request` / `*Response`, 그 외 레이어 간 내부 전달이면 `*Result` / `*Command`**
 - Controller 내부 지역 변수로만 사용하더라도 HTTP I/O 목적이 아니면 `*Result` / `*Command`
 - `*Dto` 접미사 사용 금지
+- 외부 OAuth / 외부 API 응답은 먼저 `*Result`로 정리한 뒤, 저장/상태 변경 입력은 `*Command`로 변환한다
+
+### `*Result` 사용 기준
+
+- 외부 API 응답을 내부 표준 형태로 변환할 때 `*Result`를 우선 고려한다
+- Service 결과가 Entity와 동일한 의미를 가지지 않거나, Facade에서 추가 조합/가공이 필요하면 `*Result`를 사용한다
+- 단순히 Entity 하나를 조회해 바로 `*Response.from(entity)` 또는 `*Response.of(...)`로 변환하는 흐름은 `*Result`를 생략할 수 있다
+- 상태 변경 입력은 `*Command`, 내부 처리 결과는 `*Result`로 구분한다
+
+### `*Result` / `*Command` 변환 규칙
+
+- `*Result`는 `*Command`를 직접 생성하거나 반환하지 않는다
+- 상태 변경 입력으로 변환이 필요하면 `*Command` 쪽에 `from(result, ...)` 정적 팩토리 메서드를 우선 둔다
+- 외부 연동 결과를 상태 변경 입력으로 바꿀 때는 `*Command.from(...)` 형식을 우선 사용한다
+- `from(...)` 메서드는 매핑과 조립 책임만 가지며, 복잡한 비즈니스 판단까지 포함하지 않는다
 
 ### Presentation DTO 조립 책임
 
@@ -345,6 +403,17 @@ public record RegisterRequest(String email, String password, String name) {
     public User toEntity() { ... }  // DTO가 Entity를 알아서는 안 됨
 }
 ```
+
+---
+
+## OAuth Integration Rules
+
+- 서비스 로그인 OAuth와 외부 메일 계정 연결 OAuth를 혼동하지 않는다
+- Gmail 계정 연결 플로우는 로그인된 사용자가 자신의 외부 메일 계정을 추가하는 시나리오로 설계한다
+- OAuth 인가 시작 단계에서는 Controller가 세션에 `state`와 시작 사용자 식별값을 저장한다
+- OAuth callback 단계에서는 Controller가 세션 `state`와 현재 사용자 식별값을 먼저 검증한 후 Facade를 호출한다
+- Facade는 외부 OAuth 응답을 `*Result`로 정리하고, 저장 전용 입력은 `*Command`로 변환한다
+- CommandService는 provider 지원 여부, 동일 사용자 중복 연결, 타 사용자 선점, 필수 토큰/이메일 값 누락을 검증한 뒤 저장한다
 
 ---
 
