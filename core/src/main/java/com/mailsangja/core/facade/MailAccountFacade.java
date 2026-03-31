@@ -1,4 +1,4 @@
-package com.mailsangja.core.facade.mail;
+package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;

@@ -6,7 +6,7 @@ import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.controller.docs.MailAccountControllerDocs;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
-import com.mailsangja.core.facade.mail.MailAccountFacade;
+import com.mailsangja.core.facade.MailAccountFacade;
 import com.mailsangja.db.entity.user.User;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;

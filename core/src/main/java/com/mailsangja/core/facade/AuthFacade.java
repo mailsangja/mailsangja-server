@@ -1,4 +1,4 @@
-package com.mailsangja.core.facade.auth;
+package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.user.UserErrorCode;
 import com.mailsangja.core.common.exception.user.UserException;
