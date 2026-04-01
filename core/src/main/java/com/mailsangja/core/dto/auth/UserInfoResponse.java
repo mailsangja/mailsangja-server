@@ -21,7 +21,10 @@ public record UserInfoResponse(
         Plan plan,
 
         @Schema(description = "크레딧 사용량", example = "0")
-        int creditUsage
+        int creditUsage,
+
+        @Schema(description = "기본 발신 메일 계정 ID", nullable = true)
+        UUID defaultMailAccountId
 ) {
     public static UserInfoResponse from(User user) {
         return new UserInfoResponse(
@@ -29,7 +32,8 @@ public record UserInfoResponse(
                 user.getName(),
                 user.getUsername(),
                 user.getPlan(),
-                user.getCreditUsage()
+                user.getCreditUsage(),
+                user.getDefaultAccount()
         );
     }
 }

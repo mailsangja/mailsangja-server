@@ -1,17 +1,14 @@
 package com.mailsangja.core.controller.docs;
 
-import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.dto.auth.LoginRequest;
 import com.mailsangja.core.dto.auth.RegisterRequest;
 import com.mailsangja.core.dto.auth.UserInfoResponse;
-import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -72,22 +69,4 @@ public interface AuthControllerDocs {
             @Parameter(hidden = true) HttpServletResponse httpResponse
     );
 
-    @Operation(
-            summary = "내 정보 조회",
-            description = "현재 로그인된 사용자의 정보를 반환합니다. SESSION 쿠키가 필요합니다.",
-            security = @SecurityRequirement(name = "cookieAuth")
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = UserInfoResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "인증 필요 (로그인되지 않은 상태)",
-                    content = @Content(schema = @Schema(hidden = true))
-            )
-    })
-    ResponseEntity<UserInfoResponse> me(@Parameter(hidden = true) @AuthUser User user);
 }

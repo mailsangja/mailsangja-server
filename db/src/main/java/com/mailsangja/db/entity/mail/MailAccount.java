@@ -1,13 +1,17 @@
 package com.mailsangja.db.entity.mail;
 
 import com.mailsangja.db.entity.common.BaseEntity;
+import com.mailsangja.db.entity.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -34,9 +38,9 @@ public class MailAccount extends BaseEntity {
     @JdbcTypeCode(SqlTypes.CHAR)
     private UUID id;
 
-    @Column(name = "account_id", columnDefinition = "CHAR(36)")
-    @JdbcTypeCode(SqlTypes.CHAR)
-    private UUID accountId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false, length = 50)
@@ -59,10 +63,6 @@ public class MailAccount extends BaseEntity {
 
     @Column(name = "sync_history_id", length = 255)
     private String syncHistoryId;
-
-    public void updateAccountId(UUID accountId) {
-        this.accountId = accountId;
-    }
 
     public void updateAccessToken(String accessToken) {
         this.accessToken = accessToken;

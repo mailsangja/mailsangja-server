@@ -2,6 +2,7 @@ package com.mailsangja.db.module.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -10,8 +11,18 @@ import java.util.UUID;
 
 public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccount, UUID> {
     Optional<MailAccount> findByEmailAddress(String emailAddress);
-    Optional<MailAccount> findByAccountIdAndProvider(UUID accountId, MailProvider provider);
-    Optional<MailAccount> findByAccountIdAndProviderAndEmailAddress(UUID accountId, MailProvider provider, String emailAddress);
+    Optional<MailAccount> findByUserIdAndProvider(UUID userId, MailProvider provider);
+    Optional<MailAccount> findByUserIdAndProviderAndEmailAddress(UUID userId, MailProvider provider, String emailAddress);
+
+    @EntityGraph(attributePaths = {"user"})
     Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress);
-    List<MailAccount> findAllByAccountId(UUID accountId);
+
+    @EntityGraph(attributePaths = {"user"})
+    Optional<MailAccount> findById(UUID id);
+
+    @EntityGraph(attributePaths = {"user"})
+    Optional<MailAccount> findByIdAndActive(UUID id, boolean active);
+
+    @EntityGraph(attributePaths = {"user"})
+    List<MailAccount> findAllByUserId(UUID userId);
 }

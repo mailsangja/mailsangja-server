@@ -22,7 +22,7 @@ public class MailAccountCommandService {
     @Transactional
     public MailAccount create(User user, MailAccountCreateCommand command) {
         validateSameOwnerDuplicate(
-                mailAccountQueryService.findByAccountIdAndProviderAndEmailAddress(
+                mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
                 user.getId(),
                 command.provider(),
                 command.emailAddress()
@@ -34,7 +34,7 @@ public class MailAccountCommandService {
         );
 
         MailAccount mailAccount = MailAccount.builder()
-                .accountId(user.getId())
+                .user(user)
                 .provider(command.provider())
                 .emailAddress(command.emailAddress())
                 .accessToken(command.accessToken())
@@ -57,7 +57,7 @@ public class MailAccountCommandService {
 
     private void validateAnotherOwnerDuplicate(Optional<MailAccount> existingMailAccount, User user) {
         existingMailAccount
-                .filter(existing -> !existing.getAccountId().equals(user.getId()))
+                .filter(existing -> !existing.getUser().getId().equals(user.getId()))
                 .ifPresent(existing -> {
                     throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER);
                 });

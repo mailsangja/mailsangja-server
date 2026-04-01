@@ -11,7 +11,7 @@ public record MailAccountResponse(
         @Schema(description = "메일 계정 ID")
         UUID id,
         @Schema(description = "서비스 사용자 ID")
-        UUID accountId,
+        UUID userId,
         @Schema(description = "메일 제공자", example = "GMAIL")
         MailProvider provider,
         @Schema(description = "연결된 메일 주소", example = "user@gmail.com")
@@ -24,7 +24,7 @@ public record MailAccountResponse(
     public static MailAccountResponse from(MailAccount mailAccount) {
         return new MailAccountResponse(
                 mailAccount.getId(),
-                mailAccount.getAccountId(),
+                mailAccount.getUser().getId(),
                 mailAccount.getProvider(),
                 mailAccount.getEmailAddress(),
                 mailAccount.isActive(),
