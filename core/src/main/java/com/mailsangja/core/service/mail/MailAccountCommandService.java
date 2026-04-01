@@ -2,8 +2,10 @@ package com.mailsangja.core.service.mail;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
+import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.MailAccountCreateCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,12 @@ public class MailAccountCommandService {
     private final MailAccountQueryService mailAccountQueryService;
 
     @Transactional
-    public MailAccount create(User user, MailAccountCreateCommand command) {
+    public MailAccount createGoogleMailAccount(User user, GoogleMailAccountResult result) {
+        validateGoogleMailAccountResult(result);
+
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result);
+        validateCreateCommand(command);
+
         validateSameOwnerDuplicate(
                 mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
                 user.getId(),
@@ -49,6 +56,29 @@ public class MailAccountCommandService {
         return savedMailAccount;
     }
 
+    private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
+        if (result == null
+                || isBlank(result.emailAddress())
+                || isBlank(result.accessToken())
+                || result.accessTokenExpiresAt() == null
+                || isBlank(result.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
+    }
+
+    private void validateCreateCommand(MailAccountCreateCommand command) {
+        if (command.provider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (isBlank(command.emailAddress())
+                || isBlank(command.accessToken())
+                || command.accessTokenExpiresAt() == null
+                || isBlank(command.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
+    }
+
     private void validateSameOwnerDuplicate(Optional<MailAccount> existingMailAccount) {
         if (existingMailAccount.isPresent()) {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED);
@@ -67,5 +97,9 @@ public class MailAccountCommandService {
         if (mailAccount == null || mailAccount.getId() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
