@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -60,7 +61,7 @@ public interface UserControllerDocs {
     })
     ResponseEntity<Void> updateDefaultAccount(
             @Parameter(hidden = true) @AuthUser User user,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            @RequestBody(
                     description = "기본 발신 메일 계정 수정 요청",
                     required = true,
                     content = @Content(schema = @Schema(implementation = UpdateDefaultAccountRequest.class))
