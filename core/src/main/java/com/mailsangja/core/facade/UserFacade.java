@@ -23,7 +23,7 @@ public class UserFacade {
     }
 
     public void updateDefaultAccount(User user, UpdateDefaultAccountRequest request) {
-        MailAccount mailAccount = mailAccountQueryService.findById(request.mailAccountId());
+        MailAccount mailAccount = mailAccountQueryService.findActiveById(request.mailAccountId());
 
         if (!mailAccount.getUser().getId().equals(user.getId())) {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND);

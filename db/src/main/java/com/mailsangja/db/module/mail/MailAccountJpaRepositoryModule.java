@@ -21,5 +21,8 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
     Optional<MailAccount> findById(UUID id);
 
     @EntityGraph(attributePaths = {"user"})
+    Optional<MailAccount> findByIdAndActive(UUID id, boolean active);
+
+    @EntityGraph(attributePaths = {"user"})
     List<MailAccount> findAllByUserId(UUID userId);
 }

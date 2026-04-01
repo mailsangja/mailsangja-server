@@ -23,6 +23,11 @@ public class MailAccountQueryService {
                 .orElseThrow(() -> new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND));
     }
 
+    public MailAccount findActiveById(UUID id) {
+        return mailAccountRepositoryPort.findByIdAndActive(id, true)
+                .orElseThrow(() -> new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+    }
+
     public Optional<MailAccount> findByUserIdAndProviderAndEmailAddress(UUID userId, MailProvider provider, String emailAddress) {
         return mailAccountRepositoryPort.findByUserIdAndProviderAndEmailAddress(userId, provider, emailAddress);
     }
