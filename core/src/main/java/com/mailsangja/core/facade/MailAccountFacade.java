@@ -2,38 +2,26 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
-import com.mailsangja.core.config.properties.GoogleOAuthProperties;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
+import com.mailsangja.core.service.mail.GoogleOAuthQueryService;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
-import java.util.StringJoiner;
 
 @Component
 @RequiredArgsConstructor
 public class MailAccountFacade {
 
     private final MailAccountCommandService mailAccountCommandService;
-    private final GoogleOAuthProperties googleOAuthProperties;
+    private final GoogleOAuthQueryService googleOAuthQueryService;
 
     public MailAccountAuthorizeResponse authorizeGoogle(String state) {
-        String authorizationUrl = UriComponentsBuilder
-                .fromUriString(googleOAuthProperties.getAuthorizationUri())
-                .queryParam("client_id", googleOAuthProperties.getClientId())
-                .queryParam("redirect_uri", googleOAuthProperties.getRedirectUri())
-                .queryParam("response_type", "code")
-                .queryParam("scope", buildScopeValue())
-                .queryParam("access_type", "offline")
-                .queryParam("prompt", "consent")
-                .queryParam("state", state)
-                .build()
-                .toUriString();
+        String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
         return new MailAccountAuthorizeResponse(authorizationUrl);
     }
 
@@ -62,13 +50,5 @@ public class MailAccountFacade {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
-    }
-
-    private String buildScopeValue() {
-        StringJoiner scopeJoiner = new StringJoiner(" ");
-        for (String scope : googleOAuthProperties.getScopes()) {
-            scopeJoiner.add(scope);
-        }
-        return scopeJoiner.toString();
     }
 }
