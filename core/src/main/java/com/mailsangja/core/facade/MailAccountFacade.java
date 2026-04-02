@@ -5,12 +5,17 @@ import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
+import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
+import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -19,6 +24,7 @@ public class MailAccountFacade {
     private static final String HEX_COLOR_REGEX = "^#[0-9A-Fa-f]{6}$";
 
     private final MailAccountCommandService mailAccountCommandService;
+    private final MailAccountQueryService mailAccountQueryService;
     private final GoogleOAuthQueryService googleOAuthQueryService;
 
     public MailAccountAuthorizeResponse authorizeGoogle(String state, MailAccountAuthorizeRequest request) {
@@ -42,6 +48,13 @@ public class MailAccountFacade {
         return MailAccountResponse.from(
                 mailAccountCommandService.createGoogleMailAccount(user, result, alias, icon, color)
         );
+    }
+
+    public List<MailAccountListResponse> getMyMailAccounts(User user) {
+        List<MailAccount> mailAccounts = mailAccountQueryService.findAllByUserId(user.getId());
+        return mailAccounts.stream()
+                .map(MailAccountListResponse::from)
+                .toList();
     }
 
     private void validateAuthorizeRequest(MailAccountAuthorizeRequest request) {

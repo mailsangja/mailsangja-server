@@ -6,6 +6,7 @@ import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.controller.docs.MailAccountControllerDocs;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
+import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.facade.MailAccountFacade;
 import com.mailsangja.db.entity.user.User;
 import jakarta.servlet.http.HttpSession;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -30,6 +32,12 @@ public class MailAccountController implements MailAccountControllerDocs {
     private static final String GOOGLE_OAUTH_COLOR = "google_oauth_color";
 
     private final MailAccountFacade mailAccountFacade;
+
+    @Override
+    @GetMapping("/api/v1/mail-accounts")
+    public ResponseEntity<List<MailAccountListResponse>> getMyMailAccounts(@AuthUser User user) {
+        return ResponseEntity.ok(mailAccountFacade.getMyMailAccounts(user));
+    }
 
     @Override
     @GetMapping("/api/v1/mail-accounts/google/authorize")

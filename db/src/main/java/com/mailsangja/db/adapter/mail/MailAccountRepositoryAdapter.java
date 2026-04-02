@@ -53,7 +53,7 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
-    public List<MailAccount> findAllByUserId(UUID userId) {
-        return mailAccountJpaRepositoryModule.findAllByUserId(userId);
+    public List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId) {
+        return mailAccountJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNull(userId);
     }
 }

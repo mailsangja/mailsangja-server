@@ -3,9 +3,11 @@ package com.mailsangja.core.controller.docs;
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
+import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,8 +18,31 @@ import jakarta.servlet.http.HttpSession;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
+
 @Tag(name = "Mail Account", description = "메일 계정 연동 API")
 public interface MailAccountControllerDocs {
+
+    @Operation(
+            summary = "내 메일 계정 목록 조회",
+            description = "로그인한 사용자의 삭제되지 않은 메일 계정 목록을 조회합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "메일 계정 목록 조회 성공",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = MailAccountListResponse.class)))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true))
+            )
+    })
+    ResponseEntity<List<MailAccountListResponse>> getMyMailAccounts(
+            @Parameter(hidden = true) @AuthUser User user
+    );
 
     @Operation(
             summary = "Google OAuth 인가 URL 생성",
