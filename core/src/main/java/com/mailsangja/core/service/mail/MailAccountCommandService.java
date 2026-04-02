@@ -22,18 +22,19 @@ public class MailAccountCommandService {
     private final MailAccountQueryService mailAccountQueryService;
 
     @Transactional
-    public MailAccount createGoogleMailAccount(User user, GoogleMailAccountResult result) {
+    public MailAccount createGoogleMailAccount(User user, GoogleMailAccountResult result, String icon, String color) {
         validateGoogleMailAccountResult(result);
 
-        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result);
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result, icon, color);
         validateCreateCommand(command);
 
         validateSameOwnerDuplicate(
                 mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
-                user.getId(),
-                command.provider(),
-                command.emailAddress()
-        ));
+                        user.getId(),
+                        command.provider(),
+                        command.emailAddress()
+                )
+        );
 
         validateAnotherOwnerDuplicate(
                 mailAccountQueryService.findByProviderAndEmailAddress(command.provider(), command.emailAddress()),
@@ -44,6 +45,8 @@ public class MailAccountCommandService {
                 .user(user)
                 .provider(command.provider())
                 .emailAddress(command.emailAddress())
+                .icon(command.icon())
+                .color(command.color())
                 .accessToken(command.accessToken())
                 .accessTokenExpiresAt(command.accessTokenExpiresAt())
                 .refreshToken(command.refreshToken())
@@ -75,6 +78,8 @@ public class MailAccountCommandService {
         }
 
         if (isBlank(command.emailAddress())
+                || isBlank(command.icon())
+                || isBlank(command.color())
                 || isBlank(command.accessToken())
                 || command.accessTokenExpiresAt() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);

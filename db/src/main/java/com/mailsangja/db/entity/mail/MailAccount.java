@@ -49,6 +49,12 @@ public class MailAccount extends BaseEntity {
     @Column(name = "email_address", nullable = false, length = 255)
     private String emailAddress;
 
+    @Column(name = "icon", nullable = false, length = 255)
+    private String icon;
+
+    @Column(name = "color", nullable = false, length = 7)
+    private String color;
+
     @Column(name = "access_token", nullable = false, columnDefinition = "TEXT")
     private String accessToken;
 
@@ -74,6 +80,14 @@ public class MailAccount extends BaseEntity {
 
     public void updateRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
+    }
+
+    public void updateIcon(String icon) {
+        this.icon = icon;
+    }
+
+    public void updateColor(String color) {
+        this.color = color;
     }
 
     public void updateSyncHistoryId(String syncHistoryId) {

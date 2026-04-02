@@ -1,6 +1,7 @@
 package com.mailsangja.core.controller.docs;
 
 import com.mailsangja.core.common.auth.AuthUser;
+import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Mail Account", description = "메일 계정 연동 API")
@@ -19,7 +21,7 @@ public interface MailAccountControllerDocs {
 
     @Operation(
             summary = "Google OAuth 인가 URL 생성",
-            description = "로그인한 사용자의 세션에 OAuth state와 userId를 저장하고 Google OAuth 인가 URL을 반환합니다.",
+            description = "로그인한 사용자의 세션에 OAuth state, userId, icon, color를 저장하고 Google OAuth 인가 URL을 반환합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -29,6 +31,11 @@ public interface MailAccountControllerDocs {
                     content = @Content(schema = @Schema(implementation = MailAccountAuthorizeResponse.class))
             ),
             @ApiResponse(
+                    responseCode = "400",
+                    description = "icon 또는 color 값이 유효하지 않음",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
                     responseCode = "401",
                     description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))
@@ -36,6 +43,7 @@ public interface MailAccountControllerDocs {
     })
     ResponseEntity<MailAccountAuthorizeResponse> authorizeGoogle(
             @Parameter(hidden = true) @AuthUser User user,
+            @ParameterObject MailAccountAuthorizeRequest request,
             @Parameter(hidden = true) HttpSession session
     );
 
@@ -52,7 +60,7 @@ public interface MailAccountControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "인가 코드, state, OAuth 응답값 또는 refresh token 이 유효하지 않음",
+                    description = "인가 코드, state, icon, color, OAuth 응답값 또는 refresh token 이 유효하지 않음",
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(

@@ -16,7 +16,11 @@ public record MailAccountResponse(
         MailProvider provider,
         @Schema(description = "연결된 메일 주소", example = "user@gmail.com")
         String emailAddress,
-        @Schema(description = "메일 계정 활성화 여부", example = "true")
+        @Schema(description = "메일 계정 아이콘", example = "mail")
+        String icon,
+        @Schema(description = "메일 계정 색상 HEX 값", example = "#4F46E5")
+        String color,
+        @Schema(description = "메일 계정 활성 여부", example = "true")
         boolean active,
         @Schema(description = "메일 동기화 히스토리 ID", nullable = true)
         String syncHistoryId
@@ -27,6 +31,8 @@ public record MailAccountResponse(
                 mailAccount.getUser().getId(),
                 mailAccount.getProvider(),
                 mailAccount.getEmailAddress(),
+                mailAccount.getIcon(),
+                mailAccount.getColor(),
                 mailAccount.isActive(),
                 mailAccount.getSyncHistoryId()
         );
