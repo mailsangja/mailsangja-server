@@ -5,17 +5,16 @@ import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.controller.docs.MailAccountControllerDocs;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
-import com.mailsangja.core.dto.mail.MailAccountResponse;
 import com.mailsangja.core.facade.MailAccountFacade;
 import com.mailsangja.db.entity.user.User;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
 import java.util.UUID;
 
 @RestController
@@ -42,7 +41,7 @@ public class MailAccountController implements MailAccountControllerDocs {
 
     @Override
     @GetMapping("/api/v1/mail-accounts/google/callback")
-    public ResponseEntity<MailAccountResponse> googleCallback(
+    public ResponseEntity<Void> googleCallback(
             @AuthUser User user,
             @RequestParam("code") String code,
             @RequestParam("state") String state,
@@ -66,7 +65,10 @@ public class MailAccountController implements MailAccountControllerDocs {
         session.removeAttribute(GOOGLE_OAUTH_STATE);
         session.removeAttribute(GOOGLE_OAUTH_USER_ID);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mailAccountFacade.handleGoogleCallback(user, code));
+        mailAccountFacade.handleGoogleCallback(user, code);
+
+        return ResponseEntity.status(302)
+                .location(URI.create("/"))
+                .build();
     }
 }
