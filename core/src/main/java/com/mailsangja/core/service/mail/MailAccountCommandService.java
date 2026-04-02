@@ -60,9 +60,12 @@ public class MailAccountCommandService {
         if (result == null
                 || isBlank(result.emailAddress())
                 || isBlank(result.accessToken())
-                || result.accessTokenExpiresAt() == null
-                || isBlank(result.refreshToken())) {
+                || result.accessTokenExpiresAt() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
+
+        if (isBlank(result.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
     }
 
@@ -73,9 +76,12 @@ public class MailAccountCommandService {
 
         if (isBlank(command.emailAddress())
                 || isBlank(command.accessToken())
-                || command.accessTokenExpiresAt() == null
-                || isBlank(command.refreshToken())) {
+                || command.accessTokenExpiresAt() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
+
+        if (isBlank(command.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
     }
 

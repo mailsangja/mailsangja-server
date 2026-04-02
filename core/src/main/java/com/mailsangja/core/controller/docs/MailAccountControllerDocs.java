@@ -53,7 +53,7 @@ public interface MailAccountControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "인가 코드, state 또는 OAuth 응답값이 유효하지 않음",
+                    description = "인가 코드, state, OAuth 응답값 또는 refresh token 이 유효하지 않음",
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
