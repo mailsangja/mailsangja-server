@@ -126,6 +126,10 @@ public class GoogleOAuthQueryService {
         if (userInfoResult == null || isBlank(userInfoResult.email())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_USER_INFO_FETCH_FAILED);
         }
+
+        if (!userInfoResult.verifiedEmail()) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
+        }
     }
 
     private String buildScopeValue() {
