@@ -5,13 +5,11 @@ import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
+import com.mailsangja.core.service.google.GoogleOAuthQueryService;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
-import com.mailsangja.core.service.mail.GoogleOAuthQueryService;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -28,18 +26,8 @@ public class MailAccountFacade {
     public MailAccountResponse handleGoogleCallback(User user, String code) {
         validateAuthorizationCode(code);
 
-        GoogleMailAccountResult result = createStubGoogleMailAccountResult(code);
+        GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
         return MailAccountResponse.from(mailAccountCommandService.createGoogleMailAccount(user, result));
-    }
-
-    private GoogleMailAccountResult createStubGoogleMailAccountResult(String code) {
-        String normalizedCode = code == null ? "unknown" : code;
-        return new GoogleMailAccountResult(
-                "stub-" + normalizedCode + "@gmail.com",
-                "stub-access-token",
-                LocalDateTime.now().plusHours(1),
-                "stub-refresh-token"
-        );
     }
 
     private void validateAuthorizationCode(String code) {

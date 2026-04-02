@@ -20,7 +20,7 @@ public interface MailAccountControllerDocs {
 
     @Operation(
             summary = "Google OAuth 인가 URL 생성",
-            description = "로그인된 사용자의 세션에 OAuth state와 userId를 저장하고 Google OAuth 인가 URL을 반환합니다.",
+            description = "로그인한 사용자의 세션에 OAuth state와 userId를 저장하고 Google OAuth 인가 URL을 반환합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -42,7 +42,7 @@ public interface MailAccountControllerDocs {
 
     @Operation(
             summary = "Google OAuth 콜백 처리",
-            description = "Google에서 전달된 code와 state를 검증한 뒤 MailAccount를 생성합니다. 현재는 실제 OAuth 연동 대신 스텁 결과를 저장합니다.",
+            description = "Google에서 전달한 code와 state를 검증한 뒤 토큰 교환, 사용자 정보 조회, MailAccount 저장을 수행합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -70,13 +70,18 @@ public interface MailAccountControllerDocs {
                     responseCode = "409",
                     description = "이미 연결된 메일 계정",
                     content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "502",
+                    description = "Google OAuth 토큰 교환 또는 사용자 정보 조회 실패",
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     ResponseEntity<MailAccountResponse> googleCallback(
             @Parameter(hidden = true) @AuthUser User user,
             @Parameter(description = "Google OAuth 인가 코드", required = true, example = "4/0AQSTgQ...")
             String code,
-            @Parameter(description = "세션에 저장된 OAuth state", required = true, example = "c4c6f8c2-3b2b-4c5b-9f2c-7a1d3f9a9f11")
+            @Parameter(description = "세션에 저장한 OAuth state", required = true, example = "c4c6f8c2-3b2b-4c5b-9f2c-7a1d3f9a9f11")
             String state,
             @Parameter(hidden = true) HttpSession session
     );

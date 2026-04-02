@@ -1,10 +1,13 @@
-package com.mailsangja.core.service.mail;
+package com.mailsangja.core.service.google;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.config.properties.GoogleOAuthProperties;
+import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
+import com.mailsangja.core.dto.mail.GoogleUserInfoResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -13,6 +16,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDateTime;
 import java.util.StringJoiner;
 
 @Service
@@ -62,6 +66,37 @@ public class GoogleOAuthQueryService {
         }
     }
 
+    public GoogleUserInfoResult fetchUserInfo(String accessToken) {
+        validateUserInfoInput(accessToken);
+
+        try {
+            GoogleUserInfoResult userInfoResult = RestClient.create()
+                    .get()
+                    .uri(googleOAuthProperties.getUserInfoUri())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(GoogleUserInfoResult.class);
+
+            validateUserInfoResult(userInfoResult);
+            return userInfoResult;
+        } catch (RestClientException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_USER_INFO_FETCH_FAILED);
+        }
+    }
+
+    public GoogleMailAccountResult getGoogleMailAccountResult(String code) {
+        GoogleOAuthTokenResult tokenResult = exchangeCodeForToken(code);
+        GoogleUserInfoResult userInfoResult = fetchUserInfo(tokenResult.accessToken());
+
+        return new GoogleMailAccountResult(
+                userInfoResult.email(),
+                tokenResult.accessToken(),
+                LocalDateTime.now().plusSeconds(tokenResult.expiresIn()),
+                tokenResult.refreshToken()
+        );
+    }
+
     private void validateTokenExchangeInput(String code) {
         if (isBlank(code)
                 || isBlank(googleOAuthProperties.getClientId())
@@ -78,6 +113,18 @@ public class GoogleOAuthQueryService {
                 || tokenResult.expiresIn() == null
                 || tokenResult.expiresIn() <= 0) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_EXCHANGE_FAILED);
+        }
+    }
+
+    private void validateUserInfoInput(String accessToken) {
+        if (isBlank(accessToken) || isBlank(googleOAuthProperties.getUserInfoUri())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_USER_INFO_FETCH_FAILED);
+        }
+    }
+
+    private void validateUserInfoResult(GoogleUserInfoResult userInfoResult) {
+        if (userInfoResult == null || isBlank(userInfoResult.email())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_USER_INFO_FETCH_FAILED);
         }
     }
 
