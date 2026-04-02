@@ -12,6 +12,7 @@ public enum MailAccountErrorCode implements ErrorCode {
     INVALID_OAUTH_STATE(400, "MS-MAIL-INVALID-OAUTH-STATE", "유효하지 않은 OAuth state 입니다."),
     OAUTH_USER_MISMATCH(403, "MS-MAIL-OAUTH-USER-MISMATCH", "OAuth 요청 사용자 정보가 일치하지 않습니다."),
     INVALID_AUTHORIZATION_CODE(400, "MS-MAIL-INVALID-AUTHORIZATION-CODE", "유효하지 않은 OAuth 인가 코드입니다."),
+    INVALID_MAIL_ACCOUNT_ALIAS(400, "MS-MAIL-INVALID-MAIL-ACCOUNT-ALIAS", "유효하지 않은 메일 계정 별칭입니다."),
     INVALID_MAIL_ACCOUNT_ICON(400, "MS-MAIL-INVALID-MAIL-ACCOUNT-ICON", "유효하지 않은 메일 계정 아이콘입니다."),
     INVALID_MAIL_ACCOUNT_COLOR(400, "MS-MAIL-INVALID-MAIL-ACCOUNT-COLOR", "메일 계정 색상은 HEX 형식으로 입력해주세요."),
     UNSUPPORTED_MAIL_PROVIDER(400, "MS-MAIL-UNSUPPORTED-PROVIDER", "지원하지 않는 메일 제공자입니다."),

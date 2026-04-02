@@ -28,12 +28,20 @@ public class MailAccountFacade {
         return new MailAccountAuthorizeResponse(authorizationUrl);
     }
 
-    public MailAccountResponse handleGoogleCallback(User user, String code, String icon, String color) {
+    public MailAccountResponse handleGoogleCallback(
+            User user,
+            String code,
+            String alias,
+            String icon,
+            String color
+    ) {
         validateAuthorizationCode(code);
-        validateMailAccountAppearance(icon, color);
+        validateMailAccountAppearance(alias, icon, color);
 
         GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
-        return MailAccountResponse.from(mailAccountCommandService.createGoogleMailAccount(user, result, icon, color));
+        return MailAccountResponse.from(
+                mailAccountCommandService.createGoogleMailAccount(user, result, alias, icon, color)
+        );
     }
 
     private void validateAuthorizeRequest(MailAccountAuthorizeRequest request) {
@@ -41,7 +49,7 @@ public class MailAccountFacade {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
 
-        validateMailAccountAppearance(request.icon(), request.color());
+        validateMailAccountAppearance(request.alias(), request.icon(), request.color());
     }
 
     private void validateAuthorizationCode(String code) {
@@ -50,7 +58,11 @@ public class MailAccountFacade {
         }
     }
 
-    private void validateMailAccountAppearance(String icon, String color) {
+    private void validateMailAccountAppearance(String alias, String icon, String color) {
+        if (isBlank(alias) || alias.length() > 64) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ALIAS);
+        }
+
         if (isBlank(icon)) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ICON);
         }

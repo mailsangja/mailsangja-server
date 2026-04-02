@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS mail_accounts (
     user_id                 CHAR(36)                NOT NULL,
     provider                VARCHAR(50)             NOT NULL,
     email_address           VARCHAR(255)            NOT NULL,
+    alias                   VARCHAR(64)             NOT NULL,
     icon                    VARCHAR(255)            NOT NULL,
     color                   VARCHAR(7)              NOT NULL,
     access_token            TEXT                    NOT NULL,

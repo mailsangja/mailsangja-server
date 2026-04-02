@@ -25,6 +25,7 @@ public class MailAccountController implements MailAccountControllerDocs {
 
     private static final String GOOGLE_OAUTH_STATE = "google_oauth_state";
     private static final String GOOGLE_OAUTH_USER_ID = "google_oauth_user_id";
+    private static final String GOOGLE_OAUTH_ALIAS = "google_oauth_alias";
     private static final String GOOGLE_OAUTH_ICON = "google_oauth_icon";
     private static final String GOOGLE_OAUTH_COLOR = "google_oauth_color";
 
@@ -40,6 +41,7 @@ public class MailAccountController implements MailAccountControllerDocs {
         String state = UUID.randomUUID().toString();
         session.setAttribute(GOOGLE_OAUTH_STATE, state);
         session.setAttribute(GOOGLE_OAUTH_USER_ID, user.getId().toString());
+        session.setAttribute(GOOGLE_OAUTH_ALIAS, request.alias());
         session.setAttribute(GOOGLE_OAUTH_ICON, request.icon());
         session.setAttribute(GOOGLE_OAUTH_COLOR, request.color());
 
@@ -56,10 +58,11 @@ public class MailAccountController implements MailAccountControllerDocs {
     ) {
         String savedState = (String) session.getAttribute(GOOGLE_OAUTH_STATE);
         String savedUserId = (String) session.getAttribute(GOOGLE_OAUTH_USER_ID);
+        String savedAlias = (String) session.getAttribute(GOOGLE_OAUTH_ALIAS);
         String savedIcon = (String) session.getAttribute(GOOGLE_OAUTH_ICON);
         String savedColor = (String) session.getAttribute(GOOGLE_OAUTH_COLOR);
 
-        if (savedState == null || savedIcon == null || savedColor == null) {
+        if (savedState == null || savedAlias == null || savedIcon == null || savedColor == null) {
             throw new MailAccountException(MailAccountErrorCode.OAUTH_SESSION_NOT_FOUND);
         }
 
@@ -73,10 +76,11 @@ public class MailAccountController implements MailAccountControllerDocs {
 
         session.removeAttribute(GOOGLE_OAUTH_STATE);
         session.removeAttribute(GOOGLE_OAUTH_USER_ID);
+        session.removeAttribute(GOOGLE_OAUTH_ALIAS);
         session.removeAttribute(GOOGLE_OAUTH_ICON);
         session.removeAttribute(GOOGLE_OAUTH_COLOR);
 
-        mailAccountFacade.handleGoogleCallback(user, code, savedIcon, savedColor);
+        mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
 
         return ResponseEntity.status(302)
                 .location(URI.create("/"))

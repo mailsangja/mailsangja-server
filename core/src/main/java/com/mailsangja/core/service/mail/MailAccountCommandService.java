@@ -22,10 +22,16 @@ public class MailAccountCommandService {
     private final MailAccountQueryService mailAccountQueryService;
 
     @Transactional
-    public MailAccount createGoogleMailAccount(User user, GoogleMailAccountResult result, String icon, String color) {
+    public MailAccount createGoogleMailAccount(
+            User user,
+            GoogleMailAccountResult result,
+            String alias,
+            String icon,
+            String color
+    ) {
         validateGoogleMailAccountResult(result);
 
-        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result, icon, color);
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result, alias, icon, color);
         validateCreateCommand(command);
 
         validateSameOwnerDuplicate(
@@ -45,6 +51,7 @@ public class MailAccountCommandService {
                 .user(user)
                 .provider(command.provider())
                 .emailAddress(command.emailAddress())
+                .alias(command.alias())
                 .icon(command.icon())
                 .color(command.color())
                 .accessToken(command.accessToken())
@@ -78,6 +85,7 @@ public class MailAccountCommandService {
         }
 
         if (isBlank(command.emailAddress())
+                || isBlank(command.alias())
                 || isBlank(command.icon())
                 || isBlank(command.color())
                 || isBlank(command.accessToken())

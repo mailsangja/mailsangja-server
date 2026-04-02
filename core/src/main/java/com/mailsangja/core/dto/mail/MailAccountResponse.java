@@ -16,6 +16,8 @@ public record MailAccountResponse(
         MailProvider provider,
         @Schema(description = "연결된 메일 주소", example = "user@gmail.com")
         String emailAddress,
+        @Schema(description = "사용자가 지정한 메일 계정 별칭", example = "업무 메일")
+        String alias,
         @Schema(description = "메일 계정 아이콘", example = "mail")
         String icon,
         @Schema(description = "메일 계정 색상 HEX 값", example = "#4F46E5")
@@ -31,6 +33,7 @@ public record MailAccountResponse(
                 mailAccount.getUser().getId(),
                 mailAccount.getProvider(),
                 mailAccount.getEmailAddress(),
+                mailAccount.getAlias(),
                 mailAccount.getIcon(),
                 mailAccount.getColor(),
                 mailAccount.isActive(),

@@ -21,7 +21,7 @@ public interface MailAccountControllerDocs {
 
     @Operation(
             summary = "Google OAuth 인가 URL 생성",
-            description = "로그인한 사용자의 세션에 OAuth state, userId, icon, color를 저장하고 Google OAuth 인가 URL을 반환합니다.",
+            description = "로그인한 사용자의 세션에 OAuth state, userId, alias, icon, color를 저장하고 Google OAuth 인가 URL을 반환합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -32,7 +32,7 @@ public interface MailAccountControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "icon 또는 color 값이 유효하지 않음",
+                    description = "alias, icon 또는 color 값이 유효하지 않음",
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
@@ -60,7 +60,7 @@ public interface MailAccountControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "인가 코드, state, icon, color, OAuth 응답값 또는 refresh token 이 유효하지 않음",
+                    description = "인가 코드, state, alias, icon, color, OAuth 응답값 또는 refresh token 이 유효하지 않음",
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(

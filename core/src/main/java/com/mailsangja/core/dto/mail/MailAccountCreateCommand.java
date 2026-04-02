@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record MailAccountCreateCommand(
         MailProvider provider,
         String emailAddress,
+        String alias,
         String icon,
         String color,
         String accessToken,
@@ -17,12 +18,14 @@ public record MailAccountCreateCommand(
     public static MailAccountCreateCommand from(
             MailProvider provider,
             GoogleMailAccountResult result,
+            String alias,
             String icon,
             String color
     ) {
         return new MailAccountCreateCommand(
                 provider,
                 result.emailAddress(),
+                alias,
                 icon,
                 color,
                 result.accessToken(),
