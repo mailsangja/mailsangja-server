@@ -3,7 +3,6 @@ package com.mailsangja.core.facade;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
-import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
@@ -15,6 +14,7 @@ import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.security.SecureRandom;
 import java.util.List;
 
 @Component
@@ -22,14 +22,14 @@ import java.util.List;
 public class MailAccountFacade {
 
     private static final String HEX_COLOR_REGEX = "^#[0-9A-Fa-f]{6}$";
+    private static final String DEFAULT_ICON = "good";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleOAuthQueryService googleOAuthQueryService;
 
-    public MailAccountAuthorizeResponse authorizeGoogle(String state, MailAccountAuthorizeRequest request) {
-        validateAuthorizeRequest(request);
-
+    public MailAccountAuthorizeResponse authorizeGoogle(String state) {
         String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
         return new MailAccountAuthorizeResponse(authorizationUrl);
     }
@@ -42,11 +42,18 @@ public class MailAccountFacade {
             String color
     ) {
         validateAuthorizationCode(code);
-        validateMailAccountAppearance(alias, icon, color);
 
         GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
+        MailAccountAppearance appearance = normalizeMailAccountAppearance(result.emailAddress(), alias, icon, color);
+
         return MailAccountResponse.from(
-                mailAccountCommandService.createGoogleMailAccount(user, result, alias, icon, color)
+                mailAccountCommandService.createGoogleMailAccount(
+                        user,
+                        result,
+                        appearance.alias(),
+                        appearance.icon(),
+                        appearance.color()
+                )
         );
     }
 
@@ -57,35 +64,53 @@ public class MailAccountFacade {
                 .toList();
     }
 
-    private void validateAuthorizeRequest(MailAccountAuthorizeRequest request) {
-        if (request == null) {
-            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
-        }
-
-        validateMailAccountAppearance(request.alias(), request.icon(), request.color());
-    }
-
     private void validateAuthorizationCode(String code) {
         if (isBlank(code) || code.contains(" ") || code.length() > 2048) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_AUTHORIZATION_CODE);
         }
     }
 
-    private void validateMailAccountAppearance(String alias, String icon, String color) {
+    private MailAccountAppearance normalizeMailAccountAppearance(
+            String emailAddress,
+            String alias,
+            String icon,
+            String color
+    ) {
+        String normalizedAlias = isBlank(alias) ? emailAddress : alias;
+        String normalizedIcon = isBlank(icon) ? DEFAULT_ICON : icon;
+        String normalizedColor = isBlank(color) ? generateRandomHexColor() : color;
+
+        validateMailAccountAppearance(normalizedAlias, normalizedColor);
+        return new MailAccountAppearance(normalizedAlias, normalizedIcon, normalizedColor);
+    }
+
+    private void validateMailAccountAppearance(String alias, String color) {
         if (isBlank(alias) || alias.length() > 64) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ALIAS);
         }
 
-        if (isBlank(icon)) {
-            throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ICON);
-        }
-
-        if (isBlank(color) || !color.matches(HEX_COLOR_REGEX)) {
+        if (!color.matches(HEX_COLOR_REGEX)) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_COLOR);
         }
     }
 
+    private String generateRandomHexColor() {
+        return String.format(
+                "#%02X%02X%02X",
+                SECURE_RANDOM.nextInt(256),
+                SECURE_RANDOM.nextInt(256),
+                SECURE_RANDOM.nextInt(256)
+        );
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record MailAccountAppearance(
+            String alias,
+            String icon,
+            String color
+    ) {
     }
 }

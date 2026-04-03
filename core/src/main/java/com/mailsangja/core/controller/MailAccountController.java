@@ -53,7 +53,7 @@ public class MailAccountController implements MailAccountControllerDocs {
         session.setAttribute(GOOGLE_OAUTH_ICON, request.icon());
         session.setAttribute(GOOGLE_OAUTH_COLOR, request.color());
 
-        return ResponseEntity.ok(mailAccountFacade.authorizeGoogle(state, request));
+        return ResponseEntity.ok(mailAccountFacade.authorizeGoogle(state));
     }
 
     @Override
@@ -70,7 +70,7 @@ public class MailAccountController implements MailAccountControllerDocs {
         String savedIcon = (String) session.getAttribute(GOOGLE_OAUTH_ICON);
         String savedColor = (String) session.getAttribute(GOOGLE_OAUTH_COLOR);
 
-        if (savedState == null || savedAlias == null || savedIcon == null || savedColor == null) {
+        if (savedState == null) {
             throw new MailAccountException(MailAccountErrorCode.OAUTH_SESSION_NOT_FOUND);
         }
 
