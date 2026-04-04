@@ -24,6 +24,7 @@ import java.util.StringJoiner;
 public class GoogleOAuthQueryService {
 
     private final GoogleOAuthProperties googleOAuthProperties;
+    private final RestClient googleOAuthRestClient;
 
     public String buildAuthorizationUrl(String state) {
         return UriComponentsBuilder
@@ -50,7 +51,7 @@ public class GoogleOAuthQueryService {
         formData.add("grant_type", "authorization_code");
 
         try {
-            GoogleOAuthTokenResult tokenResult = RestClient.create()
+            GoogleOAuthTokenResult tokenResult = googleOAuthRestClient
                     .post()
                     .uri(googleOAuthProperties.getTokenUri())
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -70,7 +71,7 @@ public class GoogleOAuthQueryService {
         validateUserInfoInput(accessToken);
 
         try {
-            GoogleUserInfoResult userInfoResult = RestClient.create()
+            GoogleUserInfoResult userInfoResult = googleOAuthRestClient
                     .get()
                     .uri(googleOAuthProperties.getUserInfoUri())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -127,7 +128,7 @@ public class GoogleOAuthQueryService {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_USER_INFO_FETCH_FAILED);
         }
 
-        if (!userInfoResult.verifiedEmail()) {
+        if (!Boolean.TRUE.equals(userInfoResult.verifiedEmail())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
         }
     }

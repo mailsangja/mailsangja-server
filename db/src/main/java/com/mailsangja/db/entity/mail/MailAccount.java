@@ -49,7 +49,7 @@ public class MailAccount extends BaseEntity {
     @Column(name = "email_address", nullable = false, length = 255)
     private String emailAddress;
 
-    @Column(name = "alias", nullable = false, length = 64)
+    @Column(name = "alias", nullable = false, length = 255)
     private String alias;
 
     @Column(name = "icon", nullable = false, length = 255)

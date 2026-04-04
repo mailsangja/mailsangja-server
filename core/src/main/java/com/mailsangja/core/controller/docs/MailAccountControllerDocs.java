@@ -56,11 +56,6 @@ public interface MailAccountControllerDocs {
                     content = @Content(schema = @Schema(implementation = MailAccountAuthorizeResponse.class))
             ),
             @ApiResponse(
-                    responseCode = "400",
-                    description = "alias, icon 또는 color 값이 유효하지 않음",
-                    content = @Content(schema = @Schema(hidden = true))
-            ),
-            @ApiResponse(
                     responseCode = "401",
                     description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))

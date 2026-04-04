@@ -80,13 +80,17 @@ public class MailAccountFacade {
         String normalizedIcon = isBlank(icon) ? DEFAULT_ICON : icon;
         String normalizedColor = isBlank(color) ? generateRandomHexColor() : color;
 
-        validateMailAccountAppearance(normalizedAlias, normalizedColor);
+        validateMailAccountAppearance(normalizedAlias, normalizedIcon, normalizedColor);
         return new MailAccountAppearance(normalizedAlias, normalizedIcon, normalizedColor);
     }
 
-    private void validateMailAccountAppearance(String alias, String color) {
-        if (isBlank(alias) || alias.length() > 64) {
+    private void validateMailAccountAppearance(String alias, String icon, String color) {
+        if (isBlank(alias) || alias.length() > 255) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ALIAS);
+        }
+
+        if (isBlank(icon) || icon.length() > 255) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ICON);
         }
 
         if (!color.matches(HEX_COLOR_REGEX)) {

@@ -42,6 +42,8 @@ mailsangja:
       authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
       token-uri: https://oauth2.googleapis.com/token
       user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+      connect-timeout: ${GOOGLE_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_READ_TIMEOUT:5s}
       scopes:
         - openid
         - email
