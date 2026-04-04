@@ -191,12 +191,15 @@ public class MailAccountFacade {
 
 // Service: 하위 결과 검증
 public class MailAccountCommandService {
-    public MailAccount create(User user, MailAccountCreateCommand command) {
-        validateCommand(command);
+    public MailAccount createGoogleMailAccount(User user, GoogleMailAccountResult result) {
+        validateGoogleMailAccountResult(result);
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result);
+        validateCreateCommand(command);
         ...
     }
 
-    private void validateCommand(MailAccountCreateCommand command) { ... }
+    private void validateGoogleMailAccountResult(GoogleMailAccountResult result) { ... }
+    private void validateCreateCommand(MailAccountCreateCommand command) { ... }
 }
 ```
 
@@ -412,8 +415,8 @@ public record RegisterRequest(String email, String password, String name) {
 - Gmail 계정 연결 플로우는 로그인된 사용자가 자신의 외부 메일 계정을 추가하는 시나리오로 설계한다
 - OAuth 인가 시작 단계에서는 Controller가 세션에 `state`와 시작 사용자 식별값을 저장한다
 - OAuth callback 단계에서는 Controller가 세션 `state`와 현재 사용자 식별값을 먼저 검증한 후 Facade를 호출한다
-- Facade는 외부 OAuth 응답을 `*Result`로 정리하고, 저장 전용 입력은 `*Command`로 변환한다
-- CommandService는 provider 지원 여부, 동일 사용자 중복 연결, 타 사용자 선점, 필수 토큰/이메일 값 누락을 검증한 뒤 저장한다
+- Facade는 Controller에서 내려온 입력을 검증하고, 외부 OAuth 응답을 `*Result`로 정리해 CommandService로 전달한다
+- CommandService는 외부 OAuth `*Result`, `*Command`, 동일 사용자 중복 연결, 타 사용자 선점, 저장 결과를 검증한 뒤 저장한다
 
 ---
 

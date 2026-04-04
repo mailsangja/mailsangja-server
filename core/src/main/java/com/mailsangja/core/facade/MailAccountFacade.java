@@ -4,45 +4,64 @@ import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
-import com.mailsangja.core.dto.mail.MailAccountCreateCommand;
+import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
+import com.mailsangja.core.service.google.GoogleOAuthQueryService;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
-import com.mailsangja.db.entity.mail.MailProvider;
+import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.security.SecureRandom;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class MailAccountFacade {
 
+    private static final String HEX_COLOR_REGEX = "^#[0-9A-Fa-f]{6}$";
+    private static final String DEFAULT_ICON = "good";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final MailAccountCommandService mailAccountCommandService;
+    private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleOAuthQueryService googleOAuthQueryService;
 
     public MailAccountAuthorizeResponse authorizeGoogle(String state) {
-        String authorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth?state=" + state;
+        String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
         return new MailAccountAuthorizeResponse(authorizationUrl);
     }
 
-    public MailAccountResponse handleGoogleCallback(User user, String code) {
+    public MailAccountResponse handleGoogleCallback(
+            User user,
+            String code,
+            String alias,
+            String icon,
+            String color
+    ) {
         validateAuthorizationCode(code);
 
-        GoogleMailAccountResult result = createStubGoogleMailAccountResult(code);
-        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result);
-        validateCreateCommand(command);
+        GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
+        MailAccountAppearance appearance = normalizeMailAccountAppearance(result.emailAddress(), alias, icon, color);
 
-        return MailAccountResponse.from(mailAccountCommandService.create(user, command));
+        return MailAccountResponse.from(
+                mailAccountCommandService.createGoogleMailAccount(
+                        user,
+                        result,
+                        appearance.alias(),
+                        appearance.icon(),
+                        appearance.color()
+                )
+        );
     }
 
-    private GoogleMailAccountResult createStubGoogleMailAccountResult(String code) {
-        String normalizedCode = code == null ? "unknown" : code;
-        return new GoogleMailAccountResult(
-                "stub-" + normalizedCode + "@gmail.com",
-                "stub-access-token",
-                LocalDateTime.now().plusHours(1),
-                "stub-refresh-token"
-        );
+    public List<MailAccountListResponse> getMyMailAccounts(User user) {
+        List<MailAccount> mailAccounts = mailAccountQueryService.findAllByUserId(user.getId());
+        return mailAccounts.stream()
+                .map(MailAccountListResponse::from)
+                .toList();
     }
 
     private void validateAuthorizationCode(String code) {
@@ -51,20 +70,51 @@ public class MailAccountFacade {
         }
     }
 
-    private void validateCreateCommand(MailAccountCreateCommand command) {
-        if (command.provider() != MailProvider.GMAIL) {
-            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+    private MailAccountAppearance normalizeMailAccountAppearance(
+            String emailAddress,
+            String alias,
+            String icon,
+            String color
+    ) {
+        String normalizedAlias = isBlank(alias) ? emailAddress : alias;
+        String normalizedIcon = isBlank(icon) ? DEFAULT_ICON : icon;
+        String normalizedColor = isBlank(color) ? generateRandomHexColor() : color;
+
+        validateMailAccountAppearance(normalizedAlias, normalizedIcon, normalizedColor);
+        return new MailAccountAppearance(normalizedAlias, normalizedIcon, normalizedColor);
+    }
+
+    private void validateMailAccountAppearance(String alias, String icon, String color) {
+        if (isBlank(alias) || alias.length() > 255) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ALIAS);
         }
 
-        if (isBlank(command.emailAddress())
-                || isBlank(command.accessToken())
-                || command.accessTokenExpiresAt() == null
-                || isBlank(command.refreshToken())) {
-            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        if (isBlank(icon) || icon.length() > 255) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_ICON);
         }
+
+        if (!color.matches(HEX_COLOR_REGEX)) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_MAIL_ACCOUNT_COLOR);
+        }
+    }
+
+    private String generateRandomHexColor() {
+        return String.format(
+                "#%02X%02X%02X",
+                SECURE_RANDOM.nextInt(256),
+                SECURE_RANDOM.nextInt(256),
+                SECURE_RANDOM.nextInt(256)
+        );
     }
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record MailAccountAppearance(
+            String alias,
+            String icon,
+            String color
+    ) {
     }
 }

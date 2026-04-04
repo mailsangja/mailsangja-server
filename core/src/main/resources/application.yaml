@@ -32,3 +32,19 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+mailsangja:
+  oauth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/v1/mail-accounts/google/callback}
+      authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+      token-uri: https://oauth2.googleapis.com/token
+      user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+      connect-timeout: ${GOOGLE_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_READ_TIMEOUT:5s}
+      scopes:
+        - openid
+        - email
+        - https://mail.google.com/

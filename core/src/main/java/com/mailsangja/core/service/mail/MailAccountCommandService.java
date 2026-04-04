@@ -2,8 +2,10 @@ package com.mailsangja.core.service.mail;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
+import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.MailAccountCreateCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +22,25 @@ public class MailAccountCommandService {
     private final MailAccountQueryService mailAccountQueryService;
 
     @Transactional
-    public MailAccount create(User user, MailAccountCreateCommand command) {
+    public MailAccount createGoogleMailAccount(
+            User user,
+            GoogleMailAccountResult result,
+            String alias,
+            String icon,
+            String color
+    ) {
+        validateGoogleMailAccountResult(result);
+
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result, alias, icon, color);
+        validateCreateCommand(command);
+
         validateSameOwnerDuplicate(
                 mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
-                user.getId(),
-                command.provider(),
-                command.emailAddress()
-        ));
+                        user.getId(),
+                        command.provider(),
+                        command.emailAddress()
+                )
+        );
 
         validateAnotherOwnerDuplicate(
                 mailAccountQueryService.findByProviderAndEmailAddress(command.provider(), command.emailAddress()),
@@ -37,6 +51,9 @@ public class MailAccountCommandService {
                 .user(user)
                 .provider(command.provider())
                 .emailAddress(command.emailAddress())
+                .alias(command.alias())
+                .icon(command.icon())
+                .color(command.color())
                 .accessToken(command.accessToken())
                 .accessTokenExpiresAt(command.accessTokenExpiresAt())
                 .refreshToken(command.refreshToken())
@@ -47,6 +64,38 @@ public class MailAccountCommandService {
         MailAccount savedMailAccount = mailAccountRepositoryPort.save(mailAccount);
         validateSavedMailAccount(savedMailAccount);
         return savedMailAccount;
+    }
+
+    private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
+        if (result == null
+                || isBlank(result.emailAddress())
+                || isBlank(result.accessToken())
+                || result.accessTokenExpiresAt() == null) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
+
+        if (isBlank(result.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+        }
+    }
+
+    private void validateCreateCommand(MailAccountCreateCommand command) {
+        if (command.provider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (isBlank(command.emailAddress())
+                || isBlank(command.alias())
+                || isBlank(command.icon())
+                || isBlank(command.color())
+                || isBlank(command.accessToken())
+                || command.accessTokenExpiresAt() == null) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+        }
+
+        if (isBlank(command.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+        }
     }
 
     private void validateSameOwnerDuplicate(Optional<MailAccount> existingMailAccount) {
@@ -67,5 +116,9 @@ public class MailAccountCommandService {
         if (mailAccount == null || mailAccount.getId() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
