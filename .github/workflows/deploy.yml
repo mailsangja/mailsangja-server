@@ -1,0 +1,78 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - Build Docker Image
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag for rollback or manual deploy
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency:
+      group: dev-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Validate deployment settings
+        shell: bash
+        run: |
+          [ -n "${{ vars.DEPLOY_PATH }}" ] || { echo "DEPLOY_PATH is required"; exit 1; }
+          [ -n "${{ vars.SSH_HOST }}" ] || { echo "SSH_HOST is required"; exit 1; }
+          [ -n "${{ vars.SSH_PORT }}" ] || { echo "SSH_PORT is required"; exit 1; }
+          [ -n "${{ vars.SSH_USER }}" ] || { echo "SSH_USER is required"; exit 1; }
+
+      - name: Resolve deployment variables
+        id: deploy
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag || '' }}
+        run: |
+          image_name="${GITHUB_REPOSITORY_OWNER,,}/mailsangja-core"
+
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            image_tag="sha-${{ github.event.workflow_run.head_sha }}"
+          elif [ -n "$IMAGE_TAG" ]; then
+            image_tag="$IMAGE_TAG"
+          else
+            image_tag="sha-${{ github.sha }}"
+          fi
+
+          echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          IMAGE_NAME: ${{ steps.deploy.outputs.image_name }}
+          APP_IMAGE_TAG: ${{ steps.deploy.outputs.image_tag }}
+        with:
+          username: ${{ vars.SSH_USER }}
+          host: ${{ vars.SSH_HOST }}
+          port: ${{ vars.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          envs: DEPLOY_PATH,IMAGE_NAME,APP_IMAGE_TAG
+          script: |
+            set -euo pipefail
+
+            cd "$DEPLOY_PATH"
+
+            cat <<EOF > .env.release
+            IMAGE_NAME=$IMAGE_NAME
+            APP_IMAGE_TAG=$APP_IMAGE_TAG
+            EOF
+
+            docker compose --env-file .env --env-file .env.release pull core
+            docker compose --env-file .env --env-file .env.release up -d core
+            docker compose --env-file .env --env-file .env.release ps core
