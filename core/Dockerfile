@@ -1,5 +1,5 @@
 # Build stage
-FROM gradle:8.14-jdk21-alpine AS builder
+FROM gradle:9.4.1-jdk21-alpine AS builder
 WORKDIR /app
 
 # Copy root settings and db module first (dependency)
