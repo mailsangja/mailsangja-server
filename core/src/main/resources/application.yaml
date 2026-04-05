@@ -33,6 +33,12 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+scalar:
+  enabled: true
+  path: /scalar
+  url: /v3/api-docs
+  page-title: MailSangja API Reference
+
 mailsangja:
   oauth:
     google:
