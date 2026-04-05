@@ -1,0 +1,65 @@
+name: Validate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18.1-alpine3.22
+        env:
+          POSTGRES_DB: mailsangja
+          POSTGRES_USER: mailsangja
+          POSTGRES_PASSWORD: mailsangja
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mailsangja"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:8.4.0-alpine3.22
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: core
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: mailsangja
+      DB_USERNAME: mailsangja
+      DB_PASSWORD: mailsangja
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle 9.4.1
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.4.1"
+
+      - name: Run tests
+        run: gradle clean test -x :db:test --no-daemon
