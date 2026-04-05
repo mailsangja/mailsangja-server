@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-mailsangja}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mailsangja}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mailsangja_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mailsangja}"]
       interval: 10s
@@ -20,7 +20,7 @@ services:
     container_name: mailsangja-redis
     restart: unless-stopped
     volumes:
-      - redis_data:/data
+      - mailsangja_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
