@@ -41,6 +41,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-mailsangja}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://mail-api.ajou.app/api/v1/mail-accounts/google/callback}
     depends_on:
       postgres:
         condition: service_healthy
