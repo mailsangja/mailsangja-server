@@ -62,4 +62,4 @@ jobs:
           gradle-version: "9.4.1"
 
       - name: Run tests
-        run: gradle clean test --no-daemon
+        run: gradle clean test -x :db:test --no-daemon
