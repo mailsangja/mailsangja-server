@@ -20,6 +20,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle 9.4.1
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "9.4.1"
+
+      - name: Build application JAR
+        run: ./gradlew :core:bootJar -x test --no-daemon
+
       - name: Derive image name
         id: image
         shell: bash
@@ -50,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: core/Dockerfile
+          file: core/Dockerfile.ci
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}

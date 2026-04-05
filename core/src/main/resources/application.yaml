@@ -33,7 +33,15 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+scalar:
+  enabled: true
+  path: /scalar
+  url: /v3/api-docs
+  page-title: MailSangja API Reference
+
 mailsangja:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:8080}
   oauth:
     google:
       client-id: ${GOOGLE_CLIENT_ID}
