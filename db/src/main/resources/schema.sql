@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS mail_accounts (
     refresh_token           TEXT         NULL,
     is_active               BOOLEAN      NOT NULL,
     sync_history_id         VARCHAR(255) NULL,
+    watch_expires_at        TIMESTAMP    NULL,
     created_at              TIMESTAMP    NOT NULL,
     modified_at             TIMESTAMP    NOT NULL,
     deleted_at              TIMESTAMP    NULL,

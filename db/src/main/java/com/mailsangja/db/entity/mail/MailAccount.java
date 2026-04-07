@@ -73,6 +73,9 @@ public class MailAccount extends BaseEntity {
     @Column(name = "sync_history_id", length = 255)
     private String syncHistoryId;
 
+    @Column(name = "watch_expires_at")
+    private LocalDateTime watchExpiresAt;
+
     public void updateAccessToken(String accessToken) {
         this.accessToken = accessToken;
     }
@@ -99,6 +102,10 @@ public class MailAccount extends BaseEntity {
 
     public void updateSyncHistoryId(String syncHistoryId) {
         this.syncHistoryId = syncHistoryId;
+    }
+
+    public void updateWatchExpiresAt(LocalDateTime watchExpiresAt) {
+        this.watchExpiresAt = watchExpiresAt;
     }
 
     public void activate() {
