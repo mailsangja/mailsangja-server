@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, Glob
 Standard rules for Spring Boot REST API development in this project.
 
 - Root Package: `com.mailsangja.{module}`
-- Java 21 / Spring Boot 4.0.5 / MySQL
+- Java 21 / Spring Boot 4.0.5 / PostgreSQL / Redis / RabbitMQ
 
 ---
 
