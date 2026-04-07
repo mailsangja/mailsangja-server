@@ -23,33 +23,33 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
-    public Optional<MailAccount> findById(UUID id) {
-        return mailAccountJpaRepositoryModule.findById(id);
+    public Optional<MailAccount> findByIdAndDeletedAtIsNull(UUID id) {
+        return mailAccountJpaRepositoryModule.findByIdAndDeletedAtIsNull(id);
     }
 
     @Override
-    public Optional<MailAccount> findByIdAndActive(UUID id, boolean active) {
-        return mailAccountJpaRepositoryModule.findByIdAndActive(id, active);
+    public Optional<MailAccount> findByIdAndActiveAndDeletedAtIsNull(UUID id, boolean active) {
+        return mailAccountJpaRepositoryModule.findByIdAndActiveAndDeletedAtIsNull(id, active);
     }
 
     @Override
-    public Optional<MailAccount> findByEmailAddress(String emailAddress) {
-        return mailAccountJpaRepositoryModule.findByEmailAddress(emailAddress);
+    public Optional<MailAccount> findByEmailAddressAndDeletedAtIsNull(String emailAddress) {
+        return mailAccountJpaRepositoryModule.findByEmailAddressAndDeletedAtIsNull(emailAddress);
     }
 
     @Override
-    public Optional<MailAccount> findByUserIdAndProvider(UUID userId, MailProvider provider) {
-        return mailAccountJpaRepositoryModule.findByUserIdAndProvider(userId, provider);
+    public Optional<MailAccount> findByUserIdAndProviderAndDeletedAtIsNull(UUID userId, MailProvider provider) {
+        return mailAccountJpaRepositoryModule.findByUserIdAndProviderAndDeletedAtIsNull(userId, provider);
     }
 
     @Override
-    public Optional<MailAccount> findByUserIdAndProviderAndEmailAddress(UUID userId, MailProvider provider, String emailAddress) {
-        return mailAccountJpaRepositoryModule.findByUserIdAndProviderAndEmailAddress(userId, provider, emailAddress);
+    public Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(UUID userId, MailProvider provider, String emailAddress) {
+        return mailAccountJpaRepositoryModule.findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(userId, provider, emailAddress);
     }
 
     @Override
-    public Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress) {
-        return mailAccountJpaRepositoryModule.findByProviderAndEmailAddress(provider, emailAddress);
+    public Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress) {
+        return mailAccountJpaRepositoryModule.findByProviderAndEmailAddressAndDeletedAtIsNull(provider, emailAddress);
     }
 
     @Override

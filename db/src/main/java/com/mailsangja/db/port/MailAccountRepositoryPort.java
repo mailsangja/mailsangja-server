@@ -9,11 +9,11 @@ import java.util.UUID;
 
 public interface MailAccountRepositoryPort {
     MailAccount save(MailAccount mailAccount);
-    Optional<MailAccount> findById(UUID id);
-    Optional<MailAccount> findByIdAndActive(UUID id, boolean active);
-    Optional<MailAccount> findByEmailAddress(String emailAddress);
-    Optional<MailAccount> findByUserIdAndProvider(UUID userId, MailProvider provider);
-    Optional<MailAccount> findByUserIdAndProviderAndEmailAddress(UUID userId, MailProvider provider, String emailAddress);
-    Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress);
+    Optional<MailAccount> findByIdAndDeletedAtIsNull(UUID id);
+    Optional<MailAccount> findByIdAndActiveAndDeletedAtIsNull(UUID id, boolean active);
+    Optional<MailAccount> findByEmailAddressAndDeletedAtIsNull(String emailAddress);
+    Optional<MailAccount> findByUserIdAndProviderAndDeletedAtIsNull(UUID userId, MailProvider provider);
+    Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(UUID userId, MailProvider provider, String emailAddress);
+    Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId);
 }
