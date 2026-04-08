@@ -9,9 +9,11 @@ import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
 import com.mailsangja.core.service.google.GoogleMailWatchQueryService;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
+import com.mailsangja.core.service.mail.InitialMailSyncMessageCommandService;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,7 @@ public class MailAccountFacade {
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleOAuthQueryService googleOAuthQueryService;
     private final GoogleMailWatchQueryService googleMailWatchQueryService;
+    private final InitialMailSyncMessageCommandService initialMailSyncMessageCommandService;
 
     public MailAccountAuthorizeResponse authorizeGoogle(String state) {
         String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
@@ -53,16 +56,20 @@ public class MailAccountFacade {
 
         GoogleMailWatchResult watchResult = googleMailWatchQueryService.watch(result.accessToken());
 
-        return MailAccountResponse.from(
-                mailAccountCommandService.createGoogleMailAccount(
-                        user,
-                        result,
-                        appearance.alias(),
-                        appearance.icon(),
-                        appearance.color(),
-                        watchResult
-                )
+        MailAccount savedMailAccount = mailAccountCommandService.createGoogleMailAccount(
+                user,
+                result,
+                appearance.alias(),
+                appearance.icon(),
+                appearance.color(),
+                watchResult
         );
+
+        if (savedMailAccount.getProvider() == MailProvider.GMAIL) {
+            initialMailSyncMessageCommandService.publish(savedMailAccount);
+        }
+
+        return MailAccountResponse.from(savedMailAccount);
     }
 
     public List<MailAccountListResponse> getMyMailAccounts(User user) {
