@@ -61,7 +61,6 @@ jobs:
           host: ${{ vars.SSH_HOST }}
           port: ${{ vars.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop: true
           envs: DEPLOY_PATH,IMAGE_NAME,APP_IMAGE_TAG
           script: |
             set -euo pipefail
