@@ -46,7 +46,7 @@ public interface InboxControllerDocs {
             @Parameter(description = "이전 응답의 nextMarker (첫 요청 시 생략)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false) UUID marker,
             @Parameter(description = "한 번에 조회할 스레드 수", example = "50")
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     );
 
     @Operation(
@@ -73,7 +73,7 @@ public interface InboxControllerDocs {
             @Parameter(description = "이전 응답의 nextMarker (첫 요청 시 생략)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false) UUID marker,
             @Parameter(description = "한 번에 조회할 스레드 수", example = "50")
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     );
 
     @Operation(

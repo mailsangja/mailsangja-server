@@ -24,7 +24,7 @@ public class InboxController implements InboxControllerDocs {
     public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getInbox(
             @AuthUser User user,
             @RequestParam(required = false) UUID marker,
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     ) {
         return ResponseEntity.ok(inboxFacade.getInbox(user, marker, size));
     }
@@ -34,7 +34,7 @@ public class InboxController implements InboxControllerDocs {
     public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getSent(
             @AuthUser User user,
             @RequestParam(required = false) UUID marker,
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     ) {
         return ResponseEntity.ok(inboxFacade.getSent(user, marker, size));
     }

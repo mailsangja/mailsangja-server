@@ -11,5 +11,5 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "mailsangja.inbox")
 public class InboxProperties {
 
-    private int pageSize = 20;
+    private int pageSize = 50;
 }
