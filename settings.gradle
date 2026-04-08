@@ -2,3 +2,4 @@ rootProject.name = 'mailsangja_server'
 
 include 'core'
 include 'db'
+include 'worker'
