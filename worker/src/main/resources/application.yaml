@@ -23,6 +23,18 @@ spring:
     init:
       mode: never
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+scalar:
+  enabled: true
+  path: /scalar
+  url: /v3/api-docs
+  page-title: MailSangja Worker API Reference
+
 mailsangja:
   gmail:
     google-history:

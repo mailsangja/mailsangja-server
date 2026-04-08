@@ -1,5 +1,6 @@
 package com.mailsangja.worker.controller;
 
+import com.mailsangja.worker.controller.docs.GmailPushControllerDocs;
 import com.mailsangja.worker.dto.gmail.GooglePubsubPushRequest;
 import com.mailsangja.worker.facade.GmailPushFacade;
 import lombok.RequiredArgsConstructor;
@@ -10,10 +11,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-public class GmailPushController {
+public class GmailPushController implements GmailPushControllerDocs {
 
     private final GmailPushFacade gmailPushFacade;
 
+    @Override
     @PostMapping("/api/v1/gmail/push")
     public ResponseEntity<Void> handlePush(@RequestBody GooglePubsubPushRequest request) {
         gmailPushFacade.handlePush(request);

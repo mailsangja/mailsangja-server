@@ -1,6 +1,5 @@
 package com.mailsangja.worker.facade;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
@@ -16,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.Base64;
 
 @Slf4j
@@ -66,7 +66,7 @@ public class GmailPushFacade {
         try {
             byte[] decodedData = Base64.getDecoder().decode(message.data());
             return objectMapper.readValue(decodedData, GoogleMailPushNotificationResult.class);
-        } catch (IllegalArgumentException | JsonProcessingException e) {
+        } catch (IllegalArgumentException | IOException e) {
             throw new MailPushException(MailPushErrorCode.INVALID_PUBSUB_MESSAGE_DATA);
         }
     }
