@@ -69,13 +69,13 @@ public interface MailAccountControllerDocs {
 
     @Operation(
             summary = "Google OAuth 콜백 처리",
-            description = "Google에서 전달한 code와 state를 검증한 뒤 토큰 교환, 사용자 정보 조회, MailAccount 저장을 수행하고 루트 경로로 리다이렉트합니다.",
+            description = "Google에서 전달한 code와 state를 검증한 뒤 토큰 교환, 사용자 정보 조회, MailAccount 저장을 수행하고 callbackRedirectUri로 리다이렉트합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "302",
-                    description = "메일 계정 연동 성공 후 루트 경로로 리다이렉트",
+                    description = "메일 계정 연동 성공 후 callbackRedirectUri로 리다이렉트",
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(

@@ -3,6 +3,7 @@ package com.mailsangja.core.controller;
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
+import com.mailsangja.core.config.properties.GoogleOAuthProperties;
 import com.mailsangja.core.controller.docs.MailAccountControllerDocs;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
@@ -32,6 +33,7 @@ public class MailAccountController implements MailAccountControllerDocs {
     private static final String GOOGLE_OAUTH_COLOR = "google_oauth_color";
 
     private final MailAccountFacade mailAccountFacade;
+    private final GoogleOAuthProperties googleOAuthProperties;
 
     @Override
     @GetMapping("/api/v1/mail-accounts")
@@ -91,7 +93,7 @@ public class MailAccountController implements MailAccountControllerDocs {
         mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
 
         return ResponseEntity.status(302)
-                .location(URI.create("/"))
+                .location(URI.create(googleOAuthProperties.getCallbackRedirectUri()))
                 .build();
     }
 }
