@@ -9,7 +9,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,12 +38,12 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
-    public Slice<Thread> findInboxByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, UUID markerId, Pageable pageable) {
-        return threadJpaRepositoryModule.findInboxByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
+    public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
 
     @Override
-    public Slice<Thread> findSentByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, UUID markerId, Pageable pageable) {
-        return threadJpaRepositoryModule.findSentByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
+    public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
 }

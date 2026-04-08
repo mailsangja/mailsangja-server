@@ -8,7 +8,6 @@ import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
-import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
@@ -18,7 +17,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -37,7 +39,7 @@ public class InboxFacade {
     }
 
     public ThreadDetailResponse getThreadDetail(User user, UUID threadId) {
-        List<MailAccount> userAccounts = mailAccountQueryService.findAllByUserId(user.getId());
+        List<com.mailsangja.db.entity.mail.MailAccount> userAccounts = mailAccountQueryService.findAllByUserId(user.getId());
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(userAccounts, thread);
 
@@ -50,39 +52,25 @@ public class InboxFacade {
     }
 
     private MarkerSliceResponse<ThreadSummaryResponse> getThreadList(User user, UUID marker, int size, boolean isSent) {
-        List<UUID> accountIds = mailAccountQueryService.findAllByUserId(user.getId()).stream()
-                .map(MailAccount::getId)
-                .toList();
-
-        if (accountIds.isEmpty()) {
-            return MarkerSliceResponse.of(Collections.emptyList(), null, false);
-        }
-
         Pageable pageable = PageRequest.of(0, size);
         Slice<Thread> threads = isSent
-                ? inboxQueryService.findSentThreadsByAccountIds(accountIds, marker, pageable)
-                : inboxQueryService.findInboxThreadsByAccountIds(accountIds, marker, pageable);
+                ? inboxQueryService.findSentThreadsByUserId(user.getId(), marker, pageable)
+                : inboxQueryService.findInboxThreadsByUserId(user.getId(), marker, pageable);
 
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = inboxQueryService.findAttachmentsByThreadIds(threadIds);
 
         List<ThreadSummaryResponse> content = threads.getContent().stream()
-                .map(thread -> ThreadSummaryResponse.from(
-                        thread,
-                        attachmentsByThreadId.getOrDefault(thread.getId(), List.of())
-                ))
+                .map(thread -> ThreadSummaryResponse.from(thread, attachmentsByThreadId.getOrDefault(thread.getId(), List.of())))
                 .toList();
 
-        UUID nextMarker = threads.hasNext()
-                ? threads.getContent().get(threads.getContent().size() - 1).getId()
-                : null;
-
+        UUID nextMarker = threads.hasNext() ? threads.getContent().getLast().getId() : null;
         return MarkerSliceResponse.of(content, nextMarker, threads.hasNext());
     }
 
-    private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {
+    private void validateThreadAccess(List<com.mailsangja.db.entity.mail.MailAccount> userAccounts, Thread thread) {
         Set<UUID> userAccountIds = userAccounts.stream()
-                .map(MailAccount::getId)
+                .map(com.mailsangja.db.entity.mail.MailAccount::getId)
                 .collect(Collectors.toSet());
 
         if (!userAccountIds.contains(thread.getMailAccount().getId())) {

@@ -8,24 +8,23 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
 
     @EntityGraph(attributePaths = {"mailAccount"})
-    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN :accountIds AND t.direction = 'INBOUND' AND t.deletedAt IS NULL AND (:markerId IS NULL OR t.lastMessageAt < (SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId AND m.mailAccount.id IN :accountIds AND m.direction = 'INBOUND' AND m.deletedAt IS NULL)) ORDER BY t.lastMessageAt DESC")
-    Slice<Thread> findInboxByMailAccountIdInAndDeletedAtIsNull(
-            @Param("accountIds") List<UUID> accountIds,
+    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'INBOUND' AND t.deletedAt IS NULL AND (:markerId IS NULL OR t.lastMessageAt < (SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND m.direction = 'INBOUND')) ORDER BY t.lastMessageAt DESC")
+    Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(
+            @Param("userId") UUID userId,
             @Param("markerId") UUID markerId,
             Pageable pageable
     );
 
     @EntityGraph(attributePaths = {"mailAccount"})
-    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN :accountIds AND t.direction = 'OUTBOUND' AND t.deletedAt IS NULL AND (:markerId IS NULL OR t.lastMessageAt < (SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId AND m.mailAccount.id IN :accountIds AND m.direction = 'OUTBOUND' AND m.deletedAt IS NULL)) ORDER BY t.lastMessageAt DESC")
-    Slice<Thread> findSentByMailAccountIdInAndDeletedAtIsNull(
-            @Param("accountIds") List<UUID> accountIds,
+    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'OUTBOUND' AND t.deletedAt IS NULL AND (:markerId IS NULL OR t.lastMessageAt < (SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND m.direction = 'OUTBOUND')) ORDER BY t.lastMessageAt DESC")
+    Slice<Thread> findSentByUserIdAndDeletedAtIsNull(
+            @Param("userId") UUID userId,
             @Param("markerId") UUID markerId,
             Pageable pageable
     );

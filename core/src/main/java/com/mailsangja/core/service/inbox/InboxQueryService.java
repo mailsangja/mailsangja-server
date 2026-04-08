@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+
 @Service
 @RequiredArgsConstructor
 public class InboxQueryService {
@@ -24,12 +25,12 @@ public class InboxQueryService {
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
 
-    public Slice<Thread> findInboxThreadsByAccountIds(List<UUID> accountIds, UUID markerId, Pageable pageable) {
-        return threadRepositoryPort.findInboxByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
+    public Slice<Thread> findInboxThreadsByUserId(UUID userId, UUID markerId, Pageable pageable) {
+        return threadRepositoryPort.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
 
-    public Slice<Thread> findSentThreadsByAccountIds(List<UUID> accountIds, UUID markerId, Pageable pageable) {
-        return threadRepositoryPort.findSentByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
+    public Slice<Thread> findSentThreadsByUserId(UUID userId, UUID markerId, Pageable pageable) {
+        return threadRepositoryPort.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
 
     public Thread findThreadById(UUID threadId) {
