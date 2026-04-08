@@ -38,7 +38,7 @@ public interface InboxControllerDocs {
             ),
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "마커 스레드를 찾을 수 없음",
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 marker",
                     content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getInbox(
@@ -65,7 +65,7 @@ public interface InboxControllerDocs {
             ),
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "마커 스레드를 찾을 수 없음",
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 marker",
                     content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getSent(
