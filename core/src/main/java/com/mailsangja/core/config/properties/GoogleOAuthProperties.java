@@ -20,6 +20,7 @@ public class GoogleOAuthProperties {
     private String clientId;
     private String clientSecret;
     private String redirectUri;
+    private String callbackRedirectUri;
     private String authorizationUri;
     private String tokenUri;
     private String userInfoUri;
