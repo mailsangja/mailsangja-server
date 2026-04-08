@@ -6,18 +6,18 @@ import com.mailsangja.core.config.properties.GoogleMailWatchProperties;
 import com.mailsangja.core.dto.mail.GoogleMailWatchRequest;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResponse;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
-@Slf4j
 @Service
 public class GoogleMailWatchQueryService {
 
@@ -53,15 +53,7 @@ public class GoogleMailWatchQueryService {
                     .body(GoogleMailWatchResponse.class);
 
             return validateWatchResponse(response);
-        } catch (RestClientResponseException e) {
-            log.warn(
-                    "Google Gmail watch request failed with status={} and response={}",
-                    e.getStatusCode(),
-                    e.getResponseBodyAsString()
-            );
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_FAILED);
         } catch (RestClientException e) {
-            log.warn("Google Gmail watch request failed: {}", e.getMessage());
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_FAILED);
         }
     }
@@ -80,11 +72,20 @@ public class GoogleMailWatchQueryService {
     }
 
     private GoogleMailWatchResult validateWatchResponse(GoogleMailWatchResponse response) {
-        if (response == null || isBlank(response.historyId())) {
+        if (response == null || isBlank(response.historyId()) || isBlank(response.expiration())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_RESULT_INVALID);
         }
 
-        return new GoogleMailWatchResult(response.historyId());
+        try {
+            LocalDateTime expirationAt = LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(Long.parseLong(response.expiration())),
+                    ZoneId.systemDefault()
+            );
+
+            return new GoogleMailWatchResult(response.historyId(), expirationAt);
+        } catch (NumberFormatException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_RESULT_INVALID);
+        }
     }
 
     private List<String> normalizeLabelIds(List<String> labelIds) {

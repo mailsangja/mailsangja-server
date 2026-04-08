@@ -104,10 +104,6 @@ public class MailAccount extends BaseEntity {
         this.syncHistoryId = syncHistoryId;
     }
 
-    public void updateWatchExpiresAt(LocalDateTime watchExpiresAt) {
-        this.watchExpiresAt = watchExpiresAt;
-    }
-
     public void activate() {
         this.active = true;
     }

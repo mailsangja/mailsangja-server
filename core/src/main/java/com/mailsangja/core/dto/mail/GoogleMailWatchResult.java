@@ -1,6 +1,9 @@
 package com.mailsangja.core.dto.mail;
 
+import java.time.LocalDateTime;
+
 public record GoogleMailWatchResult(
-        String historyId
+        String historyId,
+        LocalDateTime expirationAt
 ) {
 }

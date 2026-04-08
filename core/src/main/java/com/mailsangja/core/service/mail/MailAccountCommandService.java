@@ -48,16 +48,13 @@ public class MailAccountCommandService {
             String color,
             GoogleMailWatchResult watchResult
     ) {
-        validateGoogleMailAccountCreation(user, result);
-        validateGoogleMailWatchResult(watchResult);
-
         MailAccountCreateCommand command = MailAccountCreateCommand.from(
                 MailProvider.GMAIL,
                 result,
                 alias,
                 icon,
                 color,
-                watchResult.historyId()
+                watchResult
         );
         validateCreateCommand(command);
 
@@ -73,6 +70,7 @@ public class MailAccountCommandService {
                 .refreshToken(command.refreshToken())
                 .active(true)
                 .syncHistoryId(command.syncHistoryId())
+                .watchExpirationAt(command.watchExpirationAt())
                 .build();
 
         MailAccount savedMailAccount = mailAccountRepositoryPort.save(mailAccount);
@@ -93,12 +91,6 @@ public class MailAccountCommandService {
         }
     }
 
-    private void validateGoogleMailWatchResult(GoogleMailWatchResult watchResult) {
-        if (watchResult == null || isBlank(watchResult.historyId())) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_RESULT_INVALID);
-        }
-    }
-
     private void validateCreateCommand(MailAccountCreateCommand command) {
         if (command.provider() != MailProvider.GMAIL) {
             throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
@@ -110,7 +102,8 @@ public class MailAccountCommandService {
                 || isBlank(command.color())
                 || isBlank(command.accessToken())
                 || command.accessTokenExpiresAt() == null
-                || isBlank(command.syncHistoryId())) {
+                || isBlank(command.syncHistoryId())
+                || command.watchExpirationAt() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
 
