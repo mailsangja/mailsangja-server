@@ -1,0 +1,19 @@
+{
+	email {$CADDY_EMAIL}
+}
+
+{$API_DOMAIN} {
+	encode
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
+
+	# Uncomment if you want to hide API docs in production.
+	# @docs path /swagger-ui* /v3/api-docs* /scalar*
+	# respond @docs 404
+
+	reverse_proxy core:8080
+}
