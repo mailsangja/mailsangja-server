@@ -39,12 +39,12 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
-    public Slice<Thread> findInboxByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, Pageable pageable) {
-        return threadJpaRepositoryModule.findInboxByMailAccountIdInAndDeletedAtIsNull(accountIds, pageable);
+    public Slice<Thread> findInboxByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findInboxByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
     }
 
     @Override
-    public Slice<Thread> findSentByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, Pageable pageable) {
-        return threadJpaRepositoryModule.findSentByMailAccountIdInAndDeletedAtIsNull(accountIds, pageable);
+    public Slice<Thread> findSentByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findSentByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
     }
 }

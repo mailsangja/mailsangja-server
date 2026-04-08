@@ -24,12 +24,12 @@ public class InboxQueryService {
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
 
-    public Slice<Thread> findInboxThreadsByAccountIds(List<UUID> accountIds, Pageable pageable) {
-        return threadRepositoryPort.findInboxByMailAccountIdInAndDeletedAtIsNull(accountIds, pageable);
+    public Slice<Thread> findInboxThreadsByAccountIds(List<UUID> accountIds, UUID markerId, Pageable pageable) {
+        return threadRepositoryPort.findInboxByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
     }
 
-    public Slice<Thread> findSentThreadsByAccountIds(List<UUID> accountIds, Pageable pageable) {
-        return threadRepositoryPort.findSentByMailAccountIdInAndDeletedAtIsNull(accountIds, pageable);
+    public Slice<Thread> findSentThreadsByAccountIds(List<UUID> accountIds, UUID markerId, Pageable pageable) {
+        return threadRepositoryPort.findSentByMailAccountIdInAndDeletedAtIsNull(accountIds, markerId, pageable);
     }
 
     public Thread findThreadById(UUID threadId) {

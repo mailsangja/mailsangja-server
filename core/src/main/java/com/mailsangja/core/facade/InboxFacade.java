@@ -2,10 +2,9 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.inbox.InboxErrorCode;
 import com.mailsangja.core.common.exception.inbox.InboxException;
-import com.mailsangja.core.dto.common.SliceResponse;
+import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
-import com.mailsangja.core.config.properties.InboxProperties;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
@@ -17,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -31,16 +29,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InboxFacade {
 
-    private final InboxProperties inboxProperties;
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
 
-    public SliceResponse<ThreadSummaryResponse> getInbox(User user, int page) {
-        return getThreadList(user, page, false);
+    public MarkerSliceResponse<ThreadSummaryResponse> getInbox(User user, UUID marker, int size) {
+        return getThreadList(user, marker, size, false);
     }
 
-    public SliceResponse<ThreadSummaryResponse> getSent(User user, int page) {
-        return getThreadList(user, page, true);
+    public MarkerSliceResponse<ThreadSummaryResponse> getSent(User user, UUID marker, int size) {
+        return getThreadList(user, marker, size, true);
     }
 
     public ThreadDetailResponse getThreadDetail(User user, UUID threadId) {
@@ -56,19 +53,19 @@ public class InboxFacade {
         return ThreadDetailResponse.from(thread, messages);
     }
 
-    private SliceResponse<ThreadSummaryResponse> getThreadList(User user, int page, boolean isSent) {
+    private MarkerSliceResponse<ThreadSummaryResponse> getThreadList(User user, UUID marker, int size, boolean isSent) {
         List<UUID> accountIds = mailAccountQueryService.findAllByUserId(user.getId()).stream()
                 .map(MailAccount::getId)
                 .toList();
 
         if (accountIds.isEmpty()) {
-            return SliceResponse.from(new SliceImpl<>(Collections.emptyList()));
+            return MarkerSliceResponse.of(Collections.emptyList(), null, false);
         }
 
-        Pageable pageable = PageRequest.of(page, inboxProperties.getPageSize());
+        Pageable pageable = PageRequest.of(0, size);
         Slice<Thread> threads = isSent
-                ? inboxQueryService.findSentThreadsByAccountIds(accountIds, pageable)
-                : inboxQueryService.findInboxThreadsByAccountIds(accountIds, pageable);
+                ? inboxQueryService.findSentThreadsByAccountIds(accountIds, marker, pageable)
+                : inboxQueryService.findInboxThreadsByAccountIds(accountIds, marker, pageable);
 
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = inboxQueryService.findAttachmentsByThreadIds(threadIds);
@@ -80,7 +77,11 @@ public class InboxFacade {
                 ))
                 .toList();
 
-        return new SliceResponse<>(content, threads.getNumber(), threads.hasNext());
+        UUID nextMarker = threads.hasNext()
+                ? threads.getContent().get(threads.getContent().size() - 1).getId()
+                : null;
+
+        return MarkerSliceResponse.of(content, nextMarker, threads.hasNext());
     }
 
     private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {

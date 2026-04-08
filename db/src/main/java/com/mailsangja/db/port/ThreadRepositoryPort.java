@@ -13,6 +13,6 @@ public interface ThreadRepositoryPort {
     Thread save(Thread thread);
     Optional<Thread> findByIdAndDeletedAtIsNull(UUID id);
     Optional<Thread> findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId, Direction direction);
-    Slice<Thread> findInboxByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, Pageable pageable);
-    Slice<Thread> findSentByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, Pageable pageable);
+    Slice<Thread> findInboxByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, UUID markerId, Pageable pageable);
+    Slice<Thread> findSentByMailAccountIdInAndDeletedAtIsNull(List<UUID> accountIds, UUID markerId, Pageable pageable);
 }
