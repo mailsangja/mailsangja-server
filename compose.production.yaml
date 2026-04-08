@@ -1,4 +1,22 @@
 services:
+  caddy:
+    image: caddy:2.11.2-alpine
+    container_name: mailsangja-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      CADDY_EMAIL: ${CADDY_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - mailsangja_caddy_data:/data
+      - mailsangja_caddy_config:/config
+    depends_on:
+      core:
+        condition: service_started
+
   postgres:
     image: postgres:18.1-alpine3.22
     container_name: mailsangja-postgres
@@ -31,8 +49,6 @@ services:
     image: ghcr.io/${IMAGE_NAME}:${APP_IMAGE_TAG}
     container_name: mailsangja-core
     restart: unless-stopped
-    ports:
-      - "${SERVER_PORT:-8080}:8080"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -55,4 +71,8 @@ volumes:
   mailsangja_postgres_data:
     external: true
   mailsangja_redis_data:
+    external: true
+  mailsangja_caddy_data:
+    external: true
+  mailsangja_caddy_config:
     external: true
