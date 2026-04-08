@@ -2,7 +2,7 @@ package com.mailsangja.core.controller;
 
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.InboxControllerDocs;
-import com.mailsangja.core.dto.common.SliceResponse;
+import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
 import com.mailsangja.core.facade.InboxFacade;
@@ -21,20 +21,22 @@ public class InboxController implements InboxControllerDocs {
 
     @Override
     @GetMapping("/api/v1/threads/inbox")
-    public ResponseEntity<SliceResponse<ThreadSummaryResponse>> getInbox(
+    public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getInbox(
             @AuthUser User user,
-            @RequestParam(defaultValue = "0") int page
+            @RequestParam(required = false) UUID marker,
+            @RequestParam(defaultValue = "50") int size
     ) {
-        return ResponseEntity.ok(inboxFacade.getInbox(user, page));
+        return ResponseEntity.ok(inboxFacade.getInbox(user, marker, size));
     }
 
     @Override
     @GetMapping("/api/v1/threads/sent")
-    public ResponseEntity<SliceResponse<ThreadSummaryResponse>> getSent(
+    public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getSent(
             @AuthUser User user,
-            @RequestParam(defaultValue = "0") int page
+            @RequestParam(required = false) UUID marker,
+            @RequestParam(defaultValue = "50") int size
     ) {
-        return ResponseEntity.ok(inboxFacade.getSent(user, page));
+        return ResponseEntity.ok(inboxFacade.getSent(user, marker, size));
     }
 
     @Override
