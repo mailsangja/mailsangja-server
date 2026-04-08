@@ -3,6 +3,7 @@ package com.mailsangja.core.service.mail;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
+import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
 import com.mailsangja.core.dto.mail.MailAccountCreateCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -21,31 +22,44 @@ public class MailAccountCommandService {
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
     private final MailAccountQueryService mailAccountQueryService;
 
+    public void validateGoogleMailAccountCreation(User user, GoogleMailAccountResult result) {
+        validateGoogleMailAccountResult(result);
+
+        validateSameOwnerDuplicate(
+                mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
+                        user.getId(),
+                        MailProvider.GMAIL,
+                        result.emailAddress()
+                )
+        );
+
+        validateAnotherOwnerDuplicate(
+                mailAccountQueryService.findByProviderAndEmailAddress(MailProvider.GMAIL, result.emailAddress()),
+                user
+        );
+    }
+
     @Transactional
     public MailAccount createGoogleMailAccount(
             User user,
             GoogleMailAccountResult result,
             String alias,
             String icon,
-            String color
+            String color,
+            GoogleMailWatchResult watchResult
     ) {
-        validateGoogleMailAccountResult(result);
+        validateGoogleMailAccountCreation(user, result);
+        validateGoogleMailWatchResult(watchResult);
 
-        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result, alias, icon, color);
+        MailAccountCreateCommand command = MailAccountCreateCommand.from(
+                MailProvider.GMAIL,
+                result,
+                alias,
+                icon,
+                color,
+                watchResult.historyId()
+        );
         validateCreateCommand(command);
-
-        validateSameOwnerDuplicate(
-                mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
-                        user.getId(),
-                        command.provider(),
-                        command.emailAddress()
-                )
-        );
-
-        validateAnotherOwnerDuplicate(
-                mailAccountQueryService.findByProviderAndEmailAddress(command.provider(), command.emailAddress()),
-                user
-        );
 
         MailAccount mailAccount = MailAccount.builder()
                 .user(user)
@@ -79,6 +93,12 @@ public class MailAccountCommandService {
         }
     }
 
+    private void validateGoogleMailWatchResult(GoogleMailWatchResult watchResult) {
+        if (watchResult == null || isBlank(watchResult.historyId())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_RESULT_INVALID);
+        }
+    }
+
     private void validateCreateCommand(MailAccountCreateCommand command) {
         if (command.provider() != MailProvider.GMAIL) {
             throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
@@ -89,7 +109,8 @@ public class MailAccountCommandService {
                 || isBlank(command.icon())
                 || isBlank(command.color())
                 || isBlank(command.accessToken())
-                || command.accessTokenExpiresAt() == null) {
+                || command.accessTokenExpiresAt() == null
+                || isBlank(command.syncHistoryId())) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
 

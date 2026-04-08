@@ -20,7 +20,8 @@ public record MailAccountCreateCommand(
             GoogleMailAccountResult result,
             String alias,
             String icon,
-            String color
+            String color,
+            String syncHistoryId
     ) {
         return new MailAccountCreateCommand(
                 provider,
@@ -31,7 +32,7 @@ public record MailAccountCreateCommand(
                 result.accessToken(),
                 result.accessTokenExpiresAt(),
                 result.refreshToken(),
-                null
+                syncHistoryId
         );
     }
 }

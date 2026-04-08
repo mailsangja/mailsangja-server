@@ -48,6 +48,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8080/api/v1/mail-accounts/google/callback}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      GOOGLE_GMAIL_WATCH_TOPIC_NAME: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME}
       CALLBACK_REDIRECT_URI: ${CALLBACK_REDIRECT_URI:-https://mail.localhost}
     depends_on:
       postgres:

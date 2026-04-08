@@ -6,7 +6,7 @@ import com.mailsangja.core.config.properties.GoogleOAuthProperties;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
 import com.mailsangja.core.dto.mail.GoogleUserInfoResult;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -20,11 +20,18 @@ import java.time.LocalDateTime;
 import java.util.StringJoiner;
 
 @Service
-@RequiredArgsConstructor
 public class GoogleOAuthQueryService {
 
     private final GoogleOAuthProperties googleOAuthProperties;
     private final RestClient googleOAuthRestClient;
+
+    public GoogleOAuthQueryService(
+            GoogleOAuthProperties googleOAuthProperties,
+            @Qualifier("googleOAuthRestClient") RestClient googleOAuthRestClient
+    ) {
+        this.googleOAuthProperties = googleOAuthProperties;
+        this.googleOAuthRestClient = googleOAuthRestClient;
+    }
 
     public String buildAuthorizationUrl(String state) {
         return UriComponentsBuilder

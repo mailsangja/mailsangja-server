@@ -59,3 +59,10 @@ mailsangja:
         - openid
         - email
         - https://mail.google.com/
+  gmail:
+    google-watch:
+      topic-name: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME}
+      watch-uri: ${GOOGLE_GMAIL_WATCH_URI:https://gmail.googleapis.com/gmail/v1/users/me/watch}
+      connect-timeout: ${GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:5s}
+      label-filter-behavior: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:}

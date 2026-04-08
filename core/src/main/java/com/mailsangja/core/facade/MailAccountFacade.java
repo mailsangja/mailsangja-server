@@ -3,9 +3,11 @@ package com.mailsangja.core.facade;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
+import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
+import com.mailsangja.core.service.google.GoogleMailWatchQueryService;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
@@ -28,6 +30,7 @@ public class MailAccountFacade {
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleOAuthQueryService googleOAuthQueryService;
+    private final GoogleMailWatchQueryService googleMailWatchQueryService;
 
     public MailAccountAuthorizeResponse authorizeGoogle(String state) {
         String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
@@ -46,13 +49,18 @@ public class MailAccountFacade {
         GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
         MailAccountAppearance appearance = normalizeMailAccountAppearance(result.emailAddress(), alias, icon, color);
 
+        mailAccountCommandService.validateGoogleMailAccountCreation(user, result);
+
+        GoogleMailWatchResult watchResult = googleMailWatchQueryService.watch(result.accessToken());
+
         return MailAccountResponse.from(
                 mailAccountCommandService.createGoogleMailAccount(
                         user,
                         result,
                         appearance.alias(),
                         appearance.icon(),
-                        appearance.color()
+                        appearance.color(),
+                        watchResult
                 )
         );
     }
