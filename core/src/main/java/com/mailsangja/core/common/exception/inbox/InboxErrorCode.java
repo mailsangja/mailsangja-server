@@ -8,7 +8,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum InboxErrorCode implements ErrorCode {
 
-    INVALID_THREAD_MARKER(400, "MS-INBOX-INVALID-THREAD-MARKER", "유효하지 않은 marker 입니다."),
     THREAD_NOT_FOUND(404, "MS-INBOX-THREAD-NOT-FOUND", "메일 스레드를 찾을 수 없습니다."),
     THREAD_ACCESS_DENIED(403, "MS-INBOX-THREAD-ACCESS-DENIED", "해당 메일 스레드에 접근할 권한이 없습니다.");
 
