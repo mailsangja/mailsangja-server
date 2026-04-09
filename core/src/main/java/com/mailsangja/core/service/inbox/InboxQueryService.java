@@ -4,6 +4,7 @@ import com.mailsangja.core.common.exception.inbox.InboxErrorCode;
 import com.mailsangja.core.common.exception.inbox.InboxException;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
+import com.mailsangja.db.entity.contact.Contact;
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
@@ -90,7 +91,7 @@ public class InboxQueryService {
                     if (m.getCcAddresses() != null) addrs.addAll(m.getCcAddresses());
                     return addrs.stream();
                 })
-                .filter(email -> !email.isBlank())
+                .filter(email -> email != null && !email.isBlank())
                 .distinct()
                 .toList();
     }
@@ -101,6 +102,6 @@ public class InboxQueryService {
         }
         return contactRepositoryPort.findAllByEmailInAndDeletedAtIsNull(emails)
                 .stream()
-                .collect(Collectors.toMap(com.mailsangja.db.entity.contact.Contact::getEmail, com.mailsangja.db.entity.contact.Contact::getName));
+                .collect(Collectors.toMap(Contact::getEmail, Contact::getName));
     }
 }
