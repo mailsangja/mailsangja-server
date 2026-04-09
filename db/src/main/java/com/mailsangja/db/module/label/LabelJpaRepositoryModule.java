@@ -1,6 +1,6 @@
-package com.mailsangja.db.module.mail;
+package com.mailsangja.db.module.label;
 
-import com.mailsangja.db.entity.mail.Label;
+import com.mailsangja.db.entity.label.Label;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

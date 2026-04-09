@@ -1,6 +1,7 @@
 package com.mailsangja.db.entity.mail;
 
 import com.mailsangja.db.entity.common.BaseEntity;
+import com.mailsangja.db.entity.label.Label;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;

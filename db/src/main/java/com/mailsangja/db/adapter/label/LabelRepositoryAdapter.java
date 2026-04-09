@@ -1,7 +1,7 @@
-package com.mailsangja.db.adapter.mail;
+package com.mailsangja.db.adapter.label;
 
-import com.mailsangja.db.entity.mail.Label;
-import com.mailsangja.db.module.mail.LabelJpaRepositoryModule;
+import com.mailsangja.db.entity.label.Label;
+import com.mailsangja.db.module.label.LabelJpaRepositoryModule;
 import com.mailsangja.db.port.LabelRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

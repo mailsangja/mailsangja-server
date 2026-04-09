@@ -1,6 +1,8 @@
-package com.mailsangja.db.entity.mail;
+package com.mailsangja.db.entity.label;
 
 import com.mailsangja.db.entity.common.BaseEntity;
+import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import jakarta.persistence.*;
 import lombok.*;
