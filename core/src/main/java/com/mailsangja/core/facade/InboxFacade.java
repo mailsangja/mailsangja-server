@@ -8,6 +8,7 @@ import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
+import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
@@ -39,7 +40,7 @@ public class InboxFacade {
     }
 
     public ThreadDetailResponse getThreadDetail(User user, UUID threadId) {
-        List<com.mailsangja.db.entity.mail.MailAccount> userAccounts = mailAccountQueryService.findAllByUserId(user.getId());
+        List<MailAccount> userAccounts = mailAccountQueryService.findAllByUserId(user.getId());
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(userAccounts, thread);
 
@@ -68,9 +69,9 @@ public class InboxFacade {
         return MarkerSliceResponse.of(content, nextMarker, threads.hasNext());
     }
 
-    private void validateThreadAccess(List<com.mailsangja.db.entity.mail.MailAccount> userAccounts, Thread thread) {
+    private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {
         Set<UUID> userAccountIds = userAccounts.stream()
-                .map(com.mailsangja.db.entity.mail.MailAccount::getId)
+                .map(MailAccount::getId)
                 .collect(Collectors.toSet());
 
         if (!userAccountIds.contains(thread.getMailAccount().getId())) {
