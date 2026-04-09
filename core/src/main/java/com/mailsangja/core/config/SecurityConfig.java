@@ -3,7 +3,6 @@ package com.mailsangja.core.config;
 import com.mailsangja.core.common.auth.CustomAccessDeniedHandler;
 import com.mailsangja.core.common.auth.CustomAuthenticationEntryPoint;
 import com.mailsangja.core.config.properties.CorsProperties;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -61,13 +60,6 @@ public class SecurityConfig {
                 )
                 .securityContext(context -> context
                         .securityContextRepository(securityContextRepository())
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/api/v1/auth/logout")
-                        .invalidateHttpSession(true)
-                        .clearAuthentication(true)
-                        .deleteCookies("SESSION")
-                        .logoutSuccessHandler((request, response, authentication) -> response.setStatus(HttpServletResponse.SC_NO_CONTENT))
                 );
 
         return http.build();

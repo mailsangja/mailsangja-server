@@ -19,21 +19,21 @@ public class MailAccountQueryService {
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
     public MailAccount findById(UUID id) {
-        return mailAccountRepositoryPort.findById(id)
+        return mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND));
     }
 
     public MailAccount findActiveById(UUID id) {
-        return mailAccountRepositoryPort.findByIdAndActive(id, true)
+        return mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(id, true)
                 .orElseThrow(() -> new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND));
     }
 
     public Optional<MailAccount> findByUserIdAndProviderAndEmailAddress(UUID userId, MailProvider provider, String emailAddress) {
-        return mailAccountRepositoryPort.findByUserIdAndProviderAndEmailAddress(userId, provider, emailAddress);
+        return mailAccountRepositoryPort.findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(userId, provider, emailAddress);
     }
 
     public Optional<MailAccount> findByProviderAndEmailAddress(MailProvider provider, String emailAddress) {
-        return mailAccountRepositoryPort.findByProviderAndEmailAddress(provider, emailAddress);
+        return mailAccountRepositoryPort.findByProviderAndEmailAddressAndDeletedAtIsNull(provider, emailAddress);
     }
 
     public List<MailAccount> findAllByUserId(UUID userId) {

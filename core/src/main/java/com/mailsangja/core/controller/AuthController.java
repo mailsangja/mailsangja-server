@@ -33,4 +33,11 @@ public class AuthController implements AuthControllerDocs {
                                                    HttpServletResponse httpResponse) {
         return ResponseEntity.ok(authFacade.login(request, httpRequest, httpResponse));
     }
+
+    @Override
+    @PostMapping("/api/v1/auth/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        authFacade.logout(httpRequest, httpResponse);
+        return ResponseEntity.noContent().build();
+    }
 }
