@@ -31,11 +31,7 @@ public interface InboxControllerDocs {
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "스레드 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = MarkerSliceResponse.class))
-            ),
+            @ApiResponse(responseCode = "200", description = "스레드 목록 조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 marker",
@@ -58,11 +54,7 @@ public interface InboxControllerDocs {
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "스레드 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = MarkerSliceResponse.class))
-            ),
+            @ApiResponse(responseCode = "200", description = "스레드 목록 조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "400", description = "유효하지 않은 marker",
@@ -82,11 +74,7 @@ public interface InboxControllerDocs {
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "스레드 상세 조회 성공",
-                    content = @Content(schema = @Schema(implementation = ThreadDetailResponse.class))
-            ),
+            @ApiResponse(responseCode = "200", description = "스레드 상세 조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "403", description = "스레드 접근 권한 없음",
