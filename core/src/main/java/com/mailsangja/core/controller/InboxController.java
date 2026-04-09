@@ -5,6 +5,7 @@ import com.mailsangja.core.controller.docs.InboxControllerDocs;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
+import com.mailsangja.core.dto.inbox.UnreadCountResponse;
 import com.mailsangja.core.facade.InboxFacade;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
@@ -46,5 +47,11 @@ public class InboxController implements InboxControllerDocs {
             @PathVariable UUID threadId
     ) {
         return ResponseEntity.ok(inboxFacade.getThreadDetail(user, threadId));
+    }
+
+    @Override
+    @GetMapping("/api/v1/threads/inbox/unread-count")
+    public ResponseEntity<UnreadCountResponse> getUnreadCount(@AuthUser User user) {
+        return ResponseEntity.ok(UnreadCountResponse.of(inboxFacade.getUnreadCount(user)));
     }
 }
