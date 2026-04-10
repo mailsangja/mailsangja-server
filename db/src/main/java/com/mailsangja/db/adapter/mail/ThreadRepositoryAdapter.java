@@ -46,4 +46,9 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
         return threadJpaRepositoryModule.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
+
+    @Override
+    public long countUnreadInboxByUserId(UUID userId) {
+        return threadJpaRepositoryModule.countUnreadInboxByUserId(userId);
+    }
 }

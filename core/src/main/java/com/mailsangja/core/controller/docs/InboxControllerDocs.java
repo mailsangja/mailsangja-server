@@ -4,6 +4,7 @@ import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
+import com.mailsangja.core.dto.inbox.UnreadCountResponse;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -86,5 +87,19 @@ public interface InboxControllerDocs {
             @Parameter(hidden = true) @AuthUser User user,
             @Parameter(description = "스레드 내부 ID", required = true)
             @PathVariable UUID threadId
+    );
+
+    @Operation(
+            summary = "읽지 않은 스레드 수 조회",
+            description = "로그인한 사용자의 모든 메일 계정에서 읽지 않은 수신 스레드 수를 반환합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "읽지 않은 스레드 수 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<UnreadCountResponse> getUnreadCount(
+            @Parameter(hidden = true) @AuthUser User user
     );
 }

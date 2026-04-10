@@ -45,6 +45,10 @@ public class InboxFacade {
         return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail());
     }
 
+    public long getUnreadCount(User user) {
+        return inboxQueryService.countUnreadInbox(user.getId());
+    }
+
     private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(ThreadListResult result) {
         List<ThreadSummaryResponse> content = result.threads().getContent().stream()
                 .map(thread -> ThreadSummaryResponse.from(

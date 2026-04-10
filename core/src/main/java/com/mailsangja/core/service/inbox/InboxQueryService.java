@@ -53,6 +53,10 @@ public class InboxQueryService {
         return new ThreadDetailResult(thread, messages, contactNameByEmail);
     }
 
+    public long countUnreadInbox(UUID userId) {
+        return threadRepositoryPort.countUnreadInboxByUserId(userId);
+    }
+
     private ThreadListResult buildThreadListResult(Slice<Thread> threads) {
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = findAttachmentsByThreadIds(threadIds);
