@@ -58,4 +58,8 @@ public class InboxQueryService {
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
     }
+
+    public long countUnreadInbox(UUID userId) {
+        return threadRepositoryPort.countUnreadInboxByUserId(userId);
+    }
 }

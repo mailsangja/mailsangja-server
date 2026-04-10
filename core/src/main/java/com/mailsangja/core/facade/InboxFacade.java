@@ -52,6 +52,10 @@ public class InboxFacade {
         return ThreadDetailResponse.from(thread, messages);
     }
 
+    public long getUnreadCount(User user) {
+        return inboxQueryService.countUnreadInbox(user.getId());
+    }
+
     private MarkerSliceResponse<ThreadSummaryResponse> getThreadList(User user, UUID marker, int size, boolean isSent) {
         Pageable pageable = PageRequest.of(0, size);
         Slice<Thread> threads = isSent
