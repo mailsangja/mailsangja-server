@@ -50,13 +50,17 @@ public class InitialMailSyncMessageCommandService {
     }
 
     private void validateMessage(InitialMailSyncMessage message) {
+        if (message == null) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_INITIAL_MAIL_SYNC_MESSAGE);
+        }
+
         if (message.mailAccountId() == null
                 || message.userId() == null
                 || !message.isGoogleMailAccount()
                 || isBlank(message.emailAddress())
                 || isBlank(initialMailSyncRabbitProperties.getExchange())
                 || isBlank(initialMailSyncRabbitProperties.getRoutingKey())) {
-            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
+            throw new MailAccountException(MailAccountErrorCode.INVALID_INITIAL_MAIL_SYNC_MESSAGE);
         }
     }
 
