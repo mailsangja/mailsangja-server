@@ -4,6 +4,7 @@ import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
+import com.mailsangja.core.dto.mail.InitialMailSyncMessage;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
@@ -66,7 +67,8 @@ public class MailAccountFacade {
         );
 
         if (savedMailAccount.getProvider() == MailProvider.GMAIL) {
-            initialMailSyncMessageCommandService.publish(savedMailAccount);
+            InitialMailSyncMessage initialMailSyncMessage = InitialMailSyncMessage.from(savedMailAccount);
+            initialMailSyncMessageCommandService.publish(initialMailSyncMessage);
         }
 
         return MailAccountResponse.from(savedMailAccount);
