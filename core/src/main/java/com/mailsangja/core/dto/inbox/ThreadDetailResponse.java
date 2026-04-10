@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Schema(description = "메일 스레드 상세 응답")
@@ -25,9 +26,9 @@ public record ThreadDetailResponse(
         @Schema(description = "스레드 내 메시지 목록 (sentAt ASC 정렬)")
         List<MessageResponse> messages
 ) {
-    public static ThreadDetailResponse from(Thread thread, List<Message> messages) {
+    public static ThreadDetailResponse from(Thread thread, List<Message> messages, Map<String, String> contactNameByEmail) {
         List<MessageResponse> messageResponses = messages.stream()
-                .map(MessageResponse::from)
+                .map(message -> MessageResponse.from(message, contactNameByEmail))
                 .toList();
 
         return new ThreadDetailResponse(
