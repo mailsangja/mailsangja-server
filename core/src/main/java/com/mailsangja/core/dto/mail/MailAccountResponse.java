@@ -28,7 +28,7 @@ public record MailAccountResponse(
         @Schema(description = "메일 동기화 히스토리 ID", nullable = true)
         String syncHistoryId,
         @Schema(description = "Gmail watch 만료 시각", nullable = true)
-        LocalDateTime watchExpirationAt
+        LocalDateTime watchExpiresAt
 ) {
     public static MailAccountResponse from(MailAccount mailAccount) {
         return new MailAccountResponse(

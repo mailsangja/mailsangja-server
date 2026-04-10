@@ -14,7 +14,7 @@ public record MailAccountCreateCommand(
         LocalDateTime accessTokenExpiresAt,
         String refreshToken,
         String syncHistoryId,
-        LocalDateTime watchExpirationAt
+        LocalDateTime watchExpiresAt
 ) {
     public static MailAccountCreateCommand from(
             MailProvider provider,

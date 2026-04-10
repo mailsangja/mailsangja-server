@@ -70,7 +70,7 @@ public class MailAccountCommandService {
                 .refreshToken(command.refreshToken())
                 .active(true)
                 .syncHistoryId(command.syncHistoryId())
-                .watchExpiresAt(command.watchExpirationAt())
+                .watchExpiresAt(command.watchExpiresAt())
                 .build();
 
         MailAccount savedMailAccount = mailAccountRepositoryPort.save(mailAccount);
@@ -103,7 +103,7 @@ public class MailAccountCommandService {
                 || isBlank(command.accessToken())
                 || command.accessTokenExpiresAt() == null
                 || isBlank(command.syncHistoryId())
-                || command.watchExpirationAt() == null) {
+                || command.watchExpiresAt() == null) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
 
