@@ -17,7 +17,7 @@ public class MailAccountQueryService {
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
     public MailAccount findActiveGoogleMailAccountByEmailAddress(String emailAddress) {
-        MailAccount mailAccount = mailAccountRepositoryPort.findByProviderAndEmailAddress(MailProvider.GMAIL, emailAddress)
+        MailAccount mailAccount = mailAccountRepositoryPort.findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress)
                 .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
 
         validateActiveMailAccount(mailAccount);
@@ -25,7 +25,7 @@ public class MailAccountQueryService {
     }
 
     public MailAccount findActiveMailAccountById(UUID id) {
-        MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndActive(id, true)
+        MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(id, true)
                 .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
 
         validateActiveMailAccount(mailAccount);
