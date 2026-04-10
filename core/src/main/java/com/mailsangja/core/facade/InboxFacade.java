@@ -40,7 +40,7 @@ public class InboxFacade {
 
     public ThreadDetailResponse getThreadDetail(User user, UUID threadId) {
         Thread thread = inboxQueryService.findThreadById(threadId);
-        validateThreadAccess(mailAccountQueryService.findAllByUserId(user.getId()), thread);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         ThreadDetailResult result = inboxQueryService.findThreadDetailResult(thread);
         return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail());
     }
