@@ -48,6 +48,13 @@ mailsangja:
       exchange: ${MAIL_SYNC_EXCHANGE:mailsangja.mail.sync}
       queue: ${MAIL_SYNC_QUEUE:mailsangja.mail.sync.gmail.initial}
       routing-key: ${MAIL_SYNC_ROUTING_KEY:mail.sync.gmail.initial}
+      dead-letter-exchange: ${MAIL_SYNC_DLX_EXCHANGE:mailsangja.mail.sync.dlx}
+      dead-letter-queue: ${MAIL_SYNC_DLX_QUEUE:mailsangja.mail.sync.gmail.initial.dlq}
+      dead-letter-routing-key: ${MAIL_SYNC_DLX_ROUTING_KEY:mail.sync.gmail.initial.dlq}
+      ttl: ${MAIL_SYNC_TTL:30m}
+      retry-max-attempts: ${MAIL_SYNC_RETRY_MAX_ATTEMPTS:3}
+      concurrency: ${MAIL_SYNC_CONCURRENCY:1}
+      publisher-mandatory: ${MAIL_SYNC_PUBLISHER_MANDATORY:true}
   gmail:
     initial-sync:
       max-results: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS:20}

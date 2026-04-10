@@ -41,7 +41,7 @@ public record MailAccountResponse(
                 mailAccount.getColor(),
                 mailAccount.isActive(),
                 mailAccount.getSyncHistoryId(),
-                mailAccount.getWatchExpirationAt()
+                mailAccount.getWatchExpiresAt()
         );
     }
 }

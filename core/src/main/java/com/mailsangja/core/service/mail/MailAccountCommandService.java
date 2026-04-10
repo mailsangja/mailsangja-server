@@ -70,7 +70,7 @@ public class MailAccountCommandService {
                 .refreshToken(command.refreshToken())
                 .active(true)
                 .syncHistoryId(command.syncHistoryId())
-                .watchExpirationAt(command.watchExpirationAt())
+                .watchExpiresAt(command.watchExpirationAt())
                 .build();
 
         MailAccount savedMailAccount = mailAccountRepositoryPort.save(mailAccount);

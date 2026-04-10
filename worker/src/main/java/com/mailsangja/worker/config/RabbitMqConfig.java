@@ -1,20 +1,30 @@
 package com.mailsangja.worker.config;
 
 import com.mailsangja.worker.config.properties.InitialMailSyncRabbitProperties;
+import org.aopalliance.intercept.MethodInterceptor;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.MessageRecoverer;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
 public class RabbitMqConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(RabbitMqConfig.class);
 
     @Bean
     public DirectExchange initialMailSyncExchange(InitialMailSyncRabbitProperties properties) {
@@ -22,14 +32,28 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public DirectExchange initialMailSyncDeadLetterExchange(InitialMailSyncRabbitProperties properties) {
+        return new DirectExchange(properties.getDeadLetterExchange());
+    }
+
+    @Bean
     public Queue initialMailSyncQueue(InitialMailSyncRabbitProperties properties) {
-        return new Queue(properties.getQueue(), true);
+        return QueueBuilder.durable(properties.getQueue())
+                .ttl(Math.toIntExact(properties.getTtl().toMillis()))
+                .deadLetterExchange(properties.getDeadLetterExchange())
+                .deadLetterRoutingKey(properties.getDeadLetterRoutingKey())
+                .build();
+    }
+
+    @Bean
+    public Queue initialMailSyncDeadLetterQueue(InitialMailSyncRabbitProperties properties) {
+        return QueueBuilder.durable(properties.getDeadLetterQueue()).build();
     }
 
     @Bean
     public Binding initialMailSyncBinding(
-            Queue initialMailSyncQueue,
-            DirectExchange initialMailSyncExchange,
+            @Qualifier("initialMailSyncQueue") Queue initialMailSyncQueue,
+            @Qualifier("initialMailSyncExchange") DirectExchange initialMailSyncExchange,
             InitialMailSyncRabbitProperties properties
     ) {
         return BindingBuilder.bind(initialMailSyncQueue)
@@ -38,25 +62,71 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public Binding initialMailSyncDeadLetterBinding(
+            @Qualifier("initialMailSyncDeadLetterQueue") Queue initialMailSyncDeadLetterQueue,
+            @Qualifier("initialMailSyncDeadLetterExchange") DirectExchange initialMailSyncDeadLetterExchange,
+            InitialMailSyncRabbitProperties properties
+    ) {
+        return BindingBuilder.bind(initialMailSyncDeadLetterQueue)
+                .to(initialMailSyncDeadLetterExchange)
+                .with(properties.getDeadLetterRoutingKey());
+    }
+
+    @Bean
     public MessageConverter rabbitMessageConverter() {
         return new JacksonJsonMessageConverter();
     }
 
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter rabbitMessageConverter) {
+    public RabbitTemplate rabbitTemplate(
+            ConnectionFactory connectionFactory,
+            MessageConverter rabbitMessageConverter,
+            InitialMailSyncRabbitProperties properties
+    ) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
+        rabbitTemplate.setMandatory(Boolean.TRUE.equals(properties.getPublisherMandatory()));
         return rabbitTemplate;
+    }
+
+    @Bean
+    public MessageRecoverer initialMailSyncMessageRecoverer(InitialMailSyncRabbitProperties properties) {
+        return (message, cause) -> {
+            log.warn(
+                    "Initial mail sync message retries exhausted. Sending to DLQ routingKey={} messageBody={}",
+                    properties.getDeadLetterRoutingKey(),
+                    new String(message.getBody()),
+                    cause
+            );
+            throw new AmqpRejectAndDontRequeueException("Initial mail sync retries exhausted", cause);
+        };
+    }
+
+    @Bean
+    public MethodInterceptor rabbitRetryInterceptor(
+            InitialMailSyncRabbitProperties properties,
+            MessageRecoverer initialMailSyncMessageRecoverer
+    ) {
+        return RetryInterceptorBuilder.stateless()
+                .maxRetries(properties.getRetryMaxAttempts())
+                .recoverer(initialMailSyncMessageRecoverer)
+                .build();
     }
 
     @Bean
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory,
-            MessageConverter rabbitMessageConverter
+            MessageConverter rabbitMessageConverter,
+            MethodInterceptor rabbitRetryInterceptor,
+            InitialMailSyncRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
+        factory.setConcurrentConsumers(properties.getConcurrency());
+        factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setDefaultRequeueRejected(false);
+        factory.setAdviceChain(rabbitRetryInterceptor);
         return factory;
     }
 }
