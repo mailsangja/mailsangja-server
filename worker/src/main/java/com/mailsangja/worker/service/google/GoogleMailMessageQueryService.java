@@ -11,6 +11,7 @@ import com.mailsangja.worker.dto.mail.InitialMailSyncMessageResult;
 import com.mailsangja.worker.dto.mail.InitialMailSyncThreadResult;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,6 +29,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Service
 public class GoogleMailMessageQueryService {
 
@@ -208,6 +210,12 @@ public class GoogleMailMessageQueryService {
     ) {
         List<String> addresses = extractAddresses(messageResponse, headerName);
         if (addresses.isEmpty()) {
+            log.warn(
+                    "Failed to normalize required mail header. threadId={} gmailMessageId={} headerName={}",
+                    messageResponse.threadId(),
+                    messageResponse.id(),
+                    headerName
+            );
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
         return addresses.getFirst();
@@ -250,6 +258,13 @@ public class GoogleMailMessageQueryService {
             }
             return List.copyOf(normalizedAddresses);
         } catch (AddressException e) {
+            log.warn(
+                    "Failed to normalize mail header. threadId={} gmailMessageId={} headerName={} headerValue={}",
+                    messageResponse.threadId(),
+                    messageResponse.id(),
+                    headerName,
+                    headerValue
+            );
             if ("From".equalsIgnoreCase(headerName)) {
                 throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
             }
