@@ -163,6 +163,7 @@ public class GoogleMailMessageQueryService {
             GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse
     ) {
         validateThreadMessage(threadResponse, messageResponse);
+        MimeBodyContent bodyContent = extractBodyContent(messageResponse.payload());
 
         return new InitialMailSyncMessageResult(
                 messageResponse.id(),
@@ -176,8 +177,8 @@ public class GoogleMailMessageQueryService {
                 messageResponse.snippet(),
                 isRead(messageResponse.labelIds()),
                 resolveSentAt(messageResponse),
-                extractBodyContent(messageResponse.payload()).text(),
-                extractBodyContent(messageResponse.payload()).html(),
+                bodyContent.text(),
+                bodyContent.html(),
                 createAttachments(messageResponse.payload())
         );
     }
