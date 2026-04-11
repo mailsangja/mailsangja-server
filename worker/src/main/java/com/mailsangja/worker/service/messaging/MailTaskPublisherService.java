@@ -140,6 +140,7 @@ public class MailTaskPublisherService {
 
     private void validateInitialMailSyncThreadBatchProperties() {
         if (isBlank(mailTaskRabbitProperties.getExchange())
+                || isBlank(initialMailSyncRabbitProperties.getThreadBatchTaskName())
                 || isBlank(initialMailSyncRabbitProperties.getThreadBatchQueueName())
                 || isBlank(initialMailSyncRabbitProperties.getThreadBatchRoutingKey())
                 || isBlank(mailTaskRabbitProperties.getDeadLetterExchange())
