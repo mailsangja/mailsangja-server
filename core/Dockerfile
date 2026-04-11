@@ -2,13 +2,12 @@
 FROM gradle:9.4.1-jdk21-alpine AS builder
 WORKDIR /app
 
-# Copy root settings and db module first (dependency)
-COPY settings.gradle /app/
+# Copy module-specific settings and db module first (dependency)
 COPY db/ /app/db/
 COPY core/ /app/core/
 
 # Build core module (skipping tests)
-RUN gradle :core:bootJar -x test --no-daemon
+RUN gradle -p /app/core bootJar -x test --no-daemon
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
