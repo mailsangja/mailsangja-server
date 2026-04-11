@@ -5,22 +5,27 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
-
 @Getter
 @Setter
 @Component
 @ConfigurationProperties(prefix = "mailsangja.rabbitmq.watch-renewal")
 public class WatchRenewalRabbitProperties {
 
-    private String exchange;
-    private String queue;
-    private String routingKey;
-    private String deadLetterExchange;
-    private String deadLetterQueue;
-    private String deadLetterRoutingKey;
-    private Duration ttl;
-    private Integer retryMaxAttempts;
-    private Integer concurrency;
-    private Boolean publisherMandatory;
+    private String taskName;
+
+    public String getQueueName() {
+        return "mailsangja." + taskName;
+    }
+
+    public String getRoutingKey() {
+        return "mail." + taskName;
+    }
+
+    public String getDeadLetterQueueName() {
+        return getQueueName() + ".dlq";
+    }
+
+    public String getDeadLetterRoutingKey() {
+        return getRoutingKey() + ".dlq";
+    }
 }

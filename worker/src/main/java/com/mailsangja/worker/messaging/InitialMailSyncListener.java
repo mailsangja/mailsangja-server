@@ -12,7 +12,7 @@ public class InitialMailSyncListener {
 
     private final InitialMailSyncFacade initialMailSyncFacade;
 
-    @RabbitListener(queues = "${mailsangja.rabbitmq.initial-mail-sync.queue}")
+    @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
     public void handle(InitialMailSyncMessage message) {
         initialMailSyncFacade.handleInitialMailSync(message);
     }

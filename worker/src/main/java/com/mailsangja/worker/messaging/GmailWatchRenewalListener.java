@@ -13,7 +13,7 @@ public class GmailWatchRenewalListener {
     private final MailAccountFacade mailAccountFacade;
 
     @RabbitListener(
-            queues = "${mailsangja.rabbitmq.watch-renewal.queue}",
+            queues = "#{@watchRenewalQueue.name}",
             containerFactory = "watchRenewalRabbitListenerContainerFactory"
     )
     public void handle(WatchRenewalMessage message) {

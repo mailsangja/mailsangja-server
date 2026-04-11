@@ -44,28 +44,17 @@ scalar:
 
 mailsangja:
   rabbitmq:
+    task:
+      exchange: ${MAIL_TASK_EXCHANGE:mailsangja.mail.task}
+      dead-letter-exchange: ${MAIL_TASK_DLX_EXCHANGE:mailsangja.mail.task.dlx}
+      ttl: ${MAIL_TASK_TTL:30m}
+      retry-max-attempts: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:3}
+      concurrency: ${MAIL_TASK_CONCURRENCY:1}
+      publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
     initial-mail-sync:
-      exchange: ${MAIL_SYNC_EXCHANGE:mailsangja.mail.sync}
-      queue: ${MAIL_SYNC_QUEUE:mailsangja.mail.sync.gmail.initial}
-      routing-key: ${MAIL_SYNC_ROUTING_KEY:mail.sync.gmail.initial}
-      dead-letter-exchange: ${MAIL_SYNC_DLX_EXCHANGE:mailsangja.mail.sync.dlx}
-      dead-letter-queue: ${MAIL_SYNC_DLX_QUEUE:mailsangja.mail.sync.gmail.initial.dlq}
-      dead-letter-routing-key: ${MAIL_SYNC_DLX_ROUTING_KEY:mail.sync.gmail.initial.dlq}
-      ttl: ${MAIL_SYNC_TTL:30m}
-      retry-max-attempts: ${MAIL_SYNC_RETRY_MAX_ATTEMPTS:3}
-      concurrency: ${MAIL_SYNC_CONCURRENCY:1}
-      publisher-mandatory: ${MAIL_SYNC_PUBLISHER_MANDATORY:true}
+      task-name: ${MAIL_SYNC_TASK_NAME:sync.gmail.initial}
     watch-renewal:
-      exchange: ${MAIL_WATCH_RENEWAL_EXCHANGE:mailsangja.mail.watch.renewal}
-      queue: ${MAIL_WATCH_RENEWAL_QUEUE:mailsangja.mail.watch.renewal.gmail}
-      routing-key: ${MAIL_WATCH_RENEWAL_ROUTING_KEY:mail.watch.renewal.gmail}
-      dead-letter-exchange: ${MAIL_WATCH_RENEWAL_DLX_EXCHANGE:mailsangja.mail.watch.renewal.dlx}
-      dead-letter-queue: ${MAIL_WATCH_RENEWAL_DLX_QUEUE:mailsangja.mail.watch.renewal.gmail.dlq}
-      dead-letter-routing-key: ${MAIL_WATCH_RENEWAL_DLX_ROUTING_KEY:mail.watch.renewal.gmail.dlq}
-      ttl: ${MAIL_WATCH_RENEWAL_TTL:30m}
-      retry-max-attempts: ${MAIL_WATCH_RENEWAL_RETRY_MAX_ATTEMPTS:3}
-      concurrency: ${MAIL_WATCH_RENEWAL_CONCURRENCY:1}
-      publisher-mandatory: ${MAIL_WATCH_RENEWAL_PUBLISHER_MANDATORY:true}
+      task-name: ${MAIL_WATCH_RENEWAL_TASK_NAME:watch.renewal.gmail}
   gmail:
     watch-renewal:
       enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}

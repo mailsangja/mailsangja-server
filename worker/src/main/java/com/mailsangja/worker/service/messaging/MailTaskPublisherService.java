@@ -5,6 +5,7 @@ import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
+import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.worker.config.properties.WatchRenewalRabbitProperties;
 import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class MailTaskPublisherService {
 
     private final RabbitTemplate rabbitTemplate;
+    private final MailTaskRabbitProperties mailTaskRabbitProperties;
     private final WatchRenewalRabbitProperties watchRenewalRabbitProperties;
 
     public void publishWatchRenewal(WatchRenewalMessage message) {
@@ -28,7 +30,7 @@ public class MailTaskPublisherService {
 
         try {
             rabbitTemplate.convertAndSend(
-                    watchRenewalRabbitProperties.getExchange(),
+                    mailTaskRabbitProperties.getExchange(),
                     watchRenewalRabbitProperties.getRoutingKey(),
                     message,
                     new CorrelationData(message.mailAccountId().toString())
@@ -60,26 +62,27 @@ public class MailTaskPublisherService {
                 || isBlank(message.provider())
                 || isBlank(message.emailAddress())
                 || !MailProvider.GMAIL.name().equals(message.provider())
-                || isBlank(watchRenewalRabbitProperties.getExchange())
+                || isBlank(watchRenewalRabbitProperties.getTaskName())
+                || isBlank(mailTaskRabbitProperties.getExchange())
                 || isBlank(watchRenewalRabbitProperties.getRoutingKey())) {
             throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
         }
     }
 
     private void validateWatchRenewalProperties() {
-        if (isBlank(watchRenewalRabbitProperties.getExchange())
-                || isBlank(watchRenewalRabbitProperties.getQueue())
+        if (isBlank(mailTaskRabbitProperties.getExchange())
+                || isBlank(watchRenewalRabbitProperties.getQueueName())
                 || isBlank(watchRenewalRabbitProperties.getRoutingKey())
-                || isBlank(watchRenewalRabbitProperties.getDeadLetterExchange())
-                || isBlank(watchRenewalRabbitProperties.getDeadLetterQueue())
+                || isBlank(mailTaskRabbitProperties.getDeadLetterExchange())
+                || isBlank(watchRenewalRabbitProperties.getDeadLetterQueueName())
                 || isBlank(watchRenewalRabbitProperties.getDeadLetterRoutingKey())
-                || watchRenewalRabbitProperties.getRetryMaxAttempts() == null
-                || watchRenewalRabbitProperties.getRetryMaxAttempts() < 0
-                || watchRenewalRabbitProperties.getConcurrency() == null
-                || watchRenewalRabbitProperties.getConcurrency() <= 0) {
+                || mailTaskRabbitProperties.getRetryMaxAttempts() == null
+                || mailTaskRabbitProperties.getRetryMaxAttempts() < 0
+                || mailTaskRabbitProperties.getConcurrency() == null
+                || mailTaskRabbitProperties.getConcurrency() <= 0) {
             throw new MqException(
                     MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
-                    "mailsangja.rabbitmq.watch-renewal properties are invalid."
+                    "mailsangja.rabbitmq.task or mailsangja.rabbitmq.watch-renewal properties are invalid."
             );
         }
     }

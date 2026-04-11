@@ -3,6 +3,7 @@ package com.mailsangja.core.config;
 import com.mailsangja.core.common.exception.mq.MqErrorCode;
 import com.mailsangja.core.common.exception.mq.MqException;
 import com.mailsangja.core.config.properties.InitialMailSyncRabbitProperties;
+import com.mailsangja.core.config.properties.MailTaskRabbitProperties;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
@@ -27,48 +28,54 @@ public class RabbitMqConfig {
     private static final long MAX_QUEUE_TTL_MILLIS = Integer.MAX_VALUE;
 
     @Bean
-    public DirectExchange initialMailSyncExchange(InitialMailSyncRabbitProperties properties) {
+    public DirectExchange mailTaskExchange(MailTaskRabbitProperties properties) {
         return new DirectExchange(properties.getExchange());
     }
 
     @Bean
-    public DirectExchange initialMailSyncDeadLetterExchange(InitialMailSyncRabbitProperties properties) {
+    public DirectExchange mailTaskDeadLetterExchange(MailTaskRabbitProperties properties) {
         return new DirectExchange(properties.getDeadLetterExchange());
     }
 
     @Bean
-    public Queue initialMailSyncQueue(InitialMailSyncRabbitProperties properties) {
-        return QueueBuilder.durable(properties.getQueue())
-                .ttl(toQueueTtlMillis(properties.getTtl()))
-                .deadLetterExchange(properties.getDeadLetterExchange())
+    public Queue initialMailSyncQueue(
+            InitialMailSyncRabbitProperties properties,
+            MailTaskRabbitProperties mailTaskRabbitProperties
+    ) {
+        validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.initial-mail-sync.task-name");
+
+        return QueueBuilder.durable(properties.getQueueName())
+                .ttl(toQueueTtlMillis(mailTaskRabbitProperties.getTtl()))
+                .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
                 .deadLetterRoutingKey(properties.getDeadLetterRoutingKey())
                 .build();
     }
 
     @Bean
     public Queue initialMailSyncDeadLetterQueue(InitialMailSyncRabbitProperties properties) {
-        return QueueBuilder.durable(properties.getDeadLetterQueue()).build();
+        validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.initial-mail-sync.task-name");
+        return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
     }
 
     @Bean
     public Binding initialMailSyncBinding(
             @Qualifier("initialMailSyncQueue") Queue initialMailSyncQueue,
-            @Qualifier("initialMailSyncExchange") DirectExchange initialMailSyncExchange,
+            @Qualifier("mailTaskExchange") DirectExchange mailTaskExchange,
             InitialMailSyncRabbitProperties properties
     ) {
         return BindingBuilder.bind(initialMailSyncQueue)
-                .to(initialMailSyncExchange)
+                .to(mailTaskExchange)
                 .with(properties.getRoutingKey());
     }
 
     @Bean
     public Binding initialMailSyncDeadLetterBinding(
             @Qualifier("initialMailSyncDeadLetterQueue") Queue initialMailSyncDeadLetterQueue,
-            @Qualifier("initialMailSyncDeadLetterExchange") DirectExchange initialMailSyncDeadLetterExchange,
+            @Qualifier("mailTaskDeadLetterExchange") DirectExchange mailTaskDeadLetterExchange,
             InitialMailSyncRabbitProperties properties
     ) {
         return BindingBuilder.bind(initialMailSyncDeadLetterQueue)
-                .to(initialMailSyncDeadLetterExchange)
+                .to(mailTaskDeadLetterExchange)
                 .with(properties.getDeadLetterRoutingKey());
     }
 
@@ -81,7 +88,7 @@ public class RabbitMqConfig {
     public RabbitTemplate rabbitTemplate(
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
-            InitialMailSyncRabbitProperties properties
+            MailTaskRabbitProperties properties
     ) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
@@ -113,14 +120,14 @@ public class RabbitMqConfig {
         if (ttl == null) {
             throw new MqException(
                     MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
-                    "mailsangja.rabbitmq.initial-mail-sync.ttl must not be null."
+                    "mailsangja.rabbitmq.task.ttl must not be null."
             );
         }
 
         if (ttl.isNegative()) {
             throw new MqException(
                     MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
-                    "mailsangja.rabbitmq.initial-mail-sync.ttl must be greater than or equal to 0."
+                    "mailsangja.rabbitmq.task.ttl must be greater than or equal to 0."
             );
         }
 
@@ -128,12 +135,21 @@ public class RabbitMqConfig {
         if (ttlMillis > MAX_QUEUE_TTL_MILLIS) {
             throw new MqException(
                     MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
-                    "mailsangja.rabbitmq.initial-mail-sync.ttl must be less than or equal to "
+                    "mailsangja.rabbitmq.task.ttl must be less than or equal to "
                             + MAX_QUEUE_TTL_MILLIS
                             + "ms."
             );
         }
 
         return (int) ttlMillis;
+    }
+
+    private void validateTaskName(String taskName, String propertyName) {
+        if (taskName == null || taskName.isBlank()) {
+            throw new MqException(
+                    MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
+                    propertyName + " must not be blank."
+            );
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.mailsangja.worker.config;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.InitialMailSyncRabbitProperties;
+import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.worker.config.properties.WatchRenewalRabbitProperties;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -33,94 +34,96 @@ public class RabbitMqConfig {
     private static final long MAX_QUEUE_TTL_MILLIS = Integer.MAX_VALUE;
 
     @Bean
-    public DirectExchange initialMailSyncExchange(InitialMailSyncRabbitProperties properties) {
+    public DirectExchange mailTaskExchange(MailTaskRabbitProperties properties) {
         return new DirectExchange(properties.getExchange());
     }
 
     @Bean
-    public DirectExchange initialMailSyncDeadLetterExchange(InitialMailSyncRabbitProperties properties) {
+    public DirectExchange mailTaskDeadLetterExchange(MailTaskRabbitProperties properties) {
         return new DirectExchange(properties.getDeadLetterExchange());
     }
 
     @Bean
-    public DirectExchange watchRenewalExchange(WatchRenewalRabbitProperties properties) {
-        return new DirectExchange(properties.getExchange());
-    }
+    public Queue initialMailSyncQueue(
+            InitialMailSyncRabbitProperties properties,
+            MailTaskRabbitProperties mailTaskRabbitProperties
+    ) {
+        validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.initial-mail-sync.task-name");
 
-    @Bean
-    public DirectExchange watchRenewalDeadLetterExchange(WatchRenewalRabbitProperties properties) {
-        return new DirectExchange(properties.getDeadLetterExchange());
-    }
-
-    @Bean
-    public Queue initialMailSyncQueue(InitialMailSyncRabbitProperties properties) {
-        return QueueBuilder.durable(properties.getQueue())
-                .ttl(toQueueTtlMillis(properties.getTtl(), "mailsangja.rabbitmq.initial-mail-sync.ttl"))
-                .deadLetterExchange(properties.getDeadLetterExchange())
+        return QueueBuilder.durable(properties.getQueueName())
+                .ttl(toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
+                .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
                 .deadLetterRoutingKey(properties.getDeadLetterRoutingKey())
                 .build();
     }
 
     @Bean
     public Queue initialMailSyncDeadLetterQueue(InitialMailSyncRabbitProperties properties) {
-        return QueueBuilder.durable(properties.getDeadLetterQueue()).build();
+        validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.initial-mail-sync.task-name");
+        return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
     }
 
     @Bean
-    public Queue watchRenewalQueue(WatchRenewalRabbitProperties properties) {
-        return QueueBuilder.durable(properties.getQueue())
-                .ttl(toQueueTtlMillis(properties.getTtl(), "mailsangja.rabbitmq.watch-renewal.ttl"))
-                .deadLetterExchange(properties.getDeadLetterExchange())
+    public Queue watchRenewalQueue(
+            WatchRenewalRabbitProperties properties,
+            MailTaskRabbitProperties mailTaskRabbitProperties
+    ) {
+        validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.watch-renewal.task-name");
+
+        return QueueBuilder.durable(properties.getQueueName())
+                .ttl(toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
+                .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
                 .deadLetterRoutingKey(properties.getDeadLetterRoutingKey())
                 .build();
     }
 
     @Bean
     public Queue watchRenewalDeadLetterQueue(WatchRenewalRabbitProperties properties) {
-        return QueueBuilder.durable(properties.getDeadLetterQueue()).build();
+        validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.watch-renewal.task-name");
+        return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
     }
 
     @Bean
     public Binding initialMailSyncBinding(
             @Qualifier("initialMailSyncQueue") Queue initialMailSyncQueue,
-            @Qualifier("initialMailSyncExchange") DirectExchange initialMailSyncExchange,
+            @Qualifier("mailTaskExchange") DirectExchange mailTaskExchange,
             InitialMailSyncRabbitProperties properties
     ) {
         return BindingBuilder.bind(initialMailSyncQueue)
-                .to(initialMailSyncExchange)
+                .to(mailTaskExchange)
                 .with(properties.getRoutingKey());
     }
 
     @Bean
     public Binding initialMailSyncDeadLetterBinding(
             @Qualifier("initialMailSyncDeadLetterQueue") Queue initialMailSyncDeadLetterQueue,
-            @Qualifier("initialMailSyncDeadLetterExchange") DirectExchange initialMailSyncDeadLetterExchange,
+            @Qualifier("mailTaskDeadLetterExchange") DirectExchange mailTaskDeadLetterExchange,
             InitialMailSyncRabbitProperties properties
     ) {
         return BindingBuilder.bind(initialMailSyncDeadLetterQueue)
-                .to(initialMailSyncDeadLetterExchange)
+                .to(mailTaskDeadLetterExchange)
                 .with(properties.getDeadLetterRoutingKey());
     }
 
     @Bean
     public Binding watchRenewalBinding(
             @Qualifier("watchRenewalQueue") Queue watchRenewalQueue,
-            @Qualifier("watchRenewalExchange") DirectExchange watchRenewalExchange,
+            @Qualifier("mailTaskExchange") DirectExchange mailTaskExchange,
             WatchRenewalRabbitProperties properties
     ) {
         return BindingBuilder.bind(watchRenewalQueue)
-                .to(watchRenewalExchange)
+                .to(mailTaskExchange)
                 .with(properties.getRoutingKey());
     }
 
     @Bean
     public Binding watchRenewalDeadLetterBinding(
             @Qualifier("watchRenewalDeadLetterQueue") Queue watchRenewalDeadLetterQueue,
-            @Qualifier("watchRenewalDeadLetterExchange") DirectExchange watchRenewalDeadLetterExchange,
+            @Qualifier("mailTaskDeadLetterExchange") DirectExchange mailTaskDeadLetterExchange,
             WatchRenewalRabbitProperties properties
     ) {
         return BindingBuilder.bind(watchRenewalDeadLetterQueue)
-                .to(watchRenewalDeadLetterExchange)
+                .to(mailTaskDeadLetterExchange)
                 .with(properties.getDeadLetterRoutingKey());
     }
 
@@ -133,7 +136,7 @@ public class RabbitMqConfig {
     public RabbitTemplate rabbitTemplate(
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
-            InitialMailSyncRabbitProperties properties
+            MailTaskRabbitProperties properties
     ) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
@@ -169,7 +172,7 @@ public class RabbitMqConfig {
 
     @Bean
     public MethodInterceptor rabbitRetryInterceptor(
-            InitialMailSyncRabbitProperties properties,
+            MailTaskRabbitProperties properties,
             @Qualifier("initialMailSyncMessageRecoverer") MessageRecoverer initialMailSyncMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
@@ -183,7 +186,7 @@ public class RabbitMqConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("rabbitRetryInterceptor") MethodInterceptor rabbitRetryInterceptor,
-            InitialMailSyncRabbitProperties properties
+            MailTaskRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
@@ -197,7 +200,7 @@ public class RabbitMqConfig {
 
     @Bean
     public MethodInterceptor watchRenewalRetryInterceptor(
-            WatchRenewalRabbitProperties properties,
+            MailTaskRabbitProperties properties,
             @Qualifier("watchRenewalMessageRecoverer") MessageRecoverer watchRenewalMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
@@ -211,7 +214,7 @@ public class RabbitMqConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("watchRenewalRetryInterceptor") MethodInterceptor watchRenewalRetryInterceptor,
-            WatchRenewalRabbitProperties properties
+            MailTaskRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
@@ -249,5 +252,14 @@ public class RabbitMqConfig {
         }
 
         return (int) ttlMillis;
+    }
+
+    private void validateTaskName(String taskName, String propertyName) {
+        if (taskName == null || taskName.isBlank()) {
+            throw new MqException(
+                    MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
+                    propertyName + " must not be blank."
+            );
+        }
     }
 }
