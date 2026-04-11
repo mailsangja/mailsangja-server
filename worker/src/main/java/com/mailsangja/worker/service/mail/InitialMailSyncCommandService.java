@@ -227,7 +227,7 @@ public class InitialMailSyncCommandService {
 
         private boolean shouldReplaceLatest(LocalDateTime candidateSentAt) {
             if (candidateSentAt == null) {
-                return lastMessageAt == null && latestSubject == null && latestSnippet == null;
+                return false;
             }
 
             return lastMessageAt == null || !lastMessageAt.isAfter(candidateSentAt);
