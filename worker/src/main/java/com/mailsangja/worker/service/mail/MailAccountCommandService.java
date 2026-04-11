@@ -5,6 +5,7 @@ import com.mailsangja.worker.dto.gmail.GoogleMailWatchResult;
 import com.mailsangja.worker.dto.gmail.GoogleOAuthTokenResult;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.dto.mail.RenewGoogleWatchCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +29,12 @@ public class MailAccountCommandService {
     }
 
     @Transactional
-    public void renewGoogleWatch(UUID mailAccountId, GoogleOAuthTokenResult tokenResult, GoogleMailWatchResult watchResult) {
-        if (mailAccountId == null
-                || tokenResult == null
-                || watchResult == null
-                || isBlank(tokenResult.accessToken())
-                || tokenResult.expiresIn() == null
-                || tokenResult.expiresIn() <= 0
-                || isBlank(watchResult.historyId())
-                || watchResult.expirationAt() == null) {
-            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
-        }
+    public void renewGoogleWatch(RenewGoogleWatchCommand command) {
+        validateRenewGoogleWatchCommand(command);
+
+        UUID mailAccountId = command.mailAccountId();
+        GoogleOAuthTokenResult tokenResult = command.tokenResult();
+        GoogleMailWatchResult watchResult = command.watchResult();
 
         MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccountId);
         mailAccount.updateAccessToken(tokenResult.accessToken());
@@ -48,6 +44,33 @@ public class MailAccountCommandService {
         }
         mailAccount.updateSyncHistoryId(watchResult.historyId());
         mailAccount.updateWatchExpiresAt(watchResult.expirationAt());
+    }
+
+    private void validateRenewGoogleWatchCommand(RenewGoogleWatchCommand command) {
+        if (command == null
+                || command.mailAccountId() == null
+                || command.tokenResult() == null
+                || command.watchResult() == null) {
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
+
+        validateGoogleOAuthTokenResult(command.tokenResult());
+        validateGoogleMailWatchResult(command.watchResult());
+    }
+
+    private void validateGoogleOAuthTokenResult(GoogleOAuthTokenResult tokenResult) {
+        if (isBlank(tokenResult.accessToken())
+                || tokenResult.expiresIn() == null
+                || tokenResult.expiresIn() <= 0) {
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
+    }
+
+    private void validateGoogleMailWatchResult(GoogleMailWatchResult watchResult) {
+        if (isBlank(watchResult.historyId())
+                || watchResult.expirationAt() == null) {
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
     }
 
     private boolean isBlank(String value) {

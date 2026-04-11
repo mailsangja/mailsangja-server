@@ -6,6 +6,7 @@ import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.gmail.GoogleMailWatchResult;
 import com.mailsangja.worker.dto.gmail.GoogleOAuthTokenResult;
+import com.mailsangja.worker.dto.mail.RenewGoogleWatchCommand;
 import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
 import com.mailsangja.worker.service.google.GoogleMailWatchQueryService;
 import com.mailsangja.worker.service.google.GoogleOAuthQueryService;
@@ -32,7 +33,9 @@ public class MailAccountFacade {
         GoogleOAuthTokenResult tokenResult = googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken());
         GoogleMailWatchResult watchResult = googleMailWatchQueryService.watch(tokenResult.accessToken());
 
-        mailAccountCommandService.renewGoogleWatch(mailAccount.getId(), tokenResult, watchResult);
+        mailAccountCommandService.renewGoogleWatch(
+                RenewGoogleWatchCommand.of(mailAccount.getId(), tokenResult, watchResult)
+        );
 
         log.info(
                 "Completed Gmail watch renewal for mailAccountId={} userId={} emailAddress={} historyId={} watchExpiresAt={}",
