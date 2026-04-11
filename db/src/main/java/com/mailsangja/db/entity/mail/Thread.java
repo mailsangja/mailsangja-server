@@ -94,7 +94,11 @@ public class Thread extends BaseEntity {
             LocalDateTime lastMessageAt,
             boolean read
     ) {
-        if (this.lastMessageAt != null && lastMessageAt != null && this.lastMessageAt.isAfter(lastMessageAt)) {
+        if (lastMessageAt == null) {
+            return;
+        }
+
+        if (this.lastMessageAt != null && this.lastMessageAt.isAfter(lastMessageAt)) {
             return;
         }
 
@@ -105,12 +109,6 @@ public class Thread extends BaseEntity {
     public void updateReadStatus(boolean read) {
         this.read = read;
     }
-
-
-    public void incrementMessageCount() {
-        this.messageCount++;
-    }
-
     public void updateMessageCount(int messageCount) {
         this.messageCount = Math.max(messageCount, 0);
     }

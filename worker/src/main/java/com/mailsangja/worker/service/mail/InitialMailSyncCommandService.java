@@ -13,7 +13,6 @@ import com.mailsangja.worker.dto.mail.InitialMailSyncAttachmentResult;
 import com.mailsangja.worker.dto.mail.InitialMailSyncMessageSaveCommand;
 import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,8 +21,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InitialMailSyncCommandService {
@@ -47,47 +46,63 @@ public class InitialMailSyncCommandService {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
-        for (InitialMailSyncMessageSaveCommand messageCommand : command.messages()) {
-            saveMessage(mailAccount, command, messageCommand);
+        command.messages().stream()
+                .collect(Collectors.groupingBy(InitialMailSyncMessageSaveCommand::direction))
+                .forEach((direction, messageCommands) -> saveThreadDirection(mailAccount, command, direction, messageCommands));
+    }
+
+    private void saveThreadDirection(
+            MailAccount mailAccount,
+            InitialMailSyncThreadSaveCommand threadCommand,
+            Direction direction,
+            List<InitialMailSyncMessageSaveCommand> messageCommands
+    ) {
+        if (direction == null || messageCommands == null || messageCommands.isEmpty()) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
+
+        Thread thread = findOrCreateThread(mailAccount, threadCommand.gmailThreadId(), direction);
+        ThreadAggregate aggregate = ThreadAggregate.from(thread);
+
+        for (InitialMailSyncMessageSaveCommand messageCommand : messageCommands) {
+            saveMessage(thread, threadCommand, messageCommand, aggregate);
+        }
+
+        thread.updateHistoryId(aggregate.historyId());
+        thread.updateLatestMessageInfoIfNewer(
+                aggregate.latestSubject(),
+                aggregate.latestSnippet(),
+                aggregate.latestParticipantAddress(),
+                aggregate.lastMessageAt(),
+                aggregate.read()
+        );
+        thread.updateMessageCount(aggregate.messageCount());
     }
 
     private void saveMessage(
-            MailAccount mailAccount,
+            Thread thread,
             InitialMailSyncThreadSaveCommand threadCommand,
-            InitialMailSyncMessageSaveCommand messageCommand
+            InitialMailSyncMessageSaveCommand messageCommand,
+            ThreadAggregate aggregate
     ) {
         validateThreadMessage(threadCommand, messageCommand);
-
-        Direction direction = messageCommand.direction();
-        boolean read = messageCommand.read();
-        String fromAddress = messageCommand.fromAddress();
-        String subject = messageCommand.subject();
-        List<String> toAddresses = messageCommand.toAddresses();
-        List<String> ccAddresses = messageCommand.ccAddresses();
-        LocalDateTime sentAt = messageCommand.sentAt();
-
-        Thread thread = findOrCreateThread(
-                mailAccount,
-                threadCommand.gmailThreadId(),
-                direction
-        );
 
         Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 thread.getId(),
                 messageCommand.gmailMessageId()
         );
+        boolean inserted = existingMessage.isEmpty();
 
-        if (existingMessage.isPresent()) {
+        if (!inserted) {
             Message message = existingMessage.get();
             message.updateBasicContent(
-                    subject,
-                    fromAddress,
-                    toAddresses,
-                    ccAddresses,
+                    messageCommand.subject(),
+                    messageCommand.fromAddress(),
+                    messageCommand.toAddresses(),
+                    messageCommand.ccAddresses(),
                     messageCommand.snippet(),
-                    read,
-                    sentAt
+                    messageCommand.read(),
+                    messageCommand.sentAt()
             );
             message.updateBodyContent(messageCommand.bodyText(), messageCommand.bodyHtml());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
@@ -95,14 +110,14 @@ public class InitialMailSyncCommandService {
             Message message = Message.builder()
                     .thread(thread)
                     .gmailMessageId(messageCommand.gmailMessageId())
-                    .direction(direction)
-                    .subject(subject)
-                    .fromAddress(fromAddress)
-                    .toAddresses(toAddresses)
-                    .ccAddresses(ccAddresses)
+                    .direction(messageCommand.direction())
+                    .subject(messageCommand.subject())
+                    .fromAddress(messageCommand.fromAddress())
+                    .toAddresses(messageCommand.toAddresses())
+                    .ccAddresses(messageCommand.ccAddresses())
                     .snippet(messageCommand.snippet())
-                    .read(read)
-                    .sentAt(sentAt)
+                    .read(messageCommand.read())
+                    .sentAt(messageCommand.sentAt())
                     .bodyText(messageCommand.bodyText())
                     .bodyHtml(messageCommand.bodyHtml())
                     .attachments(new ArrayList<>())
@@ -112,15 +127,7 @@ public class InitialMailSyncCommandService {
             messageRepositoryPort.save(message);
         }
 
-        thread.updateHistoryId(firstNonBlank(messageCommand.historyId(), threadCommand.historyId()));
-        thread.updateLatestMessageInfoIfNewer(
-                subject,
-                messageCommand.snippet(),
-                resolveLatestParticipantAddress(direction, fromAddress, toAddresses),
-                sentAt,
-                read
-        );
-        thread.updateMessageCount((int) messageRepositoryPort.countByThreadIdAndDeletedAtIsNull(thread.getId()));
+        aggregate.merge(threadCommand, messageCommand, inserted);
     }
 
     private Thread findOrCreateThread(MailAccount mailAccount, String gmailThreadId, Direction direction) {
@@ -169,21 +176,6 @@ public class InitialMailSyncCommandService {
                 .toList();
     }
 
-    private LocalDateTime resolveSentAt(GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse) {
-        if (isBlank(messageResponse.internalDate())) {
-            return null;
-        }
-
-        try {
-            return LocalDateTime.ofInstant(
-                    Instant.ofEpochMilli(Long.parseLong(messageResponse.internalDate())),
-                    KST_ZONE_ID
-            );
-        } catch (NumberFormatException e) {
-            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
-        }
-    }
-
     private String resolveLatestParticipantAddress(Direction direction, String fromAddress, List<String> toAddresses) {
         if (direction == Direction.OUTBOUND) {
             return toAddresses.isEmpty() ? null : toAddresses.getFirst();
@@ -197,5 +189,107 @@ public class InitialMailSyncCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private static final class ThreadAggregate {
+        private String historyId;
+        private String latestSubject;
+        private String latestSnippet;
+        private String latestParticipantAddress;
+        private LocalDateTime lastMessageAt;
+        private boolean read;
+        private int messageCount;
+
+        private static ThreadAggregate from(Thread thread) {
+            ThreadAggregate aggregate = new ThreadAggregate();
+            aggregate.historyId = thread.getHistoryId();
+            aggregate.latestSubject = thread.getLatestSubject();
+            aggregate.latestSnippet = thread.getLatestSnippet();
+            aggregate.latestParticipantAddress = thread.getLatestParticipantAddress();
+            aggregate.lastMessageAt = thread.getLastMessageAt();
+            aggregate.read = thread.isRead();
+            aggregate.messageCount = thread.getMessageCount();
+            return aggregate;
+        }
+
+        private void merge(
+                InitialMailSyncThreadSaveCommand threadCommand,
+                InitialMailSyncMessageSaveCommand messageCommand,
+                boolean inserted
+        ) {
+            historyId = firstNonBlank(messageCommand.historyId(), threadCommand.historyId(), historyId);
+            if (inserted) {
+                messageCount++;
+            }
+
+            LocalDateTime candidateSentAt = messageCommand.sentAt();
+            if (shouldReplaceLatest(candidateSentAt)) {
+                latestSubject = messageCommand.subject();
+                latestSnippet = messageCommand.snippet();
+                latestParticipantAddress = resolveLatestParticipantAddress(
+                        messageCommand.direction(),
+                        messageCommand.fromAddress(),
+                        messageCommand.toAddresses()
+                );
+                lastMessageAt = candidateSentAt;
+                read = messageCommand.read();
+            }
+        }
+
+        private boolean shouldReplaceLatest(LocalDateTime candidateSentAt) {
+            if (candidateSentAt == null) {
+                return lastMessageAt == null && latestSubject == null && latestSnippet == null;
+            }
+
+            return lastMessageAt == null || !lastMessageAt.isAfter(candidateSentAt);
+        }
+
+        private String historyId() {
+            return historyId;
+        }
+
+        private String latestSubject() {
+            return latestSubject;
+        }
+
+        private String latestSnippet() {
+            return latestSnippet;
+        }
+
+        private String latestParticipantAddress() {
+            return latestParticipantAddress;
+        }
+
+        private LocalDateTime lastMessageAt() {
+            return lastMessageAt;
+        }
+
+        private boolean read() {
+            return read;
+        }
+
+        private int messageCount() {
+            return messageCount;
+        }
+
+        private String firstNonBlank(String... values) {
+            for (String value : values) {
+                if (!isBlank(value)) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        private String resolveLatestParticipantAddress(Direction direction, String fromAddress, List<String> toAddresses) {
+            if (direction == Direction.OUTBOUND) {
+                return toAddresses == null || toAddresses.isEmpty() ? null : toAddresses.getFirst();
+            }
+            return fromAddress;
+        }
+
+        private boolean isBlank(String value) {
+            return value == null || value.isBlank();
+        }
     }
 }
