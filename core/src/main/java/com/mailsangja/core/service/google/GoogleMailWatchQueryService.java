@@ -21,6 +21,8 @@ import java.util.List;
 @Service
 public class GoogleMailWatchQueryService {
 
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
+
     private final GoogleMailWatchProperties googleMailWatchProperties;
     private final RestClient googleMailWatchRestClient;
 
@@ -79,7 +81,7 @@ public class GoogleMailWatchQueryService {
         try {
             LocalDateTime expirationAt = LocalDateTime.ofInstant(
                     Instant.ofEpochMilli(Long.parseLong(response.expiration())),
-                    ZoneId.systemDefault()
+                    KST_ZONE_ID
             );
 
             return new GoogleMailWatchResult(response.historyId(), expirationAt);
