@@ -39,4 +39,8 @@ public class MailAccountQueryService {
     public List<MailAccount> findAllByUserId(UUID userId) {
         return mailAccountRepositoryPort.findAllByUserIdAndDeletedAtIsNull(userId);
     }
+
+    public List<MailAccount> findAllActiveByUserId(UUID userId) {
+        return mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(userId, true);
+    }
 }

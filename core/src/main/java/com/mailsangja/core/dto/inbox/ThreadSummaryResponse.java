@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Schema(description = "통합 인박스 스레드 목록 항목")
@@ -18,8 +19,8 @@ public record ThreadSummaryResponse(
         UUID accountId,
         @Schema(description = "최신 메시지 제목", example = "프로젝트 미팅 일정 안내")
         String latestSubject,
-        @Schema(description = "INBOUND일 때 발신자 이메일, OUTBOUND일 때 주 수신자 이메일", example = "hong@example.com")
-        String participantAddress,
+        @Schema(description = "INBOUND일 때 발신자, OUTBOUND일 때 주 수신자")
+        MailAddressResponse participant,
         @Schema(description = "최신 메시지 미리보기 텍스트", example = "안녕하세요, 다음 주 미팅 일정을 안내드립니다...")
         String snippet,
         @Schema(description = "읽음 여부", example = "false")
@@ -29,7 +30,7 @@ public record ThreadSummaryResponse(
         @Schema(description = "스레드 내 첨부파일 목록")
         List<AttachmentResponse> attachments
 ) {
-    public static ThreadSummaryResponse from(Thread thread, List<Attachment> attachments) {
+    public static ThreadSummaryResponse from(Thread thread, List<Attachment> attachments, Map<String, String> contactNameByEmail) {
         List<AttachmentResponse> attachmentResponses = attachments.stream()
                 .map(AttachmentResponse::from)
                 .toList();
@@ -39,7 +40,7 @@ public record ThreadSummaryResponse(
                 thread.getGmailThreadId(),
                 thread.getMailAccount().getId(),
                 thread.getLatestSubject(),
-                thread.getLatestParticipantAddress(),
+                MailAddressResponse.of(thread.getLatestParticipantAddress(), contactNameByEmail),
                 thread.getLatestSnippet(),
                 thread.isRead(),
                 thread.getLastMessageAt(),

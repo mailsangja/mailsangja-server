@@ -1,6 +1,6 @@
 package com.mailsangja.db.port;
 
-import com.mailsangja.db.entity.mail.Label;
+import com.mailsangja.db.entity.label.Label;
 
 import java.util.List;
 import java.util.Optional;
