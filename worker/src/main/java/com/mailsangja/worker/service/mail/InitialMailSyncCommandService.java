@@ -176,17 +176,6 @@ public class InitialMailSyncCommandService {
                 .toList();
     }
 
-    private String resolveLatestParticipantAddress(Direction direction, String fromAddress, List<String> toAddresses) {
-        if (direction == Direction.OUTBOUND) {
-            return toAddresses.isEmpty() ? null : toAddresses.getFirst();
-        }
-        return fromAddress;
-    }
-
-    private String firstNonBlank(String primary, String secondary) {
-        return !isBlank(primary) ? primary : secondary;
-    }
-
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
