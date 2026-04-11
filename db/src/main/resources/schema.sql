@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS attachments (
     id                  CHAR(36)     NOT NULL,
     message_id          CHAR(36)     NOT NULL,
-    gmail_attachment_id VARCHAR(255) NULL,
+    gmail_attachment_id VARCHAR(1024) NULL,
     filename            VARCHAR(255) NOT NULL,
     mime_type           VARCHAR(255) NOT NULL,
     size                INT          NULL,

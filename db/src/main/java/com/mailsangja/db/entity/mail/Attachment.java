@@ -27,7 +27,7 @@ public class Attachment extends BaseEntity {
     private Message message;
 
     // Gmail attachment ID (다운로드 시 사용)
-    @Column(name = "gmail_attachment_id", length = 255)
+    @Column(name = "gmail_attachment_id", length = 1024)
     private String gmailAttachmentId;
 
     @Column(name = "filename", nullable = false, length = 255)
