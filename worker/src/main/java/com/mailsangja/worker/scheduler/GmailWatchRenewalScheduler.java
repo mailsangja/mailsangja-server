@@ -1,6 +1,8 @@
 package com.mailsangja.worker.scheduler;
 
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
+import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GmailWatchRenewalProperties;
 import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
@@ -28,6 +30,8 @@ public class GmailWatchRenewalScheduler {
             return;
         }
 
+        validateSchedulerProperties();
+
         LocalDateTime renewalThreshold = mailAccountQueryService.getKstNow()
                 .plus(gmailWatchRenewalProperties.getRenewalWindow());
 
@@ -41,10 +45,18 @@ public class GmailWatchRenewalScheduler {
         }
 
         log.info(
-                "Discovered Gmail watch renewal targets count={} renewalThreshold={} batchSize={}",
+                "Scheduled Gmail watch renewal targets count={} renewalThreshold={} batchSize={}",
                 targetMailAccounts.size(),
                 renewalThreshold,
                 gmailWatchRenewalProperties.getBatchSize()
         );
+    }
+
+    private void validateSchedulerProperties() {
+        if (gmailWatchRenewalProperties.getRenewalWindow() == null
+                || gmailWatchRenewalProperties.getRenewalWindow().isNegative()
+                || gmailWatchRenewalProperties.getBatchSize() <= 0) {
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
     }
 }

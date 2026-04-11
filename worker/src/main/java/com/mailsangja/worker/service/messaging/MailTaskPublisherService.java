@@ -3,6 +3,8 @@ package com.mailsangja.worker.service.messaging;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.common.exception.mq.MqErrorCode;
+import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.WatchRenewalRabbitProperties;
 import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class MailTaskPublisherService {
     private final WatchRenewalRabbitProperties watchRenewalRabbitProperties;
 
     public void publishWatchRenewal(WatchRenewalMessage message) {
+        validateWatchRenewalProperties();
         validateWatchRenewalMessage(message);
 
         try {
@@ -60,6 +63,24 @@ public class MailTaskPublisherService {
                 || isBlank(watchRenewalRabbitProperties.getExchange())
                 || isBlank(watchRenewalRabbitProperties.getRoutingKey())) {
             throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
+    }
+
+    private void validateWatchRenewalProperties() {
+        if (isBlank(watchRenewalRabbitProperties.getExchange())
+                || isBlank(watchRenewalRabbitProperties.getQueue())
+                || isBlank(watchRenewalRabbitProperties.getRoutingKey())
+                || isBlank(watchRenewalRabbitProperties.getDeadLetterExchange())
+                || isBlank(watchRenewalRabbitProperties.getDeadLetterQueue())
+                || isBlank(watchRenewalRabbitProperties.getDeadLetterRoutingKey())
+                || watchRenewalRabbitProperties.getRetryMaxAttempts() == null
+                || watchRenewalRabbitProperties.getRetryMaxAttempts() < 0
+                || watchRenewalRabbitProperties.getConcurrency() == null
+                || watchRenewalRabbitProperties.getConcurrency() <= 0) {
+            throw new MqException(
+                    MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
+                    "mailsangja.rabbitmq.watch-renewal properties are invalid."
+            );
         }
     }
 
