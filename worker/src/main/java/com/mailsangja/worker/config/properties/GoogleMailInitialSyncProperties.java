@@ -17,6 +17,7 @@ public class GoogleMailInitialSyncProperties {
     private static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(5);
 
     private int maxResults = 20;
+    private int threadBatchSize = 5;
     private String messagesUri;
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private Duration readTimeout = DEFAULT_READ_TIMEOUT;

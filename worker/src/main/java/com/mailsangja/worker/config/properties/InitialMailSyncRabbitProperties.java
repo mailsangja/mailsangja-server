@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class InitialMailSyncRabbitProperties {
 
     private String taskName;
+    private String threadBatchTaskName;
 
     public String getQueueName() {
         return "mailsangja." + taskName;
@@ -27,5 +28,21 @@ public class InitialMailSyncRabbitProperties {
 
     public String getDeadLetterRoutingKey() {
         return getRoutingKey() + ".dlq";
+    }
+
+    public String getThreadBatchQueueName() {
+        return "mailsangja." + threadBatchTaskName;
+    }
+
+    public String getThreadBatchRoutingKey() {
+        return "mail." + threadBatchTaskName;
+    }
+
+    public String getThreadBatchDeadLetterQueueName() {
+        return getThreadBatchQueueName() + ".dlq";
+    }
+
+    public String getThreadBatchDeadLetterRoutingKey() {
+        return getThreadBatchRoutingKey() + ".dlq";
     }
 }

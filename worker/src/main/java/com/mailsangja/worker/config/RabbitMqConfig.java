@@ -64,6 +64,26 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public Queue initialMailSyncThreadBatchQueue(
+            InitialMailSyncRabbitProperties properties,
+            MailTaskRabbitProperties mailTaskRabbitProperties
+    ) {
+        validateTaskName(properties.getThreadBatchTaskName(), "mailsangja.rabbitmq.initial-mail-sync.thread-batch-task-name");
+
+        return QueueBuilder.durable(properties.getThreadBatchQueueName())
+                .ttl(toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
+                .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
+                .deadLetterRoutingKey(properties.getThreadBatchDeadLetterRoutingKey())
+                .build();
+    }
+
+    @Bean
+    public Queue initialMailSyncThreadBatchDeadLetterQueue(InitialMailSyncRabbitProperties properties) {
+        validateTaskName(properties.getThreadBatchTaskName(), "mailsangja.rabbitmq.initial-mail-sync.thread-batch-task-name");
+        return QueueBuilder.durable(properties.getThreadBatchDeadLetterQueueName()).build();
+    }
+
+    @Bean
     public Queue watchRenewalQueue(
             WatchRenewalRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
@@ -103,6 +123,28 @@ public class RabbitMqConfig {
         return BindingBuilder.bind(initialMailSyncDeadLetterQueue)
                 .to(mailTaskDeadLetterExchange)
                 .with(properties.getDeadLetterRoutingKey());
+    }
+
+    @Bean
+    public Binding initialMailSyncThreadBatchBinding(
+            @Qualifier("initialMailSyncThreadBatchQueue") Queue initialMailSyncThreadBatchQueue,
+            @Qualifier("mailTaskExchange") DirectExchange mailTaskExchange,
+            InitialMailSyncRabbitProperties properties
+    ) {
+        return BindingBuilder.bind(initialMailSyncThreadBatchQueue)
+                .to(mailTaskExchange)
+                .with(properties.getThreadBatchRoutingKey());
+    }
+
+    @Bean
+    public Binding initialMailSyncThreadBatchDeadLetterBinding(
+            @Qualifier("initialMailSyncThreadBatchDeadLetterQueue") Queue initialMailSyncThreadBatchDeadLetterQueue,
+            @Qualifier("mailTaskDeadLetterExchange") DirectExchange mailTaskDeadLetterExchange,
+            InitialMailSyncRabbitProperties properties
+    ) {
+        return BindingBuilder.bind(initialMailSyncThreadBatchDeadLetterQueue)
+                .to(mailTaskDeadLetterExchange)
+                .with(properties.getThreadBatchDeadLetterRoutingKey());
     }
 
     @Bean
@@ -167,6 +209,19 @@ public class RabbitMqConfig {
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("Initial mail sync retries exhausted", cause);
+        };
+    }
+
+    @Bean
+    public MessageRecoverer initialMailSyncThreadBatchMessageRecoverer(InitialMailSyncRabbitProperties properties) {
+        return (message, cause) -> {
+            log.warn(
+                    "Initial mail sync thread batch retries exhausted. Sending to DLQ routingKey={} messageBody={}",
+                    properties.getThreadBatchDeadLetterRoutingKey(),
+                    new String(message.getBody()),
+                    cause
+            );
+            throw new AmqpRejectAndDontRequeueException("Initial mail sync thread batch retries exhausted", cause);
         };
     }
 

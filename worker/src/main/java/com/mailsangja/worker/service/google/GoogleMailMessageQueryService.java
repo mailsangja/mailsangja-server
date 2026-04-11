@@ -48,7 +48,8 @@ public class GoogleMailMessageQueryService {
     private void validateInput(String accessToken) {
         if (isBlank(accessToken)
                 || isBlank(googleMailInitialSyncProperties.getMessagesUri())
-                || googleMailInitialSyncProperties.getMaxResults() <= 0) {
+                || googleMailInitialSyncProperties.getMaxResults() <= 0
+                || googleMailInitialSyncProperties.getThreadBatchSize() <= 0) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_FETCH_FAILED);
         }
     }
@@ -65,10 +66,15 @@ public class GoogleMailMessageQueryService {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
+        if (response.messages() != null && response.messages().stream()
+                .anyMatch(message -> message == null || isBlank(message.id()))) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+
         int fetchedCount = response.messages() == null ? 0 : response.messages().size();
         int resultSizeEstimate = response.resultSizeEstimate() == null ? fetchedCount : response.resultSizeEstimate();
 
-        return new GoogleMailMessageListResult(fetchedCount, resultSizeEstimate);
+        return new GoogleMailMessageListResult(response.messages(), resultSizeEstimate);
     }
 
     private boolean isBlank(String value) {
