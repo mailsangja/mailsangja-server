@@ -7,9 +7,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID> {
+
+    Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId);
 
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId AND m.deletedAt IS NULL ORDER BY m.sentAt ASC")

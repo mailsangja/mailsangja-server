@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -18,6 +19,11 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public Message save(Message message) {
         return messageJpaRepositoryModule.save(message);
+    }
+
+    @Override
+    public Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId) {
+        return messageJpaRepositoryModule.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(threadId, gmailMessageId);
     }
 
     @Override
