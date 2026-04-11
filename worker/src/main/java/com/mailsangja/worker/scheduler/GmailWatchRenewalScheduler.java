@@ -2,7 +2,9 @@ package com.mailsangja.worker.scheduler;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.config.properties.GmailWatchRenewalProperties;
+import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
+import com.mailsangja.worker.service.messaging.MailTaskPublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,6 +20,7 @@ public class GmailWatchRenewalScheduler {
 
     private final GmailWatchRenewalProperties gmailWatchRenewalProperties;
     private final MailAccountQueryService mailAccountQueryService;
+    private final MailTaskPublisherService mailTaskPublisherService;
 
     @Scheduled(cron = "${mailsangja.gmail.watch-renewal.cron}")
     public void scheduleRenewalTargets() {
@@ -32,6 +35,10 @@ public class GmailWatchRenewalScheduler {
                 renewalThreshold,
                 gmailWatchRenewalProperties.getBatchSize()
         );
+
+        for (MailAccount targetMailAccount : targetMailAccounts) {
+            mailTaskPublisherService.publishWatchRenewal(WatchRenewalMessage.from(targetMailAccount));
+        }
 
         log.info(
                 "Discovered Gmail watch renewal targets count={} renewalThreshold={} batchSize={}",

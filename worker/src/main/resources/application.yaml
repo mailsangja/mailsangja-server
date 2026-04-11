@@ -55,6 +55,17 @@ mailsangja:
       retry-max-attempts: ${MAIL_SYNC_RETRY_MAX_ATTEMPTS:3}
       concurrency: ${MAIL_SYNC_CONCURRENCY:1}
       publisher-mandatory: ${MAIL_SYNC_PUBLISHER_MANDATORY:true}
+    watch-renewal:
+      exchange: ${MAIL_WATCH_RENEWAL_EXCHANGE:mailsangja.mail.watch.renewal}
+      queue: ${MAIL_WATCH_RENEWAL_QUEUE:mailsangja.mail.watch.renewal.gmail}
+      routing-key: ${MAIL_WATCH_RENEWAL_ROUTING_KEY:mail.watch.renewal.gmail}
+      dead-letter-exchange: ${MAIL_WATCH_RENEWAL_DLX_EXCHANGE:mailsangja.mail.watch.renewal.dlx}
+      dead-letter-queue: ${MAIL_WATCH_RENEWAL_DLX_QUEUE:mailsangja.mail.watch.renewal.gmail.dlq}
+      dead-letter-routing-key: ${MAIL_WATCH_RENEWAL_DLX_ROUTING_KEY:mail.watch.renewal.gmail.dlq}
+      ttl: ${MAIL_WATCH_RENEWAL_TTL:30m}
+      retry-max-attempts: ${MAIL_WATCH_RENEWAL_RETRY_MAX_ATTEMPTS:3}
+      concurrency: ${MAIL_WATCH_RENEWAL_CONCURRENCY:1}
+      publisher-mandatory: ${MAIL_WATCH_RENEWAL_PUBLISHER_MANDATORY:true}
   gmail:
     watch-renewal:
       enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}
