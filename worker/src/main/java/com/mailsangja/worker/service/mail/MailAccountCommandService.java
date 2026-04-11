@@ -1,6 +1,8 @@
 package com.mailsangja.worker.service.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.worker.dto.gmail.GoogleMailWatchResult;
+import com.mailsangja.worker.dto.gmail.GoogleOAuthTokenResult;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,29 @@ public class MailAccountCommandService {
 
         MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccountId);
         mailAccount.updateSyncHistoryId(syncHistoryId);
+    }
+
+    @Transactional
+    public void renewGoogleWatch(UUID mailAccountId, GoogleOAuthTokenResult tokenResult, GoogleMailWatchResult watchResult) {
+        if (mailAccountId == null
+                || tokenResult == null
+                || watchResult == null
+                || isBlank(tokenResult.accessToken())
+                || tokenResult.expiresIn() == null
+                || tokenResult.expiresIn() <= 0
+                || isBlank(watchResult.historyId())
+                || watchResult.expirationAt() == null) {
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
+
+        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccountId);
+        mailAccount.updateAccessToken(tokenResult.accessToken());
+        mailAccount.updateAccessTokenExpiresAt(mailAccountQueryService.getKstNow().plusSeconds(tokenResult.expiresIn()));
+        if (!isBlank(tokenResult.refreshToken())) {
+            mailAccount.updateRefreshToken(tokenResult.refreshToken());
+        }
+        mailAccount.updateSyncHistoryId(watchResult.historyId());
+        mailAccount.updateWatchExpiresAt(watchResult.expirationAt());
     }
 
     private boolean isBlank(String value) {
