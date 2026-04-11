@@ -115,17 +115,17 @@ public class InitialMailSyncCommandService {
                     .build();
             message.replaceAttachments(createAttachments(message, messageResponse.payload()));
             messageRepositoryPort.save(message);
-            thread.incrementMessageCount();
         }
 
         thread.updateHistoryId(firstNonBlank(messageResponse.historyId(), threadResponse.historyId()));
-        thread.updateReadStatus(read);
-        thread.updateLatestMessageInfo(
+        thread.updateLatestMessageInfoIfNewer(
                 subject,
                 messageResponse.snippet(),
                 resolveLatestParticipantAddress(direction, fromAddress, toAddresses),
-                sentAt
+                sentAt,
+                read
         );
+        thread.updateMessageCount((int) messageRepositoryPort.countByThreadIdAndDeletedAtIsNull(thread.getId()));
     }
 
     private Thread findOrCreateThread(MailAccount mailAccount, String gmailThreadId, Direction direction) {

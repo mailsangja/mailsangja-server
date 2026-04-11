@@ -254,6 +254,34 @@ public class RabbitMqConfig {
     }
 
     @Bean
+    public MethodInterceptor initialMailSyncThreadBatchRetryInterceptor(
+            MailTaskRabbitProperties properties,
+            @Qualifier("initialMailSyncThreadBatchMessageRecoverer") MessageRecoverer initialMailSyncThreadBatchMessageRecoverer
+    ) {
+        return RetryInterceptorBuilder.stateless()
+                .maxRetries(properties.getRetryMaxAttempts())
+                .recoverer(initialMailSyncThreadBatchMessageRecoverer)
+                .build();
+    }
+
+    @Bean
+    public SimpleRabbitListenerContainerFactory initialMailSyncThreadBatchRabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            MessageConverter rabbitMessageConverter,
+            @Qualifier("initialMailSyncThreadBatchRetryInterceptor") MethodInterceptor initialMailSyncThreadBatchRetryInterceptor,
+            MailTaskRabbitProperties properties
+    ) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(rabbitMessageConverter);
+        factory.setConcurrentConsumers(properties.getConcurrency());
+        factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setDefaultRequeueRejected(false);
+        factory.setAdviceChain(initialMailSyncThreadBatchRetryInterceptor);
+        return factory;
+    }
+
+    @Bean
     public MethodInterceptor watchRenewalRetryInterceptor(
             MailTaskRabbitProperties properties,
             @Qualifier("watchRenewalMessageRecoverer") MessageRecoverer watchRenewalMessageRecoverer

@@ -87,6 +87,21 @@ public class Thread extends BaseEntity {
         this.lastMessageAt = lastMessageAt;
     }
 
+    public void updateLatestMessageInfoIfNewer(
+            String subject,
+            String snippet,
+            String participantAddress,
+            LocalDateTime lastMessageAt,
+            boolean read
+    ) {
+        if (this.lastMessageAt != null && lastMessageAt != null && this.lastMessageAt.isAfter(lastMessageAt)) {
+            return;
+        }
+
+        updateLatestMessageInfo(subject, snippet, participantAddress, lastMessageAt);
+        this.read = read;
+    }
+
     public void updateReadStatus(boolean read) {
         this.read = read;
     }
@@ -94,6 +109,10 @@ public class Thread extends BaseEntity {
 
     public void incrementMessageCount() {
         this.messageCount++;
+    }
+
+    public void updateMessageCount(int messageCount) {
+        this.messageCount = Math.max(messageCount, 0);
     }
 
     public void updateHistoryId(String historyId) {

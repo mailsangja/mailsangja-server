@@ -27,6 +27,11 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public long countByThreadIdAndDeletedAtIsNull(UUID threadId) {
+        return messageJpaRepositoryModule.countByThreadIdAndDeletedAtIsNull(threadId);
+    }
+
+    @Override
     public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
         return messageJpaRepositoryModule.findAllByThreadIdAndDeletedAtIsNull(threadId);
     }

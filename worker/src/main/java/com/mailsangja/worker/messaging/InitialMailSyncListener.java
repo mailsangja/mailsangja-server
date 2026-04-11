@@ -18,7 +18,10 @@ public class InitialMailSyncListener {
         initialMailSyncFacade.handleInitialMailSync(message);
     }
 
-    @RabbitListener(queues = "#{@initialMailSyncThreadBatchQueue.name}")
+    @RabbitListener(
+            queues = "#{@initialMailSyncThreadBatchQueue.name}",
+            containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory"
+    )
     public void handleThreadBatch(InitialMailSyncThreadBatchMessage message) {
         initialMailSyncFacade.handleInitialMailSyncThreadBatch(message);
     }

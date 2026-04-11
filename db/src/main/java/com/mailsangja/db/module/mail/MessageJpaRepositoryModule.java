@@ -14,6 +14,8 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
 
     Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId);
 
+    long countByThreadIdAndDeletedAtIsNull(UUID threadId);
+
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId AND m.deletedAt IS NULL ORDER BY m.sentAt ASC")
     List<Message> findAllByThreadIdAndDeletedAtIsNull(@Param("threadId") UUID threadId);
