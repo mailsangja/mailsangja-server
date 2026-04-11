@@ -19,13 +19,16 @@ public class MailAccountCommandService {
     private final MailAccountQueryService mailAccountQueryService;
 
     @Transactional
-    public void updateSyncHistoryId(UUID mailAccountId, String syncHistoryId) {
-        if (mailAccountId == null || isBlank(syncHistoryId)) {
+    public void updateSyncHistoryId(MailAccount mailAccount, String syncHistoryId) {
+        validateSyncHistoryUpdate(mailAccount, syncHistoryId);
+
+        mailAccount.updateSyncHistoryId(syncHistoryId);
+    }
+
+    private void validateSyncHistoryUpdate(MailAccount mailAccount, String syncHistoryId) {
+        if (mailAccount == null || isBlank(syncHistoryId)) {
             throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_PUSH_NOTIFICATION);
         }
-
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccountId);
-        mailAccount.updateSyncHistoryId(syncHistoryId);
     }
 
     @Transactional

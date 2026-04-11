@@ -45,7 +45,7 @@ public class GmailPushFacade {
                 startHistoryId
         );
 
-        mailAccountCommandService.updateSyncHistoryId(mailAccount.getId(), historyResult.historyId());
+        mailAccountCommandService.updateSyncHistoryId(mailAccount, historyResult.historyId());
 
         log.info(
                 "Processed Gmail push event for emailAddress={} eventHistoryId={} syncedHistoryId={}",
