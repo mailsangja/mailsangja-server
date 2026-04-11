@@ -8,6 +8,7 @@ import com.mailsangja.worker.dto.gmail.GoogleMailHistoryListResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailPushNotificationResult;
 import com.mailsangja.worker.dto.gmail.GooglePubsubMessageRequest;
 import com.mailsangja.worker.dto.gmail.GooglePubsubPushRequest;
+import com.mailsangja.worker.service.google.GooglePubsubOidcQueryService;
 import com.mailsangja.worker.service.google.GoogleMailHistoryQueryService;
 import com.mailsangja.worker.service.mail.MailAccountCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
@@ -23,12 +24,14 @@ import java.util.Base64;
 @RequiredArgsConstructor
 public class GmailPushFacade {
 
+    private final GooglePubsubOidcQueryService googlePubsubOidcQueryService;
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleMailHistoryQueryService googleMailHistoryQueryService;
     private final ObjectMapper objectMapper;
 
-    public void handlePush(GooglePubsubPushRequest request) {
+    public void handlePush(String authorizationHeader, GooglePubsubPushRequest request) {
+        googlePubsubOidcQueryService.validateAuthorization(authorizationHeader);
         validatePushRequest(request);
 
         GoogleMailPushNotificationResult notification = decodeNotification(request.message());

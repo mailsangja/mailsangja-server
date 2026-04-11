@@ -8,6 +8,9 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum MailPushErrorCode implements ErrorCode {
 
+    INVALID_PUBSUB_AUTHORIZATION_HEADER(401, "MS-MAIL-INVALID-PUBSUB-AUTHORIZATION-HEADER", "Pub/Sub Authorization 헤더가 올바르지 않습니다."),
+    INVALID_PUBSUB_OIDC_TOKEN(401, "MS-MAIL-INVALID-PUBSUB-OIDC-TOKEN", "Pub/Sub OIDC 토큰 검증에 실패했습니다."),
+    UNAUTHORIZED_PUBSUB_OIDC_TOKEN(403, "MS-MAIL-UNAUTHORIZED-PUBSUB-OIDC-TOKEN", "허용되지 않은 Pub/Sub OIDC 토큰입니다."),
     INVALID_PUBSUB_PUSH_REQUEST(400, "MS-MAIL-INVALID-PUBSUB-PUSH-REQUEST", "유효하지 않은 Pub/Sub push 요청입니다."),
     INVALID_PUBSUB_MESSAGE_DATA(400, "MS-MAIL-INVALID-PUBSUB-MESSAGE-DATA", "Pub/Sub message data가 올바르지 않습니다."),
     INVALID_GMAIL_PUSH_NOTIFICATION(400, "MS-MAIL-INVALID-GMAIL-PUSH-NOTIFICATION", "Gmail push notification 값이 올바르지 않습니다."),

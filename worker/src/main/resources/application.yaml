@@ -56,6 +56,14 @@ mailsangja:
       concurrency: ${MAIL_SYNC_CONCURRENCY:1}
       publisher-mandatory: ${MAIL_SYNC_PUBLISHER_MANDATORY:true}
   gmail:
+    push:
+      oidc:
+        jwk-set-uri: ${GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+        allowed-issuers:
+          - ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_1:https://accounts.google.com}
+          - ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_2:accounts.google.com}
+        audience: ${GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE}
+        allowed-service-account-email: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL:}
     initial-sync:
       max-results: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS:20}
       messages-uri: ${GOOGLE_GMAIL_MESSAGES_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages}

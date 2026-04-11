@@ -2,6 +2,7 @@ package com.mailsangja.worker.controller.docs;
 
 import com.mailsangja.worker.dto.gmail.GooglePubsubPushRequest;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,12 +29,24 @@ public interface GmailPushControllerDocs {
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
+                    responseCode = "401",
+                    description = "Pub/Sub Authorization 또는 OIDC 토큰 검증 실패",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "허용되지 않은 Pub/Sub OIDC 토큰",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "연결된 메일 계정을 찾을 수 없음",
                     content = @Content(schema = @Schema(hidden = true))
             )
     })
     ResponseEntity<Void> handlePush(
+            @Parameter(description = "Google Pub/Sub Push OIDC Bearer 토큰", required = true)
+            String authorization,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Google Pub/Sub Push 요청 본문",
                     required = true,
