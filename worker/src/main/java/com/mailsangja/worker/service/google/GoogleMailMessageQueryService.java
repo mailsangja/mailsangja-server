@@ -6,6 +6,11 @@ import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.gmail.GoogleMailMessageListResponse;
 import com.mailsangja.worker.dto.gmail.GoogleMailMessageListResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailThreadResponse;
+import com.mailsangja.worker.dto.mail.InitialMailSyncAttachmentResult;
+import com.mailsangja.worker.dto.mail.InitialMailSyncMessageResult;
+import com.mailsangja.worker.dto.mail.InitialMailSyncThreadResult;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -14,10 +19,19 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 
 @Service
 public class GoogleMailMessageQueryService {
+
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
     private final RestClient googleMailMessageRestClient;
@@ -48,11 +62,11 @@ public class GoogleMailMessageQueryService {
         }
     }
 
-    public List<GoogleMailThreadResponse> getThreads(String accessToken, List<String> threadIds) {
+    public List<InitialMailSyncThreadResult> getThreads(String accessToken, List<String> threadIds) {
         validateThreadInput(accessToken, threadIds);
 
         return threadIds.stream()
-                .map(threadId -> getThread(accessToken, threadId))
+                .map(threadId -> toThreadResult(getThread(accessToken, threadId)))
                 .toList();
     }
 
@@ -132,7 +146,228 @@ public class GoogleMailMessageQueryService {
         return response;
     }
 
+    private InitialMailSyncThreadResult toThreadResult(GoogleMailThreadResponse response) {
+        return new InitialMailSyncThreadResult(
+                response.id(),
+                response.historyId(),
+                response.messages().stream()
+                        .map(message -> toMessageResult(response, message))
+                        .toList()
+        );
+    }
+
+    private InitialMailSyncMessageResult toMessageResult(
+            GoogleMailThreadResponse threadResponse,
+            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse
+    ) {
+        validateThreadMessage(threadResponse, messageResponse);
+
+        return new InitialMailSyncMessageResult(
+                messageResponse.id(),
+                messageResponse.threadId(),
+                firstNonBlank(messageResponse.historyId(), threadResponse.historyId()),
+                resolveDirection(messageResponse.labelIds()),
+                extractHeaderValue(messageResponse, "Subject"),
+                extractRequiredAddress(messageResponse, "From"),
+                extractAddresses(messageResponse, "To"),
+                extractAddresses(messageResponse, "Cc"),
+                messageResponse.snippet(),
+                isRead(messageResponse.labelIds()),
+                resolveSentAt(messageResponse),
+                extractBodyContent(messageResponse.payload()).text(),
+                extractBodyContent(messageResponse.payload()).html(),
+                createAttachments(messageResponse.payload())
+        );
+    }
+
+    private void validateThreadMessage(
+            GoogleMailThreadResponse threadResponse,
+            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse
+    ) {
+        if (messageResponse == null
+                || isBlank(messageResponse.id())
+                || isBlank(messageResponse.threadId())
+                || !threadResponse.id().equals(messageResponse.threadId())) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+    }
+
+    private com.mailsangja.db.entity.mail.Direction resolveDirection(List<String> labelIds) {
+        return labelIds != null && labelIds.contains("SENT")
+                ? com.mailsangja.db.entity.mail.Direction.OUTBOUND
+                : com.mailsangja.db.entity.mail.Direction.INBOUND;
+    }
+
+    private boolean isRead(List<String> labelIds) {
+        return labelIds == null || !labelIds.contains("UNREAD");
+    }
+
+    private String extractRequiredAddress(
+            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
+            String headerName
+    ) {
+        List<String> addresses = extractAddresses(messageResponse, headerName);
+        if (addresses.isEmpty()) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+        return addresses.getFirst();
+    }
+
+    private String extractHeaderValue(
+            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
+            String headerName
+    ) {
+        if (messageResponse.payload() == null || messageResponse.payload().headers() == null) {
+            return null;
+        }
+
+        return messageResponse.payload().headers().stream()
+                .filter(header -> header != null
+                        && !isBlank(header.name())
+                        && headerName.equalsIgnoreCase(header.name()))
+                .map(GoogleMailThreadResponse.GoogleMailHeaderResponse::value)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<String> extractAddresses(
+            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
+            String headerName
+    ) {
+        String headerValue = extractHeaderValue(messageResponse, headerName);
+        if (isBlank(headerValue)) {
+            return Collections.emptyList();
+        }
+
+        try {
+            InternetAddress[] addresses = InternetAddress.parseHeader(headerValue, true);
+            List<String> normalizedAddresses = new ArrayList<>();
+            for (InternetAddress address : addresses) {
+                if (address != null && !isBlank(address.getAddress())) {
+                    normalizedAddresses.add(address.getAddress().trim().toLowerCase());
+                }
+            }
+            return List.copyOf(normalizedAddresses);
+        } catch (AddressException e) {
+            if ("From".equalsIgnoreCase(headerName)) {
+                throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    private LocalDateTime resolveSentAt(GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse) {
+        if (isBlank(messageResponse.internalDate())) {
+            return null;
+        }
+
+        try {
+            return LocalDateTime.ofInstant(
+                    Instant.ofEpochMilli(Long.parseLong(messageResponse.internalDate())),
+                    KST_ZONE_ID
+            );
+        } catch (NumberFormatException e) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+    }
+
+    private MimeBodyContent extractBodyContent(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload) {
+        if (payload == null) {
+            return new MimeBodyContent(null, null);
+        }
+
+        String text = decodeBody(findBodyData(payload, "text/plain"));
+        String html = decodeBody(findBodyData(payload, "text/html"));
+        return new MimeBodyContent(text, html);
+    }
+
+    private String findBodyData(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload, String mimeType) {
+        if (payload == null) {
+            return null;
+        }
+
+        if (mimeType.equalsIgnoreCase(payload.mimeType())
+                && payload.body() != null
+                && !isBlank(payload.body().data())) {
+            return payload.body().data();
+        }
+
+        if (payload.parts() == null || payload.parts().isEmpty()) {
+            return null;
+        }
+
+        for (GoogleMailThreadResponse.GoogleMailThreadPayloadResponse part : payload.parts()) {
+            String data = findBodyData(part, mimeType);
+            if (!isBlank(data)) {
+                return data;
+            }
+        }
+
+        return null;
+    }
+
+    private String decodeBody(String encodedData) {
+        if (isBlank(encodedData)) {
+            return null;
+        }
+
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(encodedData);
+            return new String(decoded, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+    }
+
+    private List<InitialMailSyncAttachmentResult> createAttachments(
+            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload
+    ) {
+        List<GoogleMailThreadResponse.GoogleMailThreadPayloadResponse> attachmentParts = new ArrayList<>();
+        collectAttachmentParts(payload, attachmentParts);
+
+        return attachmentParts.stream()
+                .map(part -> new InitialMailSyncAttachmentResult(
+                        part.body() == null ? null : part.body().attachmentId(),
+                        part.filename(),
+                        part.mimeType(),
+                        part.body() == null ? null : part.body().size()
+                ))
+                .toList();
+    }
+
+    private void collectAttachmentParts(
+            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload,
+            List<GoogleMailThreadResponse.GoogleMailThreadPayloadResponse> attachmentParts
+    ) {
+        if (payload == null) {
+            return;
+        }
+
+        if (!isBlank(payload.filename())
+                && payload.body() != null
+                && !isBlank(payload.body().attachmentId())) {
+            attachmentParts.add(payload);
+        }
+
+        if (payload.parts() == null || payload.parts().isEmpty()) {
+            return;
+        }
+
+        payload.parts().forEach(part -> collectAttachmentParts(part, attachmentParts));
+    }
+
+    private String firstNonBlank(String primary, String secondary) {
+        return !isBlank(primary) ? primary : secondary;
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record MimeBodyContent(
+            String text,
+            String html
+    ) {
     }
 }

@@ -9,78 +9,73 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
-import com.mailsangja.worker.dto.gmail.GoogleMailThreadResponse;
+import com.mailsangja.worker.dto.mail.InitialMailSyncAttachmentResult;
+import com.mailsangja.worker.dto.mail.InitialMailSyncMessageSaveCommand;
+import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class InitialMailSyncCommandService {
 
-    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
-
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
 
     @Transactional
-    public void saveThreadBatch(MailAccount mailAccount, List<GoogleMailThreadResponse> threadResponses) {
-        if (mailAccount == null || threadResponses == null || threadResponses.isEmpty()) {
+    public void saveThreadBatch(MailAccount mailAccount, List<InitialMailSyncThreadSaveCommand> commands) {
+        if (mailAccount == null || commands == null || commands.isEmpty()) {
             throw new MailPushException(MailPushErrorCode.INVALID_INITIAL_MAIL_SYNC_COMMAND);
         }
 
-        for (GoogleMailThreadResponse threadResponse : threadResponses) {
-            saveThread(mailAccount, threadResponse);
+        for (InitialMailSyncThreadSaveCommand command : commands) {
+            saveThread(mailAccount, command);
         }
     }
 
-    private void saveThread(MailAccount mailAccount, GoogleMailThreadResponse threadResponse) {
-        if (threadResponse == null || isBlank(threadResponse.id()) || threadResponse.messages() == null) {
+    private void saveThread(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
+        if (command == null || isBlank(command.gmailThreadId()) || command.messages() == null) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
-        for (GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse : threadResponse.messages()) {
-            saveMessage(mailAccount, threadResponse, messageResponse);
+        for (InitialMailSyncMessageSaveCommand messageCommand : command.messages()) {
+            saveMessage(mailAccount, command, messageCommand);
         }
     }
 
     private void saveMessage(
             MailAccount mailAccount,
-            GoogleMailThreadResponse threadResponse,
-            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse
+            InitialMailSyncThreadSaveCommand threadCommand,
+            InitialMailSyncMessageSaveCommand messageCommand
     ) {
-        validateThreadMessage(threadResponse, messageResponse);
+        validateThreadMessage(threadCommand, messageCommand);
 
-        Direction direction = resolveDirection(messageResponse.labelIds());
-        boolean read = isRead(messageResponse.labelIds());
-        String fromAddress = extractRequiredHeaderValue(messageResponse, "From");
-        String subject = extractHeaderValue(messageResponse, "Subject");
-        List<String> toAddresses = extractAddresses(messageResponse, "To");
-        List<String> ccAddresses = extractAddresses(messageResponse, "Cc");
-        LocalDateTime sentAt = resolveSentAt(messageResponse);
-        MimeBodyContent bodyContent = extractBodyContent(messageResponse.payload());
+        Direction direction = messageCommand.direction();
+        boolean read = messageCommand.read();
+        String fromAddress = messageCommand.fromAddress();
+        String subject = messageCommand.subject();
+        List<String> toAddresses = messageCommand.toAddresses();
+        List<String> ccAddresses = messageCommand.ccAddresses();
+        LocalDateTime sentAt = messageCommand.sentAt();
 
         Thread thread = findOrCreateThread(
                 mailAccount,
-                threadResponse.id(),
+                threadCommand.gmailThreadId(),
                 direction
         );
 
         Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 thread.getId(),
-                messageResponse.id()
+                messageCommand.gmailMessageId()
         );
 
         if (existingMessage.isPresent()) {
@@ -90,37 +85,37 @@ public class InitialMailSyncCommandService {
                     fromAddress,
                     toAddresses,
                     ccAddresses,
-                    messageResponse.snippet(),
+                    messageCommand.snippet(),
                     read,
                     sentAt
             );
-            message.updateBodyContent(bodyContent.text(), bodyContent.html());
-            message.replaceAttachments(createAttachments(message, messageResponse.payload()));
+            message.updateBodyContent(messageCommand.bodyText(), messageCommand.bodyHtml());
+            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
         } else {
             Message message = Message.builder()
                     .thread(thread)
-                    .gmailMessageId(messageResponse.id())
+                    .gmailMessageId(messageCommand.gmailMessageId())
                     .direction(direction)
                     .subject(subject)
                     .fromAddress(fromAddress)
                     .toAddresses(toAddresses)
                     .ccAddresses(ccAddresses)
-                    .snippet(messageResponse.snippet())
+                    .snippet(messageCommand.snippet())
                     .read(read)
                     .sentAt(sentAt)
-                    .bodyText(bodyContent.text())
-                    .bodyHtml(bodyContent.html())
+                    .bodyText(messageCommand.bodyText())
+                    .bodyHtml(messageCommand.bodyHtml())
                     .attachments(new ArrayList<>())
                     .labels(Collections.emptyList())
                     .build();
-            message.replaceAttachments(createAttachments(message, messageResponse.payload()));
+            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
             messageRepositoryPort.save(message);
         }
 
-        thread.updateHistoryId(firstNonBlank(messageResponse.historyId(), threadResponse.historyId()));
+        thread.updateHistoryId(firstNonBlank(messageCommand.historyId(), threadCommand.historyId()));
         thread.updateLatestMessageInfoIfNewer(
                 subject,
-                messageResponse.snippet(),
+                messageCommand.snippet(),
                 resolveLatestParticipantAddress(direction, fromAddress, toAddresses),
                 sentAt,
                 read
@@ -144,160 +139,34 @@ public class InitialMailSyncCommandService {
     }
 
     private void validateThreadMessage(
-            GoogleMailThreadResponse threadResponse,
-            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse
+            InitialMailSyncThreadSaveCommand threadCommand,
+            InitialMailSyncMessageSaveCommand messageCommand
     ) {
-        if (messageResponse == null
-                || isBlank(messageResponse.id())
-                || isBlank(messageResponse.threadId())
-                || !threadResponse.id().equals(messageResponse.threadId())) {
-            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
-        }
-    }
-
-    private Direction resolveDirection(List<String> labelIds) {
-        return labelIds != null && labelIds.contains("SENT") ? Direction.OUTBOUND : Direction.INBOUND;
-    }
-
-    private boolean isRead(List<String> labelIds) {
-        return labelIds == null || !labelIds.contains("UNREAD");
-    }
-
-    private String extractRequiredHeaderValue(
-            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
-            String headerName
-    ) {
-        String headerValue = extractHeaderValue(messageResponse, headerName);
-        if (isBlank(headerValue)) {
-            log.warn(
-                    "Initial mail sync message is missing required header. threadId={} gmailMessageId={} headerName={}",
-                    messageResponse.threadId(),
-                    messageResponse.id(),
-                    headerName
-            );
-            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
-        }
-        return headerValue;
-    }
-
-    private String extractHeaderValue(
-            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
-            String headerName
-    ) {
-        if (messageResponse.payload() == null || messageResponse.payload().headers() == null) {
-            return null;
-        }
-
-        return messageResponse.payload().headers().stream()
-                .filter(header -> header != null
-                        && !isBlank(header.name())
-                        && headerName.equalsIgnoreCase(header.name()))
-                .map(GoogleMailThreadResponse.GoogleMailHeaderResponse::value)
-                .filter(value -> value != null && !value.isBlank())
-                .findFirst()
-                .orElse(null);
-    }
-
-    private List<String> extractAddresses(
-            GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
-            String headerName
-    ) {
-        String headerValue = extractHeaderValue(messageResponse, headerName);
-        if (isBlank(headerValue)) {
-            return Collections.emptyList();
-        }
-
-        return List.of(headerValue.split(",")).stream()
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .toList();
-    }
-
-    private MimeBodyContent extractBodyContent(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload) {
-        if (payload == null) {
-            return new MimeBodyContent(null, null);
-        }
-
-        String text = decodeBody(findBodyData(payload, "text/plain"));
-        String html = decodeBody(findBodyData(payload, "text/html"));
-        return new MimeBodyContent(text, html);
-    }
-
-    private String findBodyData(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload, String mimeType) {
-        if (payload == null) {
-            return null;
-        }
-
-        if (mimeType.equalsIgnoreCase(payload.mimeType())
-                && payload.body() != null
-                && !isBlank(payload.body().data())) {
-            return payload.body().data();
-        }
-
-        if (payload.parts() == null || payload.parts().isEmpty()) {
-            return null;
-        }
-
-        for (GoogleMailThreadResponse.GoogleMailThreadPayloadResponse part : payload.parts()) {
-            String data = findBodyData(part, mimeType);
-            if (!isBlank(data)) {
-                return data;
-            }
-        }
-
-        return null;
-    }
-
-    private String decodeBody(String encodedData) {
-        if (isBlank(encodedData)) {
-            return null;
-        }
-
-        try {
-            byte[] decoded = Base64.getUrlDecoder().decode(encodedData);
-            return new String(decoded, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
+        if (messageCommand == null
+                || isBlank(threadCommand.gmailThreadId())
+                || isBlank(messageCommand.gmailMessageId())
+                || isBlank(messageCommand.fromAddress())) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
     }
 
     private List<Attachment> createAttachments(
             Message message,
-            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload
+            List<InitialMailSyncAttachmentResult> attachments
     ) {
-        List<GoogleMailThreadResponse.GoogleMailThreadPayloadResponse> attachmentParts = new ArrayList<>();
-        collectAttachmentParts(payload, attachmentParts);
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
 
-        return attachmentParts.stream()
-                .map(part -> Attachment.builder()
+        return attachments.stream()
+                .map(attachment -> Attachment.builder()
                         .message(message)
-                        .gmailAttachmentId(part.body() == null ? null : part.body().attachmentId())
-                        .filename(part.filename())
-                        .mimeType(part.mimeType())
-                        .size(part.body() == null ? null : part.body().size())
+                        .gmailAttachmentId(attachment.gmailAttachmentId())
+                        .filename(attachment.filename())
+                        .mimeType(attachment.mimeType())
+                        .size(attachment.size())
                         .build())
                 .toList();
-    }
-
-    private void collectAttachmentParts(
-            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload,
-            List<GoogleMailThreadResponse.GoogleMailThreadPayloadResponse> attachmentParts
-    ) {
-        if (payload == null) {
-            return;
-        }
-
-        if (!isBlank(payload.filename())
-                && payload.body() != null
-                && !isBlank(payload.body().attachmentId())) {
-            attachmentParts.add(payload);
-        }
-
-        if (payload.parts() == null || payload.parts().isEmpty()) {
-            return;
-        }
-
-        payload.parts().forEach(part -> collectAttachmentParts(part, attachmentParts));
     }
 
     private LocalDateTime resolveSentAt(GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse) {
@@ -328,11 +197,5 @@ public class InitialMailSyncCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
-    }
-
-    private record MimeBodyContent(
-            String text,
-            String html
-    ) {
     }
 }

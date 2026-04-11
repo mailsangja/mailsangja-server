@@ -6,9 +6,10 @@ import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.gmail.GoogleMailMessageListResult;
-import com.mailsangja.worker.dto.gmail.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.InitialMailSyncThreadBatchMessage;
 import com.mailsangja.worker.dto.mail.InitialMailSyncMessage;
+import com.mailsangja.worker.dto.mail.InitialMailSyncThreadResult;
+import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
 import com.mailsangja.worker.service.google.GoogleMailMessageQueryService;
 import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
@@ -66,12 +67,15 @@ public class InitialMailSyncFacade {
         validateThreadBatchMessage(message);
 
         MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(message.mailAccountId());
-        List<GoogleMailThreadResponse> threadResponses = googleMailMessageQueryService.getThreads(
+        List<InitialMailSyncThreadResult> threadResults = googleMailMessageQueryService.getThreads(
                 mailAccount.getAccessToken(),
                 message.threadIds()
         );
+        List<InitialMailSyncThreadSaveCommand> commands = threadResults.stream()
+                .map(InitialMailSyncThreadSaveCommand::from)
+                .toList();
 
-        initialMailSyncCommandService.saveThreadBatch(mailAccount, threadResponses);
+        initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
 
         log.info(
                 "Saved initial mail sync thread batch for mailAccountId={} userId={} emailAddress={} threadCount={}",
