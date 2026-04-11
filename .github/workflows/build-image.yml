@@ -15,6 +15,15 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - module: core
+            image_name: mailsangja-core
+            dockerfile_ci: core/Dockerfile.ci
+          - module: worker
+            image_name: mailsangja-worker
+            dockerfile_ci: worker/Dockerfile.ci
 
     steps:
       - name: Checkout
@@ -32,12 +41,12 @@ jobs:
           gradle-version: "9.4.1"
 
       - name: Build application JAR
-        run: ./gradlew :core:bootJar -x test --no-daemon
+        run: ./gradlew :${{ matrix.module }}:bootJar -x test --no-daemon
 
       - name: Derive image name
         id: image
         shell: bash
-        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}/mailsangja-core" >> "$GITHUB_OUTPUT"
+        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image_name }}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -64,7 +73,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: core/Dockerfile.ci
+          file: ${{ matrix.dockerfile_ci }}
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
