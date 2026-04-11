@@ -1,5 +1,7 @@
 package com.mailsangja.core.config;
 
+import com.mailsangja.core.common.exception.mq.MqErrorCode;
+import com.mailsangja.core.common.exception.mq.MqException;
 import com.mailsangja.core.config.properties.InitialMailSyncRabbitProperties;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -16,10 +18,13 @@ import org.springframework.context.annotation.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+
 @Configuration
 public class RabbitMqConfig {
 
     private static final Logger log = LoggerFactory.getLogger(RabbitMqConfig.class);
+    private static final long MAX_QUEUE_TTL_MILLIS = Integer.MAX_VALUE;
 
     @Bean
     public DirectExchange initialMailSyncExchange(InitialMailSyncRabbitProperties properties) {
@@ -34,7 +39,7 @@ public class RabbitMqConfig {
     @Bean
     public Queue initialMailSyncQueue(InitialMailSyncRabbitProperties properties) {
         return QueueBuilder.durable(properties.getQueue())
-                .ttl(Math.toIntExact(properties.getTtl().toMillis()))
+                .ttl(toQueueTtlMillis(properties.getTtl()))
                 .deadLetterExchange(properties.getDeadLetterExchange())
                 .deadLetterRoutingKey(properties.getDeadLetterRoutingKey())
                 .build();
@@ -102,5 +107,33 @@ public class RabbitMqConfig {
                 returned.getReplyText()
         ));
         return rabbitTemplate;
+    }
+
+    private int toQueueTtlMillis(Duration ttl) {
+        if (ttl == null) {
+            throw new MqException(
+                    MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
+                    "mailsangja.rabbitmq.initial-mail-sync.ttl must not be null."
+            );
+        }
+
+        if (ttl.isNegative()) {
+            throw new MqException(
+                    MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
+                    "mailsangja.rabbitmq.initial-mail-sync.ttl must be greater than or equal to 0."
+            );
+        }
+
+        long ttlMillis = ttl.toMillis();
+        if (ttlMillis > MAX_QUEUE_TTL_MILLIS) {
+            throw new MqException(
+                    MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL,
+                    "mailsangja.rabbitmq.initial-mail-sync.ttl must be less than or equal to "
+                            + MAX_QUEUE_TTL_MILLIS
+                            + "ms."
+            );
+        }
+
+        return (int) ttlMillis;
     }
 }
