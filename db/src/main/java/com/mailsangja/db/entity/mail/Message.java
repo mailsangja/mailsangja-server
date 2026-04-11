@@ -110,4 +110,16 @@ public class Message extends BaseEntity {
         this.read = read;
         this.sentAt = sentAt;
     }
+
+    public void updateBodyContent(String bodyText, String bodyHtml) {
+        this.bodyText = bodyText;
+        this.bodyHtml = bodyHtml;
+    }
+
+    public void replaceAttachments(List<Attachment> attachments) {
+        this.attachments.clear();
+        if (attachments != null) {
+            this.attachments.addAll(attachments);
+        }
+    }
 }

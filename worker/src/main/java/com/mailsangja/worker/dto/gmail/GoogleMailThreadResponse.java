@@ -20,7 +20,18 @@ public record GoogleMailThreadResponse(
     }
 
     public record GoogleMailThreadPayloadResponse(
-            List<GoogleMailHeaderResponse> headers
+            String mimeType,
+            String filename,
+            GoogleMailThreadBodyResponse body,
+            List<GoogleMailHeaderResponse> headers,
+            List<GoogleMailThreadPayloadResponse> parts
+    ) {
+    }
+
+    public record GoogleMailThreadBodyResponse(
+            Integer size,
+            String data,
+            String attachmentId
     ) {
     }
 

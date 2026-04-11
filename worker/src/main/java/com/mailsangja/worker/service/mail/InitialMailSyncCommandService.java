@@ -1,5 +1,6 @@
 package com.mailsangja.worker.service.mail;
 
+import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -17,9 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Service
@@ -66,6 +70,7 @@ public class InitialMailSyncCommandService {
         List<String> toAddresses = extractAddresses(messageResponse, "To");
         List<String> ccAddresses = extractAddresses(messageResponse, "Cc");
         LocalDateTime sentAt = resolveSentAt(messageResponse);
+        MimeBodyContent bodyContent = extractBodyContent(messageResponse.payload());
 
         Thread thread = findOrCreateThread(
                 mailAccount,
@@ -89,6 +94,8 @@ public class InitialMailSyncCommandService {
                     read,
                     sentAt
             );
+            message.updateBodyContent(bodyContent.text(), bodyContent.html());
+            message.replaceAttachments(createAttachments(message, messageResponse.payload()));
         } else {
             Message message = Message.builder()
                     .thread(thread)
@@ -101,11 +108,12 @@ public class InitialMailSyncCommandService {
                     .snippet(messageResponse.snippet())
                     .read(read)
                     .sentAt(sentAt)
-                    .bodyText(null)
-                    .bodyHtml(null)
-                    .attachments(Collections.emptyList())
+                    .bodyText(bodyContent.text())
+                    .bodyHtml(bodyContent.html())
+                    .attachments(new ArrayList<>())
                     .labels(Collections.emptyList())
                     .build();
+            message.replaceAttachments(createAttachments(message, messageResponse.payload()));
             messageRepositoryPort.save(message);
             thread.incrementMessageCount();
         }
@@ -205,6 +213,93 @@ public class InitialMailSyncCommandService {
                 .toList();
     }
 
+    private MimeBodyContent extractBodyContent(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload) {
+        if (payload == null) {
+            return new MimeBodyContent(null, null);
+        }
+
+        String text = decodeBody(findBodyData(payload, "text/plain"));
+        String html = decodeBody(findBodyData(payload, "text/html"));
+        return new MimeBodyContent(text, html);
+    }
+
+    private String findBodyData(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload, String mimeType) {
+        if (payload == null) {
+            return null;
+        }
+
+        if (mimeType.equalsIgnoreCase(payload.mimeType())
+                && payload.body() != null
+                && !isBlank(payload.body().data())) {
+            return payload.body().data();
+        }
+
+        if (payload.parts() == null || payload.parts().isEmpty()) {
+            return null;
+        }
+
+        for (GoogleMailThreadResponse.GoogleMailThreadPayloadResponse part : payload.parts()) {
+            String data = findBodyData(part, mimeType);
+            if (!isBlank(data)) {
+                return data;
+            }
+        }
+
+        return null;
+    }
+
+    private String decodeBody(String encodedData) {
+        if (isBlank(encodedData)) {
+            return null;
+        }
+
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(encodedData);
+            return new String(decoded, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+    }
+
+    private List<Attachment> createAttachments(
+            Message message,
+            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload
+    ) {
+        List<GoogleMailThreadResponse.GoogleMailThreadPayloadResponse> attachmentParts = new ArrayList<>();
+        collectAttachmentParts(payload, attachmentParts);
+
+        return attachmentParts.stream()
+                .map(part -> Attachment.builder()
+                        .message(message)
+                        .gmailAttachmentId(part.body() == null ? null : part.body().attachmentId())
+                        .filename(part.filename())
+                        .mimeType(part.mimeType())
+                        .size(part.body() == null ? null : part.body().size())
+                        .build())
+                .toList();
+    }
+
+    private void collectAttachmentParts(
+            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload,
+            List<GoogleMailThreadResponse.GoogleMailThreadPayloadResponse> attachmentParts
+    ) {
+        if (payload == null) {
+            return;
+        }
+
+        if (!isBlank(payload.filename())
+                && payload.body() != null
+                && !isBlank(payload.body().attachmentId())) {
+            attachmentParts.add(payload);
+        }
+
+        if (payload.parts() == null || payload.parts().isEmpty()) {
+            return;
+        }
+
+        payload.parts().forEach(part -> collectAttachmentParts(part, attachmentParts));
+    }
+
     private LocalDateTime resolveSentAt(GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse) {
         if (isBlank(messageResponse.internalDate())) {
             return null;
@@ -233,5 +328,11 @@ public class InitialMailSyncCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record MimeBodyContent(
+            String text,
+            String html
+    ) {
     }
 }
