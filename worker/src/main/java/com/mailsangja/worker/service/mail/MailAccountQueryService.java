@@ -8,11 +8,16 @@ import com.mailsangja.worker.common.exception.mail.MailPushException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class MailAccountQueryService {
+
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
@@ -30,6 +35,18 @@ public class MailAccountQueryService {
 
         validateActiveMailAccount(mailAccount);
         return mailAccount;
+    }
+
+    public List<MailAccount> findRenewalTargetGmailAccounts(LocalDateTime renewalWindowThreshold, int limit) {
+        if (renewalWindowThreshold == null || limit <= 0) {
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_WATCH_RENEWAL_REQUEST);
+        }
+
+        return mailAccountRepositoryPort.findRenewalTargetGmailAccounts(MailProvider.GMAIL, renewalWindowThreshold, limit);
+    }
+
+    public LocalDateTime getKstNow() {
+        return LocalDateTime.now(KST_ZONE_ID);
     }
 
     private void validateActiveMailAccount(MailAccount mailAccount) {

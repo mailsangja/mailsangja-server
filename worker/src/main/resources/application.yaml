@@ -56,6 +56,11 @@ mailsangja:
       concurrency: ${MAIL_SYNC_CONCURRENCY:1}
       publisher-mandatory: ${MAIL_SYNC_PUBLISHER_MANDATORY:true}
   gmail:
+    watch-renewal:
+      enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}
+      cron: ${GOOGLE_GMAIL_WATCH_RENEWAL_CRON:0 0 * * * *}
+      renewal-window: ${GOOGLE_GMAIL_WATCH_RENEWAL_WINDOW:1d}
+      batch-size: ${GOOGLE_GMAIL_WATCH_RENEWAL_BATCH_SIZE:50}
     push:
       oidc:
         jwk-set-uri: ${GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
