@@ -7,6 +7,7 @@ import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,6 +56,14 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     @Override
     public List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId) {
         return mailAccountJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
+    public List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit) {
+        return mailAccountJpaRepositoryModule.findRenewalTargetGmailAccounts(provider, watchExpiresAtThreshold)
+                .stream()
+                .limit(limit)
+                .toList();
     }
 
     @Override

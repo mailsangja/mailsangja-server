@@ -1,0 +1,91 @@
+server:
+  port: ${WORKER_PORT:8081}
+
+spring:
+  application:
+    name: worker
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mailsangja}
+    username: ${DB_USERNAME:mailsangja}
+    password: ${DB_PASSWORD:mailsangja}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: public
+        format_sql: true
+
+  sql:
+    init:
+      mode: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+scalar:
+  enabled: true
+  path: /scalar
+  url: /v3/api-docs
+  page-title: MailSangja Worker API Reference
+
+mailsangja:
+  rabbitmq:
+    task:
+      exchange: ${MAIL_TASK_EXCHANGE:mailsangja.mail.task}
+      dead-letter-exchange: ${MAIL_TASK_DLX_EXCHANGE:mailsangja.mail.task.dlx}
+      ttl: ${MAIL_TASK_TTL:30m}
+      retry-max-attempts: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:3}
+      concurrency: ${MAIL_TASK_CONCURRENCY:1}
+      publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
+    initial-mail-sync:
+      task-name: ${MAIL_SYNC_TASK_NAME:sync.gmail.initial}
+    watch-renewal:
+      task-name: ${MAIL_WATCH_RENEWAL_TASK_NAME:watch.renewal.gmail}
+  gmail:
+    watch-renewal:
+      enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}
+      cron: ${GOOGLE_GMAIL_WATCH_RENEWAL_CRON:0 0 * * * *}
+      renewal-window: ${GOOGLE_GMAIL_WATCH_RENEWAL_WINDOW:1d}
+      batch-size: ${GOOGLE_GMAIL_WATCH_RENEWAL_BATCH_SIZE:50}
+    google-watch:
+      topic-name: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME}
+      watch-uri: ${GOOGLE_GMAIL_WATCH_URI:https://gmail.googleapis.com/gmail/v1/users/me/watch}
+      connect-timeout: ${GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:5s}
+      label-filter-behavior: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:}
+    push:
+      oidc:
+        jwk-set-uri: ${GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+        allowed-issuers:
+          - ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_1:https://accounts.google.com}
+          - ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_2:accounts.google.com}
+        audience: ${GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE}
+        allowed-service-account-email: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL:}
+    initial-sync:
+      max-results: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS:20}
+      messages-uri: ${GOOGLE_GMAIL_MESSAGES_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages}
+      connect-timeout: ${GOOGLE_GMAIL_MESSAGES_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_GMAIL_MESSAGES_READ_TIMEOUT:5s}
+    google-history:
+      history-uri: ${GOOGLE_GMAIL_HISTORY_URI:https://gmail.googleapis.com/gmail/v1/users/me/history}
+      connect-timeout: ${GOOGLE_GMAIL_HISTORY_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_GMAIL_HISTORY_READ_TIMEOUT:5s}
+  oauth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      token-uri: ${GOOGLE_TOKEN_URI:https://oauth2.googleapis.com/token}

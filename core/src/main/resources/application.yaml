@@ -2,6 +2,15 @@ spring:
   application:
     name: core
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    publisher-confirm-type: ${RABBITMQ_PUBLISHER_CONFIRM_TYPE:correlated}
+    publisher-returns: ${RABBITMQ_PUBLISHER_RETURNS:true}
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:mailsangja}
     username: ${DB_USERNAME:mailsangja}
@@ -40,6 +49,16 @@ scalar:
   page-title: MailSangja API Reference
 
 mailsangja:
+  rabbitmq:
+    task:
+      exchange: ${MAIL_TASK_EXCHANGE:mailsangja.mail.task}
+      dead-letter-exchange: ${MAIL_TASK_DLX_EXCHANGE:mailsangja.mail.task.dlx}
+      ttl: ${MAIL_TASK_TTL:30m}
+      retry-max-attempts: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:3}
+      concurrency: ${MAIL_TASK_CONCURRENCY:1}
+      publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
+    initial-mail-sync:
+      task-name: ${MAIL_SYNC_TASK_NAME:sync.gmail.initial}
   inbox:
     page-size: ${INBOX_PAGE_SIZE:50}
   cors:
@@ -59,3 +78,10 @@ mailsangja:
         - openid
         - email
         - https://mail.google.com/
+  gmail:
+    google-watch:
+      topic-name: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME}
+      watch-uri: ${GOOGLE_GMAIL_WATCH_URI:https://gmail.googleapis.com/gmail/v1/users/me/watch}
+      connect-timeout: ${GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:5s}
+      label-filter-behavior: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:}

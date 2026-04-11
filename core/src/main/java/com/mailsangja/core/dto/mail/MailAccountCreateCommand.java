@@ -13,14 +13,16 @@ public record MailAccountCreateCommand(
         String accessToken,
         LocalDateTime accessTokenExpiresAt,
         String refreshToken,
-        String syncHistoryId
+        String syncHistoryId,
+        LocalDateTime watchExpiresAt
 ) {
     public static MailAccountCreateCommand from(
             MailProvider provider,
             GoogleMailAccountResult result,
             String alias,
             String icon,
-            String color
+            String color,
+            GoogleMailWatchResult watchResult
     ) {
         return new MailAccountCreateCommand(
                 provider,
@@ -31,7 +33,8 @@ public record MailAccountCreateCommand(
                 result.accessToken(),
                 result.accessTokenExpiresAt(),
                 result.refreshToken(),
-                null
+                watchResult.historyId(),
+                watchResult.expirationAt()
         );
     }
 }

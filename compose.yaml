@@ -29,6 +29,24 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:4.1.4-management-alpine
+    container_name: mailsangja-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   core:
     build:
       context: .
@@ -44,17 +62,96 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-mailsangja}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+      RABBITMQ_PUBLISHER_CONFIRM_TYPE: ${RABBITMQ_PUBLISHER_CONFIRM_TYPE:-correlated}
+      RABBITMQ_PUBLISHER_RETURNS: ${RABBITMQ_PUBLISHER_RETURNS:-true}
+      MAIL_TASK_EXCHANGE: ${MAIL_TASK_EXCHANGE:-mailsangja.mail.task}
+      MAIL_TASK_DLX_EXCHANGE: ${MAIL_TASK_DLX_EXCHANGE:-mailsangja.mail.task.dlx}
+      MAIL_TASK_TTL: ${MAIL_TASK_TTL:-30m}
+      MAIL_TASK_RETRY_MAX_ATTEMPTS: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:-3}
+      MAIL_TASK_CONCURRENCY: ${MAIL_TASK_CONCURRENCY:-1}
+      MAIL_TASK_PUBLISHER_MANDATORY: ${MAIL_TASK_PUBLISHER_MANDATORY:-true}
+      MAIL_SYNC_TASK_NAME: ${MAIL_SYNC_TASK_NAME:-sync.gmail.initial}
+      GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI: ${GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI:-https://www.googleapis.com/oauth2/v3/certs}
+      GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_1: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_1:-https://accounts.google.com}
+      GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_2: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_2:-accounts.google.com}
+      GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE: ${GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE}
+      GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8080/api/v1/mail-accounts/google/callback}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      GOOGLE_GMAIL_WATCH_TOPIC_NAME: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME}
       CALLBACK_REDIRECT_URI: ${CALLBACK_REDIRECT_URI:-https://mail.localhost}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: mailsangja-worker
+    ports:
+      - "${WORKER_PORT:-8081}:8081"
+    environment:
+      WORKER_PORT: 8081
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-mailsangja}
+      DB_USERNAME: ${DB_USERNAME:-mailsangja}
+      DB_PASSWORD: ${DB_PASSWORD:-mailsangja}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+      MAIL_TASK_EXCHANGE: ${MAIL_TASK_EXCHANGE:-mailsangja.mail.task}
+      MAIL_TASK_DLX_EXCHANGE: ${MAIL_TASK_DLX_EXCHANGE:-mailsangja.mail.task.dlx}
+      MAIL_TASK_TTL: ${MAIL_TASK_TTL:-30m}
+      MAIL_TASK_RETRY_MAX_ATTEMPTS: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:-3}
+      MAIL_TASK_CONCURRENCY: ${MAIL_TASK_CONCURRENCY:-1}
+      MAIL_TASK_PUBLISHER_MANDATORY: ${MAIL_TASK_PUBLISHER_MANDATORY:-true}
+      MAIL_SYNC_TASK_NAME: ${MAIL_SYNC_TASK_NAME:-sync.gmail.initial}
+      MAIL_WATCH_RENEWAL_TASK_NAME: ${MAIL_WATCH_RENEWAL_TASK_NAME:-watch.renewal.gmail}
+      GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:-false}
+      GOOGLE_GMAIL_WATCH_RENEWAL_CRON: ${GOOGLE_GMAIL_WATCH_RENEWAL_CRON:-0 0 * * * *}
+      GOOGLE_GMAIL_WATCH_RENEWAL_WINDOW: ${GOOGLE_GMAIL_WATCH_RENEWAL_WINDOW:-1d}
+      GOOGLE_GMAIL_WATCH_RENEWAL_BATCH_SIZE: ${GOOGLE_GMAIL_WATCH_RENEWAL_BATCH_SIZE:-50}
+      GOOGLE_GMAIL_WATCH_TOPIC_NAME: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME}
+      GOOGLE_GMAIL_WATCH_URI: ${GOOGLE_GMAIL_WATCH_URI:-https://gmail.googleapis.com/gmail/v1/users/me/watch}
+      GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT: ${GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT:-3s}
+      GOOGLE_GMAIL_WATCH_READ_TIMEOUT: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:-5s}
+      GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:-}
+      GOOGLE_GMAIL_MESSAGES_URI: ${GOOGLE_GMAIL_MESSAGES_URI:-https://gmail.googleapis.com/gmail/v1/users/me/messages}
+      GOOGLE_GMAIL_MESSAGES_CONNECT_TIMEOUT: ${GOOGLE_GMAIL_MESSAGES_CONNECT_TIMEOUT:-3s}
+      GOOGLE_GMAIL_MESSAGES_READ_TIMEOUT: ${GOOGLE_GMAIL_MESSAGES_READ_TIMEOUT:-5s}
+      GOOGLE_GMAIL_HISTORY_URI: ${GOOGLE_GMAIL_HISTORY_URI:-https://gmail.googleapis.com/gmail/v1/users/me/history}
+      GOOGLE_GMAIL_HISTORY_CONNECT_TIMEOUT: ${GOOGLE_GMAIL_HISTORY_CONNECT_TIMEOUT:-3s}
+      GOOGLE_GMAIL_HISTORY_READ_TIMEOUT: ${GOOGLE_GMAIL_HISTORY_READ_TIMEOUT:-5s}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_TOKEN_URI: ${GOOGLE_TOKEN_URI:-https://oauth2.googleapis.com/token}
+      GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI: ${GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI:-https://www.googleapis.com/oauth2/v3/certs}
+      GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_1: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_1:-https://accounts.google.com}
+      GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_2: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_ISSUER_2:-accounts.google.com}
+      GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE: ${GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE}
+      GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   redis-data:
+  rabbitmq_data:

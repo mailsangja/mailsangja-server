@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Schema(description = "연결된 메일 계정 응답")
@@ -25,7 +26,9 @@ public record MailAccountResponse(
         @Schema(description = "메일 계정 활성 여부", example = "true")
         boolean active,
         @Schema(description = "메일 동기화 히스토리 ID", nullable = true)
-        String syncHistoryId
+        String syncHistoryId,
+        @Schema(description = "Gmail watch 만료 시각", nullable = true)
+        LocalDateTime watchExpiresAt
 ) {
     public static MailAccountResponse from(MailAccount mailAccount) {
         return new MailAccountResponse(
@@ -37,7 +40,8 @@ public record MailAccountResponse(
                 mailAccount.getIcon(),
                 mailAccount.getColor(),
                 mailAccount.isActive(),
-                mailAccount.getSyncHistoryId()
+                mailAccount.getSyncHistoryId(),
+                mailAccount.getWatchExpiresAt()
         );
     }
 }

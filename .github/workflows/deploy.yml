@@ -37,7 +37,8 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.image_tag || '' }}
         run: |
-          image_name="${GITHUB_REPOSITORY_OWNER,,}/mailsangja-core"
+          core_image_name="${GITHUB_REPOSITORY_OWNER,,}/mailsangja-core"
+          worker_image_name="${GITHUB_REPOSITORY_OWNER,,}/mailsangja-worker"
 
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             image_tag="sha-${{ github.event.workflow_run.head_sha }}"
@@ -47,31 +48,34 @@ jobs:
             image_tag="sha-${{ github.sha }}"
           fi
 
-          echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
+          echo "core_image_name=$core_image_name" >> "$GITHUB_OUTPUT"
+          echo "worker_image_name=$worker_image_name" >> "$GITHUB_OUTPUT"
           echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          IMAGE_NAME: ${{ steps.deploy.outputs.image_name }}
+          CORE_IMAGE_NAME: ${{ steps.deploy.outputs.core_image_name }}
+          WORKER_IMAGE_NAME: ${{ steps.deploy.outputs.worker_image_name }}
           APP_IMAGE_TAG: ${{ steps.deploy.outputs.image_tag }}
         with:
           username: ${{ vars.SSH_USER }}
           host: ${{ vars.SSH_HOST }}
           port: ${{ vars.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DEPLOY_PATH,IMAGE_NAME,APP_IMAGE_TAG
+          envs: DEPLOY_PATH,CORE_IMAGE_NAME,WORKER_IMAGE_NAME,APP_IMAGE_TAG
           script: |
             set -euo pipefail
 
             cd "$DEPLOY_PATH"
 
             cat <<EOF > .env.release
-            IMAGE_NAME=$IMAGE_NAME
+            CORE_IMAGE_NAME=$CORE_IMAGE_NAME
+            WORKER_IMAGE_NAME=$WORKER_IMAGE_NAME
             APP_IMAGE_TAG=$APP_IMAGE_TAG
             EOF
 
-            docker compose --env-file .env --env-file .env.release pull core
-            docker compose --env-file .env --env-file .env.release up -d core
-            docker compose --env-file .env --env-file .env.release ps core
+            docker compose --env-file .env --env-file .env.release pull core worker
+            docker compose --env-file .env --env-file .env.release up -d core worker
+            docker compose --env-file .env --env-file .env.release ps core worker
