@@ -2,7 +2,7 @@ package com.mailsangja.core.service.google;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
-import com.mailsangja.core.config.properties.GoogleMailWatchProperties;
+import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailReadModifyRequest;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -22,14 +22,14 @@ public class GoogleMailReadCommandService {
 
     private static final List<String> REMOVE_UNREAD_LABEL_IDS = List.of("UNREAD");
 
-    private final GoogleMailWatchProperties googleMailWatchProperties;
+    private final GoogleMailProperties googleMailProperties;
     private final RestClient googleMailRestClient;
 
     public GoogleMailReadCommandService(
-            GoogleMailWatchProperties googleMailWatchProperties,
+            GoogleMailProperties googleMailProperties,
             @Qualifier("googleMailRestClient") RestClient googleMailRestClient
     ) {
-        this.googleMailWatchProperties = googleMailWatchProperties;
+        this.googleMailProperties = googleMailProperties;
         this.googleMailRestClient = googleMailRestClient;
     }
 
@@ -42,7 +42,7 @@ public class GoogleMailReadCommandService {
             googleMailRestClient
                     .post()
                     .uri(
-                            googleMailWatchProperties.getThreadModifyUri(),
+                            googleMailProperties.getThreadModifyUri(),
                             Map.of("gmailThreadId", thread.getGmailThreadId())
                     )
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
@@ -62,7 +62,7 @@ public class GoogleMailReadCommandService {
                 || mailAccount.getProvider() != MailProvider.GMAIL
                 || isBlank(mailAccount.getAccessToken())
                 || isBlank(thread.getGmailThreadId())
-                || isBlank(googleMailWatchProperties.getThreadModifyUri())) {
+                || isBlank(googleMailProperties.getThreadModifyUri())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_READ_MODIFY_FAILED);
         }
     }
