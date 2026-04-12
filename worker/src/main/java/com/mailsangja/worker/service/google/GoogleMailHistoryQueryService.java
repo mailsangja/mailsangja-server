@@ -3,6 +3,10 @@ package com.mailsangja.worker.service.google;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailHistoryProperties;
+import com.mailsangja.worker.dto.gmail.GoogleMailHistoryItemResponse;
+import com.mailsangja.worker.dto.gmail.GoogleMailHistoryItemResult;
+import com.mailsangja.worker.dto.gmail.GoogleMailHistoryLabelChangeResponse;
+import com.mailsangja.worker.dto.gmail.GoogleMailHistoryLabelChangeResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailHistoryListResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailHistoryResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.List;
 
 @Service
 public class GoogleMailHistoryQueryService {
@@ -65,7 +71,54 @@ public class GoogleMailHistoryQueryService {
             throw new MailPushException(MailPushErrorCode.GMAIL_HISTORY_RESULT_INVALID);
         }
 
-        return new GoogleMailHistoryListResult(response.historyId());
+        return new GoogleMailHistoryListResult(
+                response.historyId(),
+                mapHistoryItems(response.history())
+        );
+    }
+
+    private List<GoogleMailHistoryItemResult> mapHistoryItems(List<GoogleMailHistoryItemResponse> historyItems) {
+        if (historyItems == null || historyItems.isEmpty()) {
+            return List.of();
+        }
+
+        return historyItems.stream()
+                .map(this::mapHistoryItem)
+                .toList();
+    }
+
+    private GoogleMailHistoryItemResult mapHistoryItem(GoogleMailHistoryItemResponse historyItem) {
+        if (historyItem == null) {
+            return new GoogleMailHistoryItemResult(null, List.of(), List.of());
+        }
+
+        return new GoogleMailHistoryItemResult(
+                historyItem.id(),
+                mapLabelChanges(historyItem.labelsAdded()),
+                mapLabelChanges(historyItem.labelsRemoved())
+        );
+    }
+
+    private List<GoogleMailHistoryLabelChangeResult> mapLabelChanges(List<GoogleMailHistoryLabelChangeResponse> labelChanges) {
+        if (labelChanges == null || labelChanges.isEmpty()) {
+            return List.of();
+        }
+
+        return labelChanges.stream()
+                .map(this::mapLabelChange)
+                .toList();
+    }
+
+    private GoogleMailHistoryLabelChangeResult mapLabelChange(GoogleMailHistoryLabelChangeResponse labelChange) {
+        if (labelChange == null || labelChange.message() == null) {
+            return new GoogleMailHistoryLabelChangeResult(null, null, List.of());
+        }
+
+        return new GoogleMailHistoryLabelChangeResult(
+                labelChange.message().id(),
+                labelChange.message().threadId(),
+                labelChange.labelIds() == null ? List.of() : List.copyOf(labelChange.labelIds())
+        );
     }
 
     private boolean isBlank(String value) {
