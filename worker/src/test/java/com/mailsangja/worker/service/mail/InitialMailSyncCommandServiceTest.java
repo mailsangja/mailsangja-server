@@ -9,6 +9,8 @@ import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.mail.InitialMailSyncMessageSaveCommand;
 import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -161,12 +163,12 @@ class InitialMailSyncCommandServiceTest {
         }
 
         @Override
-        public org.springframework.data.domain.Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, org.springframework.data.domain.Pageable pageable) {
+        public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public org.springframework.data.domain.Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, org.springframework.data.domain.Pageable pageable) {
+        public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 

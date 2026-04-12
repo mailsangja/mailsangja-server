@@ -5,8 +5,17 @@ import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.gmail.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.InitialMailSyncThreadResult;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.client.ClientHttpRequest;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.mock.http.client.MockClientHttpRequest;
+import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.web.client.RestClient;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -65,7 +74,7 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
     }
 
-    private static final class StubClientHttpRequestFactory extends org.springframework.http.client.SimpleClientHttpRequestFactory {
+    private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
         private final String responseBody;
 
         private StubClientHttpRequestFactory(String responseBody) {
@@ -73,13 +82,13 @@ class GoogleMailMessageQueryServiceTest {
         }
 
         @Override
-        public org.springframework.http.client.ClientHttpRequest createRequest(java.net.URI uri, org.springframework.http.HttpMethod httpMethod) {
-            return new org.springframework.mock.http.client.MockClientHttpRequest(httpMethod, uri) {
+        public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            return new MockClientHttpRequest(httpMethod, uri) {
                 @Override
-                protected org.springframework.http.client.ClientHttpResponse executeInternal() {
-                    return new org.springframework.mock.http.client.MockClientHttpResponse(
-                            responseBody.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                            org.springframework.http.HttpStatus.OK
+                protected ClientHttpResponse executeInternal() {
+                    return new MockClientHttpResponse(
+                            responseBody.getBytes(StandardCharsets.UTF_8),
+                            HttpStatus.OK
                     );
                 }
             };
