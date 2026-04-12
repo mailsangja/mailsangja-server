@@ -23,14 +23,14 @@ public class GoogleMailReadCommandService {
     private static final List<String> REMOVE_UNREAD_LABEL_IDS = List.of("UNREAD");
 
     private final GoogleMailWatchProperties googleMailWatchProperties;
-    private final RestClient googleMailWatchRestClient;
+    private final RestClient googleMailRestClient;
 
     public GoogleMailReadCommandService(
             GoogleMailWatchProperties googleMailWatchProperties,
-            @Qualifier("googleMailWatchRestClient") RestClient googleMailWatchRestClient
+            @Qualifier("googleMailRestClient") RestClient googleMailRestClient
     ) {
         this.googleMailWatchProperties = googleMailWatchProperties;
-        this.googleMailWatchRestClient = googleMailWatchRestClient;
+        this.googleMailRestClient = googleMailRestClient;
     }
 
     public void markThreadAsRead(MailAccount mailAccount, Thread thread) {
@@ -39,7 +39,7 @@ public class GoogleMailReadCommandService {
         GoogleMailReadModifyRequest request = new GoogleMailReadModifyRequest(REMOVE_UNREAD_LABEL_IDS);
 
         try {
-            googleMailWatchRestClient
+            googleMailRestClient
                     .post()
                     .uri(
                             googleMailWatchProperties.getThreadModifyUri(),

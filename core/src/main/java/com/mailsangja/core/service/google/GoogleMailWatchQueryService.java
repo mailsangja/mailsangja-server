@@ -24,14 +24,14 @@ public class GoogleMailWatchQueryService {
     private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final GoogleMailWatchProperties googleMailWatchProperties;
-    private final RestClient googleMailWatchRestClient;
+    private final RestClient googleMailRestClient;
 
     public GoogleMailWatchQueryService(
             GoogleMailWatchProperties googleMailWatchProperties,
-            @Qualifier("googleMailWatchRestClient") RestClient googleMailWatchRestClient
+            @Qualifier("googleMailRestClient") RestClient googleMailRestClient
     ) {
         this.googleMailWatchProperties = googleMailWatchProperties;
-        this.googleMailWatchRestClient = googleMailWatchRestClient;
+        this.googleMailRestClient = googleMailRestClient;
     }
 
     public GoogleMailWatchResult watch(String accessToken) {
@@ -44,7 +44,7 @@ public class GoogleMailWatchQueryService {
         );
 
         try {
-            GoogleMailWatchResponse response = googleMailWatchRestClient
+            GoogleMailWatchResponse response = googleMailRestClient
                     .post()
                     .uri(googleMailWatchProperties.getWatchUri())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)

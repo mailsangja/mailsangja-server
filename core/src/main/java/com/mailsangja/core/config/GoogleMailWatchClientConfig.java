@@ -10,7 +10,7 @@ import org.springframework.web.client.RestClient;
 public class GoogleMailWatchClientConfig {
 
     @Bean
-    public RestClient googleMailWatchRestClient(GoogleMailWatchProperties googleMailWatchProperties) {
+    public RestClient googleMailRestClient(GoogleMailWatchProperties googleMailWatchProperties) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) googleMailWatchProperties.getConnectTimeout().toMillis());
         requestFactory.setReadTimeout((int) googleMailWatchProperties.getReadTimeout().toMillis());
