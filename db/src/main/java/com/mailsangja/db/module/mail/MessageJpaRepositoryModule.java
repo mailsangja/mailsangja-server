@@ -29,4 +29,11 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("mailAccountId") UUID mailAccountId,
             @Param("gmailThreadId") String gmailThreadId
     );
+
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
+    Optional<Message> findById(UUID id);
+
+    @EntityGraph(attributePaths = {"attachments"})
+    @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId ORDER BY m.sentAt ASC")
+    List<Message> findAllByThreadIdIncludingDeleted(@Param("threadId") UUID threadId);
 }
