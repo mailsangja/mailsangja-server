@@ -12,15 +12,20 @@ import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.gmail.GmailHistoryEvent;
 import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.SQLException;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GmailHistoryStateApplyCommandService {
+
+    private static final String GMAIL_THREAD_LOCK_UNIQUE_CONSTRAINT = "uq_gmail_thread_locks_account_thread";
+    private static final String POSTGRES_UNIQUE_VIOLATION_SQL_STATE = "23505";
 
     // INBOUND/OUTBOUND row가 분리되어 있어도 Gmail read state는 동일 thread 기준으로 집계한다.
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
@@ -134,8 +139,13 @@ public class GmailHistoryStateApplyCommandService {
     private boolean isConcurrentLockCreation(DataIntegrityViolationException exception) {
         Throwable cause = exception.getCause();
         while (cause != null) {
-            String message = cause.getMessage();
-            if (message != null && message.contains("uq_gmail_thread_locks_account_thread")) {
+            if (cause instanceof ConstraintViolationException constraintViolationException
+                    && GMAIL_THREAD_LOCK_UNIQUE_CONSTRAINT.equals(constraintViolationException.getConstraintName())) {
+                return true;
+            }
+
+            if (cause instanceof SQLException sqlException
+                    && POSTGRES_UNIQUE_VIOLATION_SQL_STATE.equals(sqlException.getSQLState())) {
                 return true;
             }
             cause = cause.getCause();
