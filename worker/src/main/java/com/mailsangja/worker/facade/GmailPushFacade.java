@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.dto.gmail.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.GoogleMailHistoryListResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailPushNotificationResult;
 import com.mailsangja.worker.dto.gmail.GooglePubsubMessageRequest;
 import com.mailsangja.worker.dto.gmail.GooglePubsubPushRequest;
 import com.mailsangja.worker.service.google.GooglePubsubOidcQueryService;
 import com.mailsangja.worker.service.google.GoogleMailHistoryQueryService;
+import com.mailsangja.worker.service.mail.GmailHistoryEventClassifier;
+import com.mailsangja.worker.service.mail.GmailHistoryEventHandler;
 import com.mailsangja.worker.service.mail.MailAccountCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -28,6 +32,8 @@ public class GmailPushFacade {
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleMailHistoryQueryService googleMailHistoryQueryService;
+    private final GmailHistoryEventClassifier gmailHistoryEventClassifier;
+    private final List<GmailHistoryEventHandler> gmailHistoryEventHandlers;
     private final ObjectMapper objectMapper;
 
     public void handlePush(String authorizationHeader, GooglePubsubPushRequest request) {
@@ -44,15 +50,27 @@ public class GmailPushFacade {
                 mailAccount.getAccessToken(),
                 startHistoryId
         );
+        List<GmailHistoryEvent> historyEvents = gmailHistoryEventClassifier.classify(mailAccount, historyResult);
+
+        historyEvents.forEach(this::handleHistoryEvent);
 
         mailAccountCommandService.updateSyncHistoryId(mailAccount, historyResult.historyId());
 
         log.info(
-                "Processed Gmail push event for emailAddress={} eventHistoryId={} syncedHistoryId={}",
+                "Processed Gmail push event for emailAddress={} eventHistoryId={} syncedHistoryId={} parsedEventCount={}",
                 notification.emailAddress(),
                 notification.historyId(),
-                historyResult.historyId()
+                historyResult.historyId(),
+                historyEvents.size()
         );
+    }
+
+    private void handleHistoryEvent(GmailHistoryEvent historyEvent) {
+        gmailHistoryEventHandlers.stream()
+                .filter(handler -> handler.supports() == historyEvent.eventType())
+                .findFirst()
+                .orElseThrow(() -> new MailPushException(MailPushErrorCode.GMAIL_HISTORY_RESULT_INVALID))
+                .handle(historyEvent);
     }
 
     private void validatePushRequest(GooglePubsubPushRequest request) {
