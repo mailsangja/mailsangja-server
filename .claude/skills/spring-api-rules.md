@@ -251,6 +251,17 @@ public class UserQueryService {
 - `Handler`와 `Classifier`는 상태 변경의 최종 책임을 가지지 않는다. 실제 DB 변경과 트랜잭션은 `service` 계층이 담당한다
 - `Handler`에서 Repository Port나 JPA Module을 직접 주입하지 않는다. 필요한 상태 변경은 service를 통해 수행한다
 - `Classifier`는 가능하면 순수 해석 로직으로 유지하고, 도메인 상태 변경이나 외부 I/O를 포함하지 않는다
+- 비동기 이벤트 기반 write 경로에서 동일한 집계 단위 상태를 갱신할 때는, 모든 handler가 동일한 동시성 규약을 공유해야 한다
+- 외부 API 조회가 필요한 경우, 외부 I/O는 트랜잭션과 DB 락 바깥에서 수행하고 실제 DB 반영만 락을 획득한 트랜잭션 안에서 처리한다
+- 락을 획득한 뒤에는 대상 message/thread 존재 여부와 집계값을 다시 검증한다. 락 밖에서 확인한 상태를 그대로 신뢰하지 않는다
+
+### Gmail Event Concurrency Rules
+
+- Gmail push 또는 Gmail 동기화 이벤트가 `Message`, `Thread` 상태를 변경할 때는 `mailAccountId + gmailThreadId` 단위로 작업을 직렬화한다
+- Gmail의 읽음/안읽음 처리, 신규 메시지 insert, thread 집계값 갱신처럼 같은 Gmail thread를 변경하는 모든 비동기 write 경로는 동일한 `gmail_thread_locks` 규약을 사용한다
+- Gmail 관련 비동기 write 경로는 account 전체 락이 아니라 Gmail thread 단위 락을 기본으로 사용한다
+- `gmail_thread_locks`를 획득한 뒤에만 `is_read`, `message_count`, latest subject/snippet/participant, historyId 같은 thread 집계 상태를 계산하고 반영한다
+- Gmail 원본 thread snapshot으로 DB를 보강할 때는 기존 row 전체를 무분별하게 overwrite하지 말고, 락 획득 이후 현재 DB 상태를 다시 확인한 뒤 필요한 최소 범위만 반영한다
 
 ---
 
