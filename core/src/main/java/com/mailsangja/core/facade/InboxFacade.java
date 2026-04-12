@@ -5,12 +5,14 @@ import com.mailsangja.core.common.exception.inbox.InboxException;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
+import com.mailsangja.core.service.google.GoogleMailReadCommandService;
 import com.mailsangja.core.service.inbox.InboxCommandService;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InboxFacade {
 
+    private final GoogleMailReadCommandService googleMailReadCommandService;
     private final InboxCommandService inboxCommandService;
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
@@ -50,6 +53,9 @@ public class InboxFacade {
     public void markThreadAsRead(User user, UUID threadId) {
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
+        if (thread.getMailAccount().getProvider() == MailProvider.GMAIL) {
+            googleMailReadCommandService.markThreadAsRead(thread.getMailAccount(), thread);
+        }
         inboxCommandService.markThreadAsRead(thread);
     }
 

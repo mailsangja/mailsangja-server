@@ -19,6 +19,7 @@ public class GoogleMailWatchProperties {
 
     private String topicName;
     private String watchUri;
+    private String threadModifyUri;
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private Duration readTimeout = DEFAULT_READ_TIMEOUT;
     private List<String> labelIds;
