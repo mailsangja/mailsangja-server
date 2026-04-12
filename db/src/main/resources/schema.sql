@@ -59,6 +59,19 @@ CREATE TABLE IF NOT EXISTS threads (
     CONSTRAINT fk_threads_account FOREIGN KEY (mail_account_id) REFERENCES mail_accounts (id)
 );
 
+CREATE TABLE IF NOT EXISTS gmail_thread_locks (
+    id              CHAR(36)     NOT NULL,
+    mail_account_id CHAR(36)     NOT NULL,
+    gmail_thread_id VARCHAR(255) NOT NULL,
+    created_at      TIMESTAMP    NOT NULL,
+    modified_at     TIMESTAMP    NOT NULL,
+    deleted_at      TIMESTAMP    NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT uq_gmail_thread_locks_account_thread UNIQUE (mail_account_id, gmail_thread_id),
+    CONSTRAINT fk_gmail_thread_locks_account FOREIGN KEY (mail_account_id) REFERENCES mail_accounts (id)
+);
+
 CREATE TABLE IF NOT EXISTS messages (
     id               CHAR(36)     NOT NULL,
     thread_id        CHAR(36)     NOT NULL,

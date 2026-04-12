@@ -9,6 +9,11 @@ import java.util.UUID;
 public interface MessageRepositoryPort {
     Message save(Message message);
     Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId);
+    Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    );
     List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId);
     List<Message> findAllByThreadIdInAndDeletedAtIsNull(List<UUID> threadIds);
     List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId);

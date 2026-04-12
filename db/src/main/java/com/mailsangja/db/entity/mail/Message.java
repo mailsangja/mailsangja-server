@@ -9,6 +9,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -85,12 +86,59 @@ public class Message extends BaseEntity {
     )
     private List<Label> labels = new ArrayList<>();
 
+    public static Message from(Thread thread, CreateValues values) {
+        return Message.builder()
+                .thread(thread)
+                .gmailMessageId(values.gmailMessageId())
+                .direction(values.direction())
+                .subject(values.subject())
+                .fromAddress(values.fromAddress())
+                .toAddresses(values.toAddresses())
+                .ccAddresses(values.ccAddresses())
+                .snippet(values.snippet())
+                .read(values.read())
+                .sentAt(values.sentAt())
+                .bodyText(values.bodyText())
+                .bodyHtml(values.bodyHtml())
+                .attachments(new ArrayList<>())
+                .labels(Collections.emptyList())
+                .build();
+    }
+
+    public record CreateValues(
+            String gmailMessageId,
+            Direction direction,
+            String subject,
+            String fromAddress,
+            List<String> toAddresses,
+            List<String> ccAddresses,
+            String snippet,
+            boolean read,
+            LocalDateTime sentAt,
+            String bodyText,
+            String bodyHtml
+    ) {
+    }
+
     public void markAsRead() {
         this.read = true;
     }
 
     public void markAsUnread() {
         this.read = false;
+    }
+
+    public void updateFrom(CreateValues values) {
+        updateBasicContent(
+                values.subject(),
+                values.fromAddress(),
+                values.toAddresses(),
+                values.ccAddresses(),
+                values.snippet(),
+                values.read(),
+                values.sentAt()
+        );
+        updateBodyContent(values.bodyText(), values.bodyHtml());
     }
 
     public void updateBasicContent(

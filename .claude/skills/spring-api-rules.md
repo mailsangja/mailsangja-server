@@ -128,6 +128,9 @@ com.mailsangja.{module}
 │   └── docs/                         # Swagger interface
 ├── facade/{domain}/
 │   └── {Domain}Facade.java
+├── handler/{domain}/
+│   ├── *Classifier.java             # 외부 입력을 내부 이벤트/분기 기준으로 해석
+│   └── *Handler.java                # 해석된 이벤트를 적절한 service 호출로 연결
 ├── service/{domain}/
 │   ├── {Domain}CommandService.java   # 쓰기 작업
 │   └── {Domain}QueryService.java     # 읽기 작업
@@ -239,6 +242,15 @@ public class UserQueryService {
 - CommandService는 저장/수정/삭제 책임을 가지며, 필요한 읽기 검증은 직접 Repository를 다시 호출하기보다 같은 도메인의 QueryService를 우선 재사용한다
 
 메서드가 2개 이하이고 모두 같은 성격이면 단일 `{Domain}Service`로 유지 가능.
+
+### Handler / Classifier Rules
+
+- 외부 push, webhook, MQ payload처럼 입력 이벤트를 해석하거나 분기하는 컴포넌트는 `handler/{domain}/`에 둔다
+- `*Classifier`는 외부 입력을 내부 이벤트 타입이나 분기 기준으로 변환하는 책임만 가진다
+- `*Handler`는 분기된 이벤트를 받아 적절한 `CommandService` 또는 `QueryService` 호출로 연결한다
+- `Handler`와 `Classifier`는 상태 변경의 최종 책임을 가지지 않는다. 실제 DB 변경과 트랜잭션은 `service` 계층이 담당한다
+- `Handler`에서 Repository Port나 JPA Module을 직접 주입하지 않는다. 필요한 상태 변경은 service를 통해 수행한다
+- `Classifier`는 가능하면 순수 해석 로직으로 유지하고, 도메인 상태 변경이나 외부 I/O를 포함하지 않는다
 
 ---
 

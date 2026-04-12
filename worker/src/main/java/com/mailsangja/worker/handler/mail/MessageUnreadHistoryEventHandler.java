@@ -1,13 +1,16 @@
-package com.mailsangja.worker.service.mail;
+package com.mailsangja.worker.handler.mail;
 
 import com.mailsangja.worker.dto.gmail.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.GmailHistoryEventType;
-import lombok.extern.slf4j.Slf4j;
+import com.mailsangja.worker.service.mail.GmailHistoryStateCommandService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
+@RequiredArgsConstructor
 public class MessageUnreadHistoryEventHandler implements GmailHistoryEventHandler {
+
+    private final GmailHistoryStateCommandService gmailHistoryStateCommandService;
 
     @Override
     public GmailHistoryEventType supports() {
@@ -16,12 +19,6 @@ public class MessageUnreadHistoryEventHandler implements GmailHistoryEventHandle
 
     @Override
     public void handle(GmailHistoryEvent event) {
-        log.debug(
-                "Deferred Gmail message unread event handling mailAccountId={} gmailThreadId={} gmailMessageId={} historyId={}",
-                event.mailAccountId(),
-                event.gmailThreadId(),
-                event.gmailMessageId(),
-                event.historyId()
-        );
+        gmailHistoryStateCommandService.markMessageAsUnread(event);
     }
 }

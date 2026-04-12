@@ -1,4 +1,4 @@
-package com.mailsangja.worker.service.mail;
+package com.mailsangja.worker.handler.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.dto.gmail.GmailHistoryEvent;
@@ -6,13 +6,13 @@ import com.mailsangja.worker.dto.gmail.GmailHistoryEventType;
 import com.mailsangja.worker.dto.gmail.GoogleMailHistoryItemResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailHistoryLabelChangeResult;
 import com.mailsangja.worker.dto.gmail.GoogleMailHistoryListResult;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
+@Component
 public class GmailHistoryEventClassifier {
 
     private static final String UNREAD_LABEL_ID = "UNREAD";
