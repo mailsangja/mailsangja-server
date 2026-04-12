@@ -163,6 +163,15 @@ class InitialMailSyncCommandServiceTest {
         }
 
         @Override
+        public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
+            return savedThreads.stream()
+                    .filter(thread -> thread.getMailAccount() != null)
+                    .filter(thread -> mailAccountId.equals(thread.getMailAccount().getId()))
+                    .filter(thread -> gmailThreadId.equals(thread.getGmailThreadId()))
+                    .toList();
+        }
+
+        @Override
         public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
@@ -195,6 +204,21 @@ class InitialMailSyncCommandServiceTest {
                     .filter(message -> message.getThread() != null
                             && gmailMessageId.equals(message.getGmailMessageId())
                             && (threadId == null || threadId.equals(message.getThread().getId())))
+                    .findFirst();
+        }
+
+        @Override
+        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
                     .findFirst();
         }
 
