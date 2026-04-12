@@ -139,6 +139,21 @@ class InboxCommandServiceTest {
         }
 
         @Override
+        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            if (!expectedMailAccountId.equals(mailAccountId) || !expectedGmailThreadId.equals(gmailThreadId)) {
+                return Optional.empty();
+            }
+
+            return messages.stream()
+                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
+                    .findFirst();
+        }
+
+        @Override
         public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
             return List.of();
         }
