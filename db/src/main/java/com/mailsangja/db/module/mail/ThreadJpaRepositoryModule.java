@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,4 +39,11 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
 
     @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'INBOUND' AND t.read = false AND t.deletedAt IS NULL")
     long countUnreadInboxByUserId(@Param("userId") UUID userId);
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    Optional<Thread> findById(UUID id);
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.deletedAt IS NOT NULL ORDER BY t.deletedAt DESC")
+    List<Thread> findTrashByUserId(@Param("userId") UUID userId);
 }
