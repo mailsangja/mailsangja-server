@@ -32,7 +32,7 @@ public class InboxQueryService {
     private final ContactRepositoryPort contactRepositoryPort;
 
     public Thread findThreadById(UUID threadId) {
-        return threadRepositoryPort.findByIdAndDeletedAtIsNull(threadId)
+        return threadRepositoryPort.findByIdIncludingDeleted(threadId)
                 .orElseThrow(() -> new InboxException(InboxErrorCode.THREAD_NOT_FOUND));
     }
 
@@ -47,8 +47,11 @@ public class InboxQueryService {
     }
 
     public ThreadDetailResult findThreadDetailResult(Thread thread) {
-        List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
-                thread.getMailAccount().getId(), thread.getGmailThreadId());
+        List<Message> messages = thread.isDeleted()
+                ? messageRepositoryPort.findAllByMailAccountIdAndGmailThreadId(
+                        thread.getMailAccount().getId(), thread.getGmailThreadId())
+                : messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                        thread.getMailAccount().getId(), thread.getGmailThreadId());
         Map<String, String> contactNameByEmail = findContactNamesByEmails(collectEmailsFromMessages(messages));
         return new ThreadDetailResult(thread, messages, contactNameByEmail);
     }

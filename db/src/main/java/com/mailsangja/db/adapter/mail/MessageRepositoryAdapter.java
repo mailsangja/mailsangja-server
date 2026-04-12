@@ -27,8 +27,18 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Optional<Message> findByIdIncludingDeleted(UUID messageId) {
+        return messageJpaRepositoryModule.findById(messageId);
+    }
+
+    @Override
     public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
         return messageJpaRepositoryModule.findAllByThreadIdAndDeletedAtIsNull(threadId);
+    }
+
+    @Override
+    public List<Message> findAllByThreadIdIncludingDeleted(UUID threadId) {
+        return messageJpaRepositoryModule.findAllByThreadIdIncludingDeleted(threadId);
     }
 
     @Override
@@ -39,5 +49,10 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return messageJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }
