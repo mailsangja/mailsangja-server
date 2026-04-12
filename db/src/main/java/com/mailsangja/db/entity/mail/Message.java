@@ -92,4 +92,34 @@ public class Message extends BaseEntity {
     public void markAsUnread() {
         this.read = false;
     }
+
+    public void updateBasicContent(
+            String subject,
+            String fromAddress,
+            List<String> toAddresses,
+            List<String> ccAddresses,
+            String snippet,
+            boolean read,
+            LocalDateTime sentAt
+    ) {
+        this.subject = subject;
+        this.fromAddress = fromAddress;
+        this.toAddresses = toAddresses == null ? List.of() : List.copyOf(toAddresses);
+        this.ccAddresses = ccAddresses == null ? List.of() : List.copyOf(ccAddresses);
+        this.snippet = snippet;
+        this.read = read;
+        this.sentAt = sentAt;
+    }
+
+    public void updateBodyContent(String bodyText, String bodyHtml) {
+        this.bodyText = bodyText;
+        this.bodyHtml = bodyHtml;
+    }
+
+    public void replaceAttachments(List<Attachment> attachments) {
+        this.attachments.clear();
+        if (attachments != null) {
+            this.attachments.addAll(attachments);
+        }
+    }
 }

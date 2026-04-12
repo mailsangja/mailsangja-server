@@ -39,7 +39,7 @@ mailsangja_server/
 └── src/
 ```
 
-**Tech stack**: Spring Boot 4.0.5, Java 21, Gradle 9.4.1, Spring MVC, Spring Data JPA, MySQL, Lombok
+**Tech stack**: Spring Boot 4.0.5, Java 21, Gradle 9.4.1, Spring MVC, Spring Data JPA, PostgreSQL, Lombok
 
 **빌드 명령 (각 모듈 디렉토리 내에서 실행):**
 ```bash

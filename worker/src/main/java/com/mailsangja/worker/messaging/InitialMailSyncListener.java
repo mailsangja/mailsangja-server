@@ -1,5 +1,6 @@
 package com.mailsangja.worker.messaging;
 
+import com.mailsangja.worker.dto.mail.InitialMailSyncThreadBatchMessage;
 import com.mailsangja.worker.dto.mail.InitialMailSyncMessage;
 import com.mailsangja.worker.facade.InitialMailSyncFacade;
 import lombok.RequiredArgsConstructor;
@@ -15,5 +16,13 @@ public class InitialMailSyncListener {
     @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
     public void handle(InitialMailSyncMessage message) {
         initialMailSyncFacade.handleInitialMailSync(message);
+    }
+
+    @RabbitListener(
+            queues = "#{@initialMailSyncThreadBatchQueue.name}",
+            containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory"
+    )
+    public void handleThreadBatch(InitialMailSyncThreadBatchMessage message) {
+        initialMailSyncFacade.handleInitialMailSyncThreadBatch(message);
     }
 }

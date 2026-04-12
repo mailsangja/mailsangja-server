@@ -87,13 +87,30 @@ public class Thread extends BaseEntity {
         this.lastMessageAt = lastMessageAt;
     }
 
-    public void updateReadStatus(boolean read) {
+    public void updateLatestMessageInfoIfNewer(
+            String subject,
+            String snippet,
+            String participantAddress,
+            LocalDateTime lastMessageAt,
+            boolean read
+    ) {
+        if (lastMessageAt == null) {
+            return;
+        }
+
+        if (this.lastMessageAt != null && this.lastMessageAt.isAfter(lastMessageAt)) {
+            return;
+        }
+
+        updateLatestMessageInfo(subject, snippet, participantAddress, lastMessageAt);
         this.read = read;
     }
 
-
-    public void incrementMessageCount() {
-        this.messageCount++;
+    public void updateReadStatus(boolean read) {
+        this.read = read;
+    }
+    public void updateMessageCount(int messageCount) {
+        this.messageCount = Math.max(messageCount, 0);
     }
 
     public void updateHistoryId(String historyId) {

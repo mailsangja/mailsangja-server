@@ -1,7 +1,12 @@
 package com.mailsangja.worker.dto.gmail;
 
+import java.util.List;
+
 public record GoogleMailMessageListResult(
-        int fetchedCount,
+        List<GoogleMailMessageResponse> messages,
         int resultSizeEstimate
 ) {
+    public int fetchedCount() {
+        return messages == null ? 0 : messages.size();
+    }
 }

@@ -53,6 +53,7 @@ mailsangja:
       publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
     initial-mail-sync:
       task-name: ${MAIL_SYNC_TASK_NAME:sync.gmail.initial}
+      thread-batch-task-name: ${MAIL_SYNC_THREAD_BATCH_TASK_NAME:sync.gmail.initial.thread-batch}
     watch-renewal:
       task-name: ${MAIL_WATCH_RENEWAL_TASK_NAME:watch.renewal.gmail}
   gmail:
@@ -77,7 +78,9 @@ mailsangja:
         allowed-service-account-email: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL:}
     initial-sync:
       max-results: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS:20}
+      thread-batch-size: ${GOOGLE_GMAIL_INITIAL_SYNC_THREAD_BATCH_SIZE:5}
       messages-uri: ${GOOGLE_GMAIL_MESSAGES_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages}
+      threads-uri: ${GOOGLE_GMAIL_THREADS_URI:https://gmail.googleapis.com/gmail/v1/users/me/threads}
       connect-timeout: ${GOOGLE_GMAIL_MESSAGES_CONNECT_TIMEOUT:3s}
       read-timeout: ${GOOGLE_GMAIL_MESSAGES_READ_TIMEOUT:5s}
     google-history:

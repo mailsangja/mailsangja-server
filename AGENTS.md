@@ -35,7 +35,7 @@ If guidance conflicts:
 - Shared persistence code lives in `db`.
 - Executable Spring Boot application code lives in feature modules such as `core`.
 - Root package convention: `com.mailsangja.{module}`.
-- Stack: Java 21, Spring Boot 4.0.5, MySQL, Spring Data JPA, Lombok.
+- Stack: Java 21, Spring Boot 4.0.5, PostgreSQL, Spring Data JPA, Lombok.
 
 ## Required Dependency Direction
 
