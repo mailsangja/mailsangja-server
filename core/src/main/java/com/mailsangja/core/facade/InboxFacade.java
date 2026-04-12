@@ -5,6 +5,7 @@ import com.mailsangja.core.common.exception.inbox.InboxException;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
+import com.mailsangja.core.service.inbox.InboxCommandService;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InboxFacade {
 
+    private final InboxCommandService inboxCommandService;
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
 
@@ -43,6 +45,12 @@ public class InboxFacade {
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         ThreadDetailResult result = inboxQueryService.findThreadDetailResult(thread);
         return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail());
+    }
+
+    public void markThreadAsRead(User user, UUID threadId) {
+        Thread thread = inboxQueryService.findThreadById(threadId);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
+        inboxCommandService.markThreadAsRead(thread);
     }
 
     public long getUnreadCount(User user) {
