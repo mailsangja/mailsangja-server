@@ -7,10 +7,11 @@ This repository is the backend for the "Mailbox" service. It supports multi-acco
 Before changing code, read these files in order:
 
 1. `CLAUDE.md`
-2. `.claude/skills/product-requirements.md`
-3. `.claude/skills/spring-api-rules.md`
-4. `.claude/agents/backend-developer.md`
-5. `.claude/agents/code-reviewer.md`
+2. `.github/copilot-instructions.md`
+3. `.claude/skills/product-requirements.md`
+4. `.claude/skills/spring-api-rules.md`
+5. `.claude/agents/backend-developer.md`
+6. `.claude/agents/code-reviewer.md`
 
 These references are not automatic imports. Treat them as required source documents for implementation and review.
 
@@ -33,9 +34,11 @@ If guidance conflicts:
 
 - Multi-module Gradle project.
 - Shared persistence code lives in `db`.
-- Executable Spring Boot application code lives in feature modules such as `core`.
+- Executable Spring Boot application code lives in feature modules such as `core` and `worker`.
+- `core` handles HTTP API flows and publishes async mail tasks.
+- `worker` handles Gmail push/webhook ingestion and RabbitMQ consumer flows (e.g., `worker/src/main/java/com/mailsangja/worker/messaging/*Listener.java`).
 - Root package convention: `com.mailsangja.{module}`.
-- Stack: Java 21, Spring Boot 4.0.5, PostgreSQL, Spring Data JPA, Lombok.
+- Stack: Java 21, Spring Boot 4.0.5, PostgreSQL, Spring Data JPA, Redis, RabbitMQ, Lombok.
 
 ## Required Dependency Direction
 
@@ -84,6 +87,7 @@ Mandatory constraints:
 - Do not use class-level `@Transactional`.
 - Do not use `@Transactional(readOnly = true)`.
 - Keep external I/O outside transaction boundaries.
+- In async flows, publish from dedicated messaging services (e.g., `core/.../service/mail/*MessageCommandService.java`) and consume in `worker/messaging/*Listener` that delegate to facades.
 - `@Async` is allowed only in `PushFacade`.
 - External settings must use `@ConfigurationProperties`.
 - Gmail account connection OAuth is separate from service login OAuth.
@@ -94,6 +98,11 @@ Mandatory constraints:
 
 When reviewing or modifying code, verify:
 
+- Review comments and suggestions are written in Korean.
+- For complex business logic, microservice communication, or state transitions, include a Mermaid diagram in markdown.
+- time/space complexity
+- concurrency/deadlock risk
+- N+1 query risk
 - User Story coverage
 - layer boundaries
 - command/query separation
