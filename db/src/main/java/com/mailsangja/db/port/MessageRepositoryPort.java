@@ -1,7 +1,10 @@
 package com.mailsangja.db.port;
 
 import com.mailsangja.db.entity.mail.Message;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,7 +17,14 @@ public interface MessageRepositoryPort {
             String gmailThreadId,
             String gmailMessageId
     );
+    Optional<Message> findByIdIncludingDeleted(UUID messageId);
     List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId);
+    List<Message> findAllByThreadIdIncludingDeleted(UUID threadId);
     List<Message> findAllByThreadIdInAndDeletedAtIsNull(List<UUID> threadIds);
     List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId);
+    List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
+    Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable);
+    List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
+    int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt);
+    int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
 }

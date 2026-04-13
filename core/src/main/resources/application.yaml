@@ -86,3 +86,7 @@ mailsangja:
       connect-timeout: ${GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT:3s}
       read-timeout: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:5s}
       label-filter-behavior: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:}
+    api:
+      base-uri: ${GOOGLE_GMAIL_API_BASE_URI:https://gmail.googleapis.com}
+      connect-timeout: ${GOOGLE_GMAIL_API_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_GMAIL_API_READ_TIMEOUT:10s}

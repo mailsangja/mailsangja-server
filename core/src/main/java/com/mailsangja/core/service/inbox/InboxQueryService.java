@@ -32,7 +32,7 @@ public class InboxQueryService {
     private final ContactRepositoryPort contactRepositoryPort;
 
     public Thread findThreadById(UUID threadId) {
-        return threadRepositoryPort.findByIdAndDeletedAtIsNull(threadId)
+        return threadRepositoryPort.findByIdIncludingDeleted(threadId)
                 .orElseThrow(() -> new InboxException(InboxErrorCode.THREAD_NOT_FOUND));
     }
 

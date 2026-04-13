@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,11 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     @Override
     public Optional<Thread> findByIdAndDeletedAtIsNull(UUID id) {
         return threadJpaRepositoryModule.findByIdAndDeletedAtIsNull(id);
+    }
+
+    @Override
+    public Optional<Thread> findByIdIncludingDeleted(UUID id) {
+        return threadJpaRepositoryModule.findById(id);
     }
 
     @Override
@@ -56,5 +62,25 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     @Override
     public long countUnreadInboxByUserId(UUID userId) {
         return threadJpaRepositoryModule.countUnreadInboxByUserId(userId);
+    }
+
+    @Override
+    public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findTrashByUserId(userId, markerId, pageable);
+    }
+
+    @Override
+    public List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return threadJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt) {
+        return threadJpaRepositoryModule.bulkSoftDeleteByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId, deletedAt);
+    }
+
+    @Override
+    public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return threadJpaRepositoryModule.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }
