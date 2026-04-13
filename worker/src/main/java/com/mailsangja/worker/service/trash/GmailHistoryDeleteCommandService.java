@@ -1,9 +1,10 @@
-package com.mailsangja.worker.service.mail;
+package com.mailsangja.worker.service.trash;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
+import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,16 +15,16 @@ public class GmailHistoryDeleteCommandService {
     private final MailAccountQueryService mailAccountQueryService;
     private final GmailHistoryDeleteApplyCommandService gmailHistoryDeleteApplyCommandService;
 
-    public void trashThread(GmailHistoryEvent event) {
+    public void trashMessage(GmailHistoryEvent event) {
         validateEvent(event);
         MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
-        gmailHistoryDeleteApplyCommandService.applyThreadTrashed(mailAccount, event);
+        gmailHistoryDeleteApplyCommandService.applyMessageTrashed(mailAccount, event);
     }
 
-    public void restoreThread(GmailHistoryEvent event) {
+    public void restoreMessage(GmailHistoryEvent event) {
         validateEvent(event);
         MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
-        gmailHistoryDeleteApplyCommandService.applyThreadRestored(mailAccount, event);
+        gmailHistoryDeleteApplyCommandService.applyMessageRestored(mailAccount, event);
     }
 
     private void validateEvent(GmailHistoryEvent event) {
