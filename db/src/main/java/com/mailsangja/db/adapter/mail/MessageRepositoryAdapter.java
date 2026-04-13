@@ -6,7 +6,6 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +29,19 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public Optional<Message> findByIdIncludingDeleted(UUID messageId) {
         return messageJpaRepositoryModule.findById(messageId);
+    }
+
+    @Override
+    public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    ) {
+        return messageJpaRepositoryModule.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId,
+                gmailMessageId
+        );
     }
 
     @Override

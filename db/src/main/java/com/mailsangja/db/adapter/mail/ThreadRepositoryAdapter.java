@@ -45,6 +45,11 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
+    public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
+        return threadJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId);
+    }
+
+    @Override
     public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
         return threadJpaRepositoryModule.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
@@ -62,11 +67,6 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     @Override
     public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
         return threadJpaRepositoryModule.findTrashByUserId(userId, markerId, pageable);
-    }
-
-    @Override
-    public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-        return threadJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId);
     }
 
     @Override
