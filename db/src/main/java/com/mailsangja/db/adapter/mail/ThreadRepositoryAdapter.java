@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,6 +36,11 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
         return threadJpaRepositoryModule.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
                 mailAccountId, gmailThreadId, direction
         );
+    }
+
+    @Override
+    public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
+        return threadJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId);
     }
 
     @Override

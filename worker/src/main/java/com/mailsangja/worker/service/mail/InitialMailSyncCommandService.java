@@ -41,6 +41,22 @@ public class InitialMailSyncCommandService {
         }
     }
 
+    @Transactional
+    public void saveMissingMessagesFromThreadSnapshot(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
+        if (mailAccount == null || command == null || isBlank(command.gmailThreadId()) || command.messages() == null) {
+            throw new MailPushException(MailPushErrorCode.INVALID_INITIAL_MAIL_SYNC_COMMAND);
+        }
+
+        command.messages().stream()
+                .collect(Collectors.groupingBy(InitialMailSyncMessageSaveCommand::direction))
+                .forEach((direction, messageCommands) -> saveMissingMessagesByDirection(
+                        mailAccount,
+                        command.gmailThreadId(),
+                        direction,
+                        messageCommands
+                ));
+    }
+
     private void saveThread(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
         if (command == null || isBlank(command.gmailThreadId()) || command.messages() == null) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
@@ -79,6 +95,45 @@ public class InitialMailSyncCommandService {
         thread.updateMessageCount(aggregate.messageCount());
     }
 
+    private void saveMissingMessagesByDirection(
+            MailAccount mailAccount,
+            String gmailThreadId,
+            Direction direction,
+            List<InitialMailSyncMessageSaveCommand> messageCommands
+    ) {
+        if (direction == null || messageCommands == null || messageCommands.isEmpty()) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+        }
+
+        Thread thread = findOrCreateThread(mailAccount, gmailThreadId, direction);
+        int insertedCount = 0;
+
+        for (InitialMailSyncMessageSaveCommand messageCommand : messageCommands) {
+            if (messageCommand == null
+                    || isBlank(messageCommand.gmailMessageId())
+                    || isBlank(messageCommand.fromAddress())) {
+                throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
+            }
+
+            Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                    thread.getId(),
+                    messageCommand.gmailMessageId()
+            );
+            if (existingMessage.isPresent()) {
+                continue;
+            }
+
+            Message message = Message.from(thread, messageCommand.toCreateValues());
+            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
+            messageRepositoryPort.save(message);
+            insertedCount++;
+        }
+
+        if (insertedCount > 0) {
+            thread.updateMessageCount(thread.getMessageCount() + insertedCount);
+        }
+    }
+
     private void saveMessage(
             Thread thread,
             InitialMailSyncThreadSaveCommand threadCommand,
@@ -95,34 +150,10 @@ public class InitialMailSyncCommandService {
 
         if (!inserted) {
             Message message = existingMessage.get();
-            message.updateBasicContent(
-                    messageCommand.subject(),
-                    messageCommand.fromAddress(),
-                    messageCommand.toAddresses(),
-                    messageCommand.ccAddresses(),
-                    messageCommand.snippet(),
-                    messageCommand.read(),
-                    messageCommand.sentAt()
-            );
-            message.updateBodyContent(messageCommand.bodyText(), messageCommand.bodyHtml());
+            message.updateFrom(messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
         } else {
-            Message message = Message.builder()
-                    .thread(thread)
-                    .gmailMessageId(messageCommand.gmailMessageId())
-                    .direction(messageCommand.direction())
-                    .subject(messageCommand.subject())
-                    .fromAddress(messageCommand.fromAddress())
-                    .toAddresses(messageCommand.toAddresses())
-                    .ccAddresses(messageCommand.ccAddresses())
-                    .snippet(messageCommand.snippet())
-                    .read(messageCommand.read())
-                    .sentAt(messageCommand.sentAt())
-                    .bodyText(messageCommand.bodyText())
-                    .bodyHtml(messageCommand.bodyHtml())
-                    .attachments(new ArrayList<>())
-                    .labels(Collections.emptyList())
-                    .build();
+            Message message = Message.from(thread, messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
             messageRepositoryPort.save(message);
         }

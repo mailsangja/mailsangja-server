@@ -2,7 +2,7 @@ package com.mailsangja.core.service.google;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
-import com.mailsangja.core.config.properties.GoogleMailWatchProperties;
+import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailWatchRequest;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResponse;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
@@ -23,30 +23,30 @@ public class GoogleMailWatchQueryService {
 
     private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
-    private final GoogleMailWatchProperties googleMailWatchProperties;
-    private final RestClient googleMailWatchRestClient;
+    private final GoogleMailProperties googleMailProperties;
+    private final RestClient googleMailRestClient;
 
     public GoogleMailWatchQueryService(
-            GoogleMailWatchProperties googleMailWatchProperties,
-            @Qualifier("googleMailWatchRestClient") RestClient googleMailWatchRestClient
+            GoogleMailProperties googleMailProperties,
+            @Qualifier("googleMailRestClient") RestClient googleMailRestClient
     ) {
-        this.googleMailWatchProperties = googleMailWatchProperties;
-        this.googleMailWatchRestClient = googleMailWatchRestClient;
+        this.googleMailProperties = googleMailProperties;
+        this.googleMailRestClient = googleMailRestClient;
     }
 
     public GoogleMailWatchResult watch(String accessToken) {
         validateWatchInput(accessToken);
 
         GoogleMailWatchRequest request = new GoogleMailWatchRequest(
-                googleMailWatchProperties.getTopicName(),
-                normalizeLabelIds(googleMailWatchProperties.getLabelIds()),
-                normalizeBlankToNull(googleMailWatchProperties.getLabelFilterBehavior())
+                googleMailProperties.getTopicName(),
+                normalizeLabelIds(googleMailProperties.getLabelIds()),
+                normalizeBlankToNull(googleMailProperties.getLabelFilterBehavior())
         );
 
         try {
-            GoogleMailWatchResponse response = googleMailWatchRestClient
+            GoogleMailWatchResponse response = googleMailRestClient
                     .post()
-                    .uri(googleMailWatchProperties.getWatchUri())
+                    .uri(googleMailProperties.getWatchUri())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -62,12 +62,12 @@ public class GoogleMailWatchQueryService {
 
     private void validateWatchInput(String accessToken) {
         if (isBlank(accessToken)
-                || isBlank(googleMailWatchProperties.getTopicName())
-                || isBlank(googleMailWatchProperties.getWatchUri())) {
+                || isBlank(googleMailProperties.getTopicName())
+                || isBlank(googleMailProperties.getWatchUri())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_FAILED);
         }
 
-        List<String> labelIds = googleMailWatchProperties.getLabelIds();
+        List<String> labelIds = googleMailProperties.getLabelIds();
         if (labelIds != null && labelIds.stream().anyMatch(this::isBlank)) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_FAILED);
         }

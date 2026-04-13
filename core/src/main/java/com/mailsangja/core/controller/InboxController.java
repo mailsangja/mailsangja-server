@@ -50,6 +50,16 @@ public class InboxController implements InboxControllerDocs {
     }
 
     @Override
+    @PostMapping("/api/v1/threads/{threadId}/read")
+    public ResponseEntity<Void> markThreadAsRead(
+            @AuthUser User user,
+            @PathVariable UUID threadId
+    ) {
+        inboxFacade.markThreadAsRead(user, threadId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
     @GetMapping("/api/v1/threads/inbox/unread-count")
     public ResponseEntity<UnreadCountResponse> getUnreadCount(@AuthUser User user) {
         return ResponseEntity.ok(UnreadCountResponse.of(inboxFacade.getUnreadCount(user)));

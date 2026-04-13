@@ -1,6 +1,7 @@
 package com.mailsangja.worker.dto.mail;
 
 import com.mailsangja.db.entity.mail.Direction;
+import com.mailsangja.db.entity.mail.Message;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +36,22 @@ public record InitialMailSyncMessageSaveCommand(
                 result.bodyText(),
                 result.bodyHtml(),
                 result.attachments()
+        );
+    }
+
+    public Message.CreateValues toCreateValues() {
+        return new Message.CreateValues(
+                gmailMessageId,
+                direction,
+                subject,
+                fromAddress,
+                toAddresses,
+                ccAddresses,
+                snippet,
+                read,
+                sentAt,
+                bodyText,
+                bodyHtml
         );
     }
 }
