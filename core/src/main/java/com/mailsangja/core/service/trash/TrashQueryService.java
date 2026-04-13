@@ -7,9 +7,10 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,8 +20,8 @@ public class TrashQueryService {
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
 
-    public List<Thread> findTrashThreadsByUserId(UUID userId) {
-        return threadRepositoryPort.findTrashByUserId(userId);
+    public Slice<Thread> findTrashThreadsByUserId(UUID userId, UUID markerId, int size) {
+        return threadRepositoryPort.findTrashByUserId(userId, markerId, PageRequest.of(0, size));
     }
 
     public Thread findActiveThreadById(UUID threadId) {

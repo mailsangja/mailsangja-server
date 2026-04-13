@@ -2,6 +2,7 @@ package com.mailsangja.core.controller;
 
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.TrashControllerDocs;
+import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.trash.TrashThreadSummaryResponse;
 import com.mailsangja.core.facade.TrashFacade;
 import com.mailsangja.db.entity.user.User;
@@ -9,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -40,10 +40,12 @@ public class TrashController implements TrashControllerDocs {
 
     @Override
     @GetMapping("/api/v1/trash/threads")
-    public ResponseEntity<List<TrashThreadSummaryResponse>> getTrashThreads(
-            @AuthUser User user
+    public ResponseEntity<MarkerSliceResponse<TrashThreadSummaryResponse>> getTrashThreads(
+            @AuthUser User user,
+            @RequestParam(required = false) UUID marker,
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     ) {
-        return ResponseEntity.ok(trashFacade.getTrashThreads(user));
+        return ResponseEntity.ok(trashFacade.getTrashThreads(user, marker, size));
     }
 
     @Override

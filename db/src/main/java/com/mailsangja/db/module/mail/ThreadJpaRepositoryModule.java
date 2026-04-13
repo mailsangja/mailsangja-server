@@ -44,6 +44,10 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
     Optional<Thread> findById(UUID id);
 
     @EntityGraph(attributePaths = {"mailAccount"})
-    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.deletedAt IS NOT NULL ORDER BY t.deletedAt DESC")
-    List<Thread> findTrashByUserId(@Param("userId") UUID userId);
+    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.deletedAt IS NOT NULL AND (:markerId IS NULL OR t.deletedAt < (SELECT m.deletedAt FROM Thread m WHERE m.id = :markerId)) ORDER BY t.deletedAt DESC")
+    Slice<Thread> findTrashByUserId(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            Pageable pageable
+    );
 }

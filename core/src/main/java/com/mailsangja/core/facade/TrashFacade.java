@@ -2,6 +2,7 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.trash.TrashErrorCode;
 import com.mailsangja.core.common.exception.trash.TrashException;
+import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.trash.TrashThreadSummaryResponse;
 import com.mailsangja.core.service.google.GoogleGmailApiService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
@@ -12,6 +13,7 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -42,11 +44,13 @@ public class TrashFacade {
         googleGmailApiService.trashMessage(message.getThread().getMailAccount().getAccessToken(), message.getGmailMessageId());
     }
 
-    public List<TrashThreadSummaryResponse> getTrashThreads(User user) {
-        List<Thread> threads = trashQueryService.findTrashThreadsByUserId(user.getId());
-        return threads.stream()
+    public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(User user, UUID marker, int size) {
+        Slice<Thread> threads = trashQueryService.findTrashThreadsByUserId(user.getId(), marker, size);
+        List<TrashThreadSummaryResponse> content = threads.getContent().stream()
                 .map(TrashThreadSummaryResponse::from)
                 .toList();
+        UUID nextMarker = threads.hasNext() ? threads.getContent().getLast().getId() : null;
+        return MarkerSliceResponse.of(content, nextMarker, threads.hasNext());
     }
 
     public void restoreThread(User user, UUID threadId) {

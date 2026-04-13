@@ -5,7 +5,6 @@ import com.mailsangja.db.entity.mail.Thread;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,5 +16,5 @@ public interface ThreadRepositoryPort {
     Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable);
     Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable);
     long countUnreadInboxByUserId(UUID userId);
-    List<Thread> findTrashByUserId(UUID userId);
+    Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable);
 }

@@ -9,7 +9,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,7 +58,7 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
-    public List<Thread> findTrashByUserId(UUID userId) {
-        return threadJpaRepositoryModule.findTrashByUserId(userId);
+    public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findTrashByUserId(userId, markerId, pageable);
     }
 }

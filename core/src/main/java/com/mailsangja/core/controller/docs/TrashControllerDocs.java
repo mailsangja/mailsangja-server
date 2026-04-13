@@ -1,6 +1,7 @@
 package com.mailsangja.core.controller.docs;
 
 import com.mailsangja.core.common.auth.AuthUser;
+import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.trash.TrashThreadSummaryResponse;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,8 +14,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Trash", description = "메일 삭제 및 휴지통 API")
@@ -72,8 +73,10 @@ public interface TrashControllerDocs {
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true)))
     })
-    ResponseEntity<List<TrashThreadSummaryResponse>> getTrashThreads(
-            @Parameter(hidden = true) @AuthUser User user
+    ResponseEntity<MarkerSliceResponse<TrashThreadSummaryResponse>> getTrashThreads(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "마커 (이전 응답의 nextMarker)", required = false) @RequestParam(required = false) UUID marker,
+            @Parameter(description = "페이지 크기", example = "50") @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     );
 
     @Operation(
