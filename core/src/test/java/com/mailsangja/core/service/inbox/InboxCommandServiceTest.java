@@ -8,17 +8,28 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class InboxCommandServiceTest {
+
+    @Mock
+    private MessageRepositoryPort messageRepositoryPort;
+
+    @Mock
+    private ThreadRepositoryPort threadRepositoryPort;
+
+    @InjectMocks
+    private InboxCommandService inboxCommandService;
 
     @Test
     void markThreadAsRead_같은지메일스레드의양방향스레드와메시지를모두읽음처리한다() {
@@ -63,10 +74,10 @@ class InboxCommandServiceTest {
                 .read(false)
                 .build();
 
-        InboxCommandService inboxCommandService = new InboxCommandService(
-                new FakeMessageRepositoryPort(mailAccountId, gmailThreadId, List.of(inboundMessage, outboundMessage)),
-                new FakeThreadRepositoryPort(mailAccountId, gmailThreadId, List.of(inboundThread, outboundThread))
-        );
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread, outboundThread));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundMessage, outboundMessage));
 
         inboxCommandService.markThreadAsRead(inboundThread);
 
@@ -105,129 +116,14 @@ class InboxCommandServiceTest {
                 .read(true)
                 .build();
 
-        InboxCommandService inboxCommandService = new InboxCommandService(
-                new FakeMessageRepositoryPort(mailAccountId, gmailThreadId, List.of(readMessage)),
-                new FakeThreadRepositoryPort(mailAccountId, gmailThreadId, List.of(thread))
-        );
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(thread));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(readMessage));
 
         inboxCommandService.markThreadAsRead(thread);
 
         assertTrue(thread.isRead());
         assertTrue(readMessage.isRead());
-    }
-
-    private static class FakeMessageRepositoryPort implements MessageRepositoryPort {
-
-        private final UUID expectedMailAccountId;
-        private final String expectedGmailThreadId;
-        private final List<Message> messages;
-
-        private FakeMessageRepositoryPort(UUID expectedMailAccountId, String expectedGmailThreadId, List<Message> messages) {
-            this.expectedMailAccountId = expectedMailAccountId;
-            this.expectedGmailThreadId = expectedGmailThreadId;
-            this.messages = new ArrayList<>(messages);
-        }
-
-        @Override
-        public Message save(Message message) {
-            return message;
-        }
-
-        @Override
-        public Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            if (!expectedMailAccountId.equals(mailAccountId) || !expectedGmailThreadId.equals(gmailThreadId)) {
-                return Optional.empty();
-            }
-
-            return messages.stream()
-                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
-                    .findFirst();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdInAndDeletedAtIsNull(List<UUID> threadIds) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-            if (!expectedMailAccountId.equals(mailAccountId) || !expectedGmailThreadId.equals(gmailThreadId)) {
-                return List.of();
-            }
-            return List.copyOf(messages);
-        }
-    }
-
-    private static class FakeThreadRepositoryPort implements ThreadRepositoryPort {
-
-        private final UUID expectedMailAccountId;
-        private final String expectedGmailThreadId;
-        private final List<Thread> threads;
-
-        private FakeThreadRepositoryPort(UUID expectedMailAccountId, String expectedGmailThreadId, List<Thread> threads) {
-            this.expectedMailAccountId = expectedMailAccountId;
-            this.expectedGmailThreadId = expectedGmailThreadId;
-            this.threads = new ArrayList<>(threads);
-        }
-
-        @Override
-        public Thread save(Thread thread) {
-            return thread;
-        }
-
-        @Override
-        public Optional<Thread> findByIdAndDeletedAtIsNull(UUID id) {
-            return threads.stream().filter(thread -> id.equals(thread.getId())).findFirst();
-        }
-
-        @Override
-        public Optional<Thread> findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
-                UUID mailAccountId,
-                String gmailThreadId,
-                Direction direction
-        ) {
-            return threads.stream()
-                    .filter(thread -> mailAccountId.equals(thread.getMailAccount().getId()))
-                    .filter(thread -> gmailThreadId.equals(thread.getGmailThreadId()))
-                    .filter(thread -> direction == thread.getDirection())
-                    .findFirst();
-        }
-
-        @Override
-        public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-            if (!expectedMailAccountId.equals(mailAccountId) || !expectedGmailThreadId.equals(gmailThreadId)) {
-                return List.of();
-            }
-            return List.copyOf(threads);
-        }
-
-        @Override
-        public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public long countUnreadInboxByUserId(UUID userId) {
-            throw new UnsupportedOperationException();
-        }
     }
 }
