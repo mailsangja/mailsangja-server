@@ -6,6 +6,7 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,5 +55,15 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt) {
+        return messageJpaRepositoryModule.bulkSoftDeleteByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId, deletedAt);
+    }
+
+    @Override
+    public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return messageJpaRepositoryModule.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }

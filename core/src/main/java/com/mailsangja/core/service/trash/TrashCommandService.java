@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -19,16 +20,12 @@ public class TrashCommandService {
 
     @Transactional
     public void softDeleteThread(Thread thread) {
-        thread.delete();
-        threadRepositoryPort.save(thread);
+        LocalDateTime now = LocalDateTime.now();
+        String gmailThreadId = thread.getGmailThreadId();
+        UUID mailAccountId = thread.getMailAccount().getId();
 
-        List<Message> messages = messageRepositoryPort.findAllByThreadIdIncludingDeleted(thread.getId());
-        for (Message message : messages) {
-            if (!message.isDeleted()) {
-                message.delete();
-                messageRepositoryPort.save(message);
-            }
-        }
+        threadRepositoryPort.bulkSoftDeleteByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId, now);
+        messageRepositoryPort.bulkSoftDeleteByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId, now);
     }
 
     @Transactional
@@ -39,16 +36,11 @@ public class TrashCommandService {
 
     @Transactional
     public void restoreThread(Thread thread) {
-        thread.restore();
-        threadRepositoryPort.save(thread);
+        String gmailThreadId = thread.getGmailThreadId();
+        UUID mailAccountId = thread.getMailAccount().getId();
 
-        List<Message> messages = messageRepositoryPort.findAllByThreadIdIncludingDeleted(thread.getId());
-        for (Message message : messages) {
-            if (message.isDeleted()) {
-                message.restore();
-                messageRepositoryPort.save(message);
-            }
-        }
+        threadRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+        messageRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 
     @Transactional

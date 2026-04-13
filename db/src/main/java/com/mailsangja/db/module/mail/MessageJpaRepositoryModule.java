@@ -3,9 +3,11 @@ package com.mailsangja.db.module.mail;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,4 +45,19 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId ORDER BY m.sentAt ASC")
     List<Message> findAllByThreadIdIncludingDeleted(@Param("threadId") UUID threadId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Message m SET m.deletedAt = :deletedAt WHERE m.thread.id IN (SELECT t.id FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId) AND m.deletedAt IS NULL")
+    int bulkSoftDeleteByMailAccountIdAndGmailThreadId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId,
+            @Param("deletedAt") LocalDateTime deletedAt
+    );
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Message m SET m.deletedAt = NULL WHERE m.thread.id IN (SELECT t.id FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId) AND m.deletedAt IS NOT NULL")
+    int bulkRestoreByMailAccountIdAndGmailThreadId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
 }

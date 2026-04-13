@@ -5,6 +5,8 @@ import com.mailsangja.db.entity.mail.Thread;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,4 +19,8 @@ public interface ThreadRepositoryPort {
     Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable);
     long countUnreadInboxByUserId(UUID userId);
     Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable);
+    List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId);
+    List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
+    int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt);
+    int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
 }
