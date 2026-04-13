@@ -76,6 +76,6 @@ jobs:
             APP_IMAGE_TAG=$APP_IMAGE_TAG
             EOF
 
-            docker compose --env-file .env --env-file .env.release pull core worker
-            docker compose --env-file .env --env-file .env.release up -d core worker
-            docker compose --env-file .env --env-file .env.release ps core worker
+            docker compose -f compose.production.yaml --env-file .env --env-file .env.release pull core worker
+            docker compose -f compose.production.yaml --env-file .env --env-file .env.release up -d core worker
+            docker compose -f compose.production.yaml --env-file .env --env-file .env.release ps core worker
