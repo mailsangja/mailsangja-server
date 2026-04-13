@@ -1,14 +1,15 @@
 package com.mailsangja.core.dto.trash;
 
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Schema(description = "휴지통 스레드 목록 항목")
 public record TrashThreadSummaryResponse(
-        @Schema(description = "스레드 내부 ID")
+        @Schema(description = "대표 스레드 내부 ID (INBOUND 우선)")
         UUID threadId,
         @Schema(description = "Gmail 스레드 ID", example = "18a2b3c4d5e6f7a8")
         String gmailThreadId,
@@ -16,25 +17,16 @@ public record TrashThreadSummaryResponse(
         UUID accountId,
         @Schema(description = "메일 계정 이메일 주소", example = "user@gmail.com")
         String accountEmail,
-        @Schema(description = "최신 메시지 제목", example = "프로젝트 미팅 일정 안내")
-        String latestSubject,
-        @Schema(description = "최신 메시지 미리보기 텍스트", example = "안녕하세요, 다음 주 미팅 일정을 안내드립니다...")
-        String snippet,
-        @Schema(description = "최신 메시지 시각")
-        LocalDateTime lastMessageAt,
-        @Schema(description = "삭제된 시각")
-        LocalDateTime deletedAt
+        @Schema(description = "해당 대화의 삭제된 메시지 목록")
+        List<TrashMessageItemResponse> deletedMessages
 ) {
-    public static TrashThreadSummaryResponse from(Thread thread) {
+    public static TrashThreadSummaryResponse from(Thread representativeThread, List<Message> messages) {
         return new TrashThreadSummaryResponse(
-                thread.getId(),
-                thread.getGmailThreadId(),
-                thread.getMailAccount().getId(),
-                thread.getMailAccount().getEmailAddress(),
-                thread.getLatestSubject(),
-                thread.getLatestSnippet(),
-                thread.getLastMessageAt(),
-                thread.getDeletedAt()
+                representativeThread.getId(),
+                representativeThread.getGmailThreadId(),
+                representativeThread.getMailAccount().getId(),
+                representativeThread.getMailAccount().getEmailAddress(),
+                messages.stream().map(TrashMessageItemResponse::from).toList()
         );
     }
 }

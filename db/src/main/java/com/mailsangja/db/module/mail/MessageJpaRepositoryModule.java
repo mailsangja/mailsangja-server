@@ -1,6 +1,8 @@
 package com.mailsangja.db.module.mail;
 
 import com.mailsangja.db.entity.mail.Message;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -59,6 +61,20 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId ORDER BY m.sentAt ASC")
     List<Message> findAllByThreadIdIncludingDeleted(@Param("threadId") UUID threadId);
+
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
+    @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND m.deletedAt IS NOT NULL AND (:markerId IS NULL OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)) ORDER BY m.deletedAt DESC")
+    Slice<Message> findDeletedByUserId(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            Pageable pageable
+    );
+
+    @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id = :mailAccountId AND m.thread.gmailThreadId = :gmailThreadId AND m.deletedAt IS NOT NULL ORDER BY m.sentAt ASC")
+    List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Message m SET m.deletedAt = :deletedAt WHERE m.thread.id IN (SELECT t.id FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId) AND m.deletedAt IS NULL")

@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -20,8 +21,17 @@ public class TrashQueryService {
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
 
-    public Slice<Thread> findTrashThreadsByUserId(UUID userId, UUID markerId, int size) {
-        return threadRepositoryPort.findTrashByUserId(userId, markerId, PageRequest.of(0, size));
+    public Slice<Message> findDeletedMessagesByUserId(UUID userId, UUID markerId, int size) {
+        return messageRepositoryPort.findDeletedByUserId(userId, markerId, PageRequest.of(0, size));
+    }
+
+    public List<Message> findDeletedMessagesByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return messageRepositoryPort.findAllDeletedByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    public Thread findThreadByIdIncludingDeleted(UUID threadId) {
+        return threadRepositoryPort.findByIdIncludingDeleted(threadId)
+                .orElseThrow(() -> new TrashException(TrashErrorCode.THREAD_NOT_FOUND));
     }
 
     public Thread findActiveThreadById(UUID threadId) {

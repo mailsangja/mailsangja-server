@@ -3,6 +3,7 @@ package com.mailsangja.core.controller;
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.TrashControllerDocs;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
+import com.mailsangja.core.dto.trash.TrashThreadDetailResponse;
 import com.mailsangja.core.dto.trash.TrashThreadSummaryResponse;
 import com.mailsangja.core.facade.TrashFacade;
 import com.mailsangja.db.entity.user.User;
@@ -46,6 +47,15 @@ public class TrashController implements TrashControllerDocs {
             @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
     ) {
         return ResponseEntity.ok(trashFacade.getTrashThreads(user, marker, size));
+    }
+
+    @Override
+    @GetMapping("/api/v1/trash/threads/{threadId}")
+    public ResponseEntity<TrashThreadDetailResponse> getTrashThreadDetail(
+            @AuthUser User user,
+            @PathVariable UUID threadId
+    ) {
+        return ResponseEntity.ok(trashFacade.getTrashThreadDetail(user, threadId));
     }
 
     @Override

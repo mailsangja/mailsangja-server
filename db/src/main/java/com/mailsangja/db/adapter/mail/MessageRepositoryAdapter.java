@@ -4,6 +4,8 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -68,6 +70,16 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable) {
+        return messageJpaRepositoryModule.findDeletedByUserId(userId, markerId, pageable);
+    }
+
+    @Override
+    public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return messageJpaRepositoryModule.findAllDeletedByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 
     @Override
