@@ -248,6 +248,36 @@ class InitialMailSyncCommandServiceTest {
         }
 
         @Override
+        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
+                    .findFirst();
+        }
+
+        @Override
+        public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> !gmailMessageId.equals(message.getGmailMessageId()))
+                    .anyMatch(message -> !message.isDeleted());
+        }
+
+        @Override
         public Optional<Message> findByIdIncludingDeleted(UUID messageId) {
             return Optional.empty();
         }

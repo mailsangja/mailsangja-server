@@ -17,6 +17,16 @@ public interface MessageRepositoryPort {
             String gmailThreadId,
             String gmailMessageId
     );
+    Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    );
+    boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    );
     Optional<Message> findByIdIncludingDeleted(UUID messageId);
     List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId);
     List<Message> findAllByThreadIdIncludingDeleted(UUID threadId);

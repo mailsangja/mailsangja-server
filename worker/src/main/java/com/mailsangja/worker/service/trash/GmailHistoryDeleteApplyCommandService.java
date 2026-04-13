@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -26,10 +25,9 @@ public class GmailHistoryDeleteApplyCommandService {
     public void applyMessageTrashed(MailAccount mailAccount, GmailHistoryEvent event) {
         gmailThreadLockRepositoryPort.acquireThreadLock(mailAccount, event.gmailThreadId());
 
-        Optional<Message> messageOpt = messageRepositoryPort
-                .findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+        Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                         mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
-                );
+        );
 
         if (messageOpt.isEmpty()) {
             return;
@@ -38,16 +36,11 @@ public class GmailHistoryDeleteApplyCommandService {
         Message message = messageOpt.get();
         message.delete();
 
-        // 삭제한 메시지를 제외하고 스레드 내 활성 메시지가 없으면 Thread도 soft-delete
-        List<Message> activeMessages = messageRepositoryPort
-                .findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
-                        mailAccount.getId(), event.gmailThreadId()
-                );
+        boolean hasOtherActiveMessages = messageRepositoryPort.existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                        mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
+        );
 
-        boolean noOtherActiveMessages = activeMessages.stream()
-                .noneMatch(m -> !m.getId().equals(message.getId()));
-
-        if (noOtherActiveMessages) {
+        if (!hasOtherActiveMessages) {
             threadRepositoryPort.bulkSoftDeleteByMailAccountIdAndGmailThreadId(
                     mailAccount.getId(), event.gmailThreadId(), LocalDateTime.now()
             );
@@ -58,14 +51,11 @@ public class GmailHistoryDeleteApplyCommandService {
     public void applyMessageRestored(MailAccount mailAccount, GmailHistoryEvent event) {
         gmailThreadLockRepositoryPort.acquireThreadLock(mailAccount, event.gmailThreadId());
 
-        List<Message> allMessages = messageRepositoryPort
-                .findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), event.gmailThreadId());
+        Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                        mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
+        );
 
-        Optional<Message> messageOpt = allMessages.stream()
-                .filter(m -> event.gmailMessageId().equals(m.getGmailMessageId()) && m.isDeleted())
-                .findFirst();
-
-        if (messageOpt.isEmpty()) {
+        if (messageOpt.isEmpty() || !messageOpt.get().isDeleted()) {
             return;
         }
 

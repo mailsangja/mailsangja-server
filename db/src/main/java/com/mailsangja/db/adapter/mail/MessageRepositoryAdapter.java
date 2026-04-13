@@ -48,6 +48,32 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    ) {
+        return messageJpaRepositoryModule.findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                mailAccountId,
+                gmailThreadId,
+                gmailMessageId
+        );
+    }
+
+    @Override
+    public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    ) {
+        return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                mailAccountId,
+                gmailThreadId,
+                gmailMessageId
+        );
+    }
+
+    @Override
     public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
         return messageJpaRepositoryModule.findAllByThreadIdAndDeletedAtIsNull(threadId);
     }
