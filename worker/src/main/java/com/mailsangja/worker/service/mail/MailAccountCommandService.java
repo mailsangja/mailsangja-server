@@ -1,11 +1,11 @@
 package com.mailsangja.worker.service.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
-import com.mailsangja.worker.dto.gmail.GoogleMailWatchResult;
-import com.mailsangja.worker.dto.gmail.GoogleOAuthTokenResult;
+import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchResult;
+import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
-import com.mailsangja.worker.dto.mail.RenewGoogleWatchCommand;
+import com.mailsangja.worker.dto.mail.watch.RenewGoogleWatchCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

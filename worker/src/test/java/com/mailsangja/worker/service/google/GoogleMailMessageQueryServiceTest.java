@@ -2,8 +2,8 @@ package com.mailsangja.worker.service.google;
 
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
-import com.mailsangja.worker.dto.gmail.GoogleMailThreadResponse;
-import com.mailsangja.worker.dto.mail.InitialMailSyncThreadResult;
+import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;

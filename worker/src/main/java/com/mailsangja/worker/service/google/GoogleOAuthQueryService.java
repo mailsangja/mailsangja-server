@@ -3,7 +3,7 @@ package com.mailsangja.worker.service.google;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleOAuthProperties;
-import com.mailsangja.worker.dto.gmail.GoogleOAuthTokenResult;
+import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;

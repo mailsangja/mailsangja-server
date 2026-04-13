@@ -1,6 +1,6 @@
 package com.mailsangja.worker.messaging;
 
-import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
+import com.mailsangja.worker.dto.mail.watch.WatchRenewalMessage;
 import com.mailsangja.worker.facade.MailAccountFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
