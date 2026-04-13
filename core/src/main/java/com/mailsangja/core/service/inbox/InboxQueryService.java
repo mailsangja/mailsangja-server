@@ -47,11 +47,8 @@ public class InboxQueryService {
     }
 
     public ThreadDetailResult findThreadDetailResult(Thread thread) {
-        List<Message> messages = thread.isDeleted()
-                ? messageRepositoryPort.findAllByMailAccountIdAndGmailThreadId(
-                        thread.getMailAccount().getId(), thread.getGmailThreadId())
-                : messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
-                        thread.getMailAccount().getId(), thread.getGmailThreadId());
+        List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                thread.getMailAccount().getId(), thread.getGmailThreadId());
         Map<String, String> contactNameByEmail = findContactNamesByEmails(collectEmailsFromMessages(messages));
         return new ThreadDetailResult(thread, messages, contactNameByEmail);
     }
