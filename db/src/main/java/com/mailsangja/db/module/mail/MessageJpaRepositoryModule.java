@@ -32,6 +32,33 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailMessageId") String gmailMessageId
     );
 
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+              AND m.gmailMessageId = :gmailMessageId
+            """)
+    Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId,
+            @Param("gmailMessageId") String gmailMessageId
+    );
+
+    @Query("""
+            SELECT COUNT(m) > 0
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+              AND m.deletedAt IS NULL
+              AND m.gmailMessageId <> :gmailMessageId
+            """)
+    boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId,
+            @Param("gmailMessageId") String gmailMessageId
+    );
+
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId AND m.deletedAt IS NULL ORDER BY m.sentAt ASC")
     List<Message> findAllByThreadIdAndDeletedAtIsNull(@Param("threadId") UUID threadId);
@@ -72,6 +99,17 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
 
     @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id = :mailAccountId AND m.thread.gmailThreadId = :gmailThreadId AND m.deletedAt IS NOT NULL ORDER BY m.sentAt ASC")
     List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
+
+    @Query("""
+            SELECT COUNT(m) > 0
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+            """)
+    boolean existsByMailAccountIdAndGmailThreadId(
             @Param("mailAccountId") UUID mailAccountId,
             @Param("gmailThreadId") String gmailThreadId
     );

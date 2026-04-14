@@ -83,4 +83,10 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return threadJpaRepositoryModule.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
+
+    @Override
+    public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        List<Thread> threads = threadJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+        threadJpaRepositoryModule.deleteAll(threads);
+    }
 }

@@ -4,7 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GmailWatchRenewalProperties;
-import com.mailsangja.worker.dto.mail.WatchRenewalMessage;
+import com.mailsangja.worker.dto.mail.watch.WatchRenewalMessage;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import com.mailsangja.worker.service.messaging.MailTaskPublisherService;
 import lombok.RequiredArgsConstructor;

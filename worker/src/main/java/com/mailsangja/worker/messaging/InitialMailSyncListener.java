@@ -1,7 +1,7 @@
 package com.mailsangja.worker.messaging;
 
-import com.mailsangja.worker.dto.mail.InitialMailSyncThreadBatchMessage;
-import com.mailsangja.worker.dto.mail.InitialMailSyncMessage;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.facade.InitialMailSyncFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;

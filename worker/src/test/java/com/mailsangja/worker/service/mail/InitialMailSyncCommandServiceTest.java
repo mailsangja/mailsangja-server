@@ -6,8 +6,8 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
-import com.mailsangja.worker.dto.mail.InitialMailSyncMessageSaveCommand;
-import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -245,6 +245,36 @@ class InitialMailSyncCommandServiceTest {
                     .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
                     .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
                     .findFirst();
+        }
+
+        @Override
+        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
+                    .findFirst();
+        }
+
+        @Override
+        public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> !gmailMessageId.equals(message.getGmailMessageId()))
+                    .anyMatch(message -> !message.isDeleted());
         }
 
         @Override

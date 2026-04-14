@@ -48,6 +48,32 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    ) {
+        return messageJpaRepositoryModule.findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                mailAccountId,
+                gmailThreadId,
+                gmailMessageId
+        );
+    }
+
+    @Override
+    public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId
+    ) {
+        return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                mailAccountId,
+                gmailThreadId,
+                gmailMessageId
+        );
+    }
+
+    @Override
     public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
         return messageJpaRepositoryModule.findAllByThreadIdAndDeletedAtIsNull(threadId);
     }
@@ -90,5 +116,15 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public void hardDelete(Message message) {
+        messageJpaRepositoryModule.delete(message);
+    }
+
+    @Override
+    public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }
