@@ -11,6 +11,7 @@ import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -328,7 +329,7 @@ class InitialMailSyncCommandServiceTest {
 
         @Override
         public Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable) {
-            return null;
+            return new SliceImpl<>(List.of());
         }
 
         @Override
