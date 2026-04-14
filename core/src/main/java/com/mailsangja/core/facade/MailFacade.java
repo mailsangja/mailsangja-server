@@ -35,7 +35,9 @@ public class MailFacade {
         validateSubjectAndContent(request.subject(), request.content());
         validateAttachments(request.attachments());
 
-        mailCommandService.validateSendCommand(MailSendCommand.from(user, request));
+        MailSendCommand command = MailSendCommand.from(user, request);
+        var persistCommand = mailCommandService.sendMail(command);
+        mailCommandService.saveSentMail(persistCommand);
     }
 
     public MailComposeResponse createCompose(User user) {

@@ -18,7 +18,12 @@ public enum MailSendErrorCode implements ErrorCode {
     ATTACHMENT_COUNT_EXCEEDED(400, "MS-MAIL-ATTACHMENT-COUNT-EXCEEDED", "첨부파일은 최대 10개까지 업로드할 수 있습니다."),
     ATTACHMENT_SIZE_EXCEEDED(400, "MS-MAIL-ATTACHMENT-SIZE-EXCEEDED", "첨부파일 크기 제한을 초과했습니다."),
     EMPTY_ATTACHMENT_FILE(400, "MS-MAIL-EMPTY-ATTACHMENT-FILE", "비어 있는 첨부파일은 업로드할 수 없습니다."),
-    INVALID_ATTACHMENT_FILENAME(400, "MS-MAIL-INVALID-ATTACHMENT-FILENAME", "첨부파일 이름이 올바르지 않습니다.");
+    INVALID_ATTACHMENT_FILENAME(400, "MS-MAIL-INVALID-ATTACHMENT-FILENAME", "첨부파일 이름이 올바르지 않습니다."),
+    ATTACHMENT_READ_FAILED(500, "MS-MAIL-ATTACHMENT-READ-FAILED", "첨부파일을 읽는 중 오류가 발생했습니다."),
+    GOOGLE_MAIL_SEND_FAILED(502, "MS-MAIL-GOOGLE-MAIL-SEND-FAILED", "Google Gmail 메일 전송에 실패했습니다."),
+    GOOGLE_MAIL_SEND_RESULT_INVALID(502, "MS-MAIL-GOOGLE-MAIL-SEND-RESULT-INVALID", "Google Gmail 메일 전송 응답값이 올바르지 않습니다."),
+    GOOGLE_MAIL_MESSAGE_FETCH_FAILED(502, "MS-MAIL-GOOGLE-MAIL-MESSAGE-FETCH-FAILED", "Google Gmail 메시지 조회에 실패했습니다."),
+    GOOGLE_MAIL_MESSAGE_RESULT_INVALID(502, "MS-MAIL-GOOGLE-MAIL-MESSAGE-RESULT-INVALID", "Google Gmail 메시지 조회 응답값이 올바르지 않습니다.");
 
     private final int status;
     private final String code;

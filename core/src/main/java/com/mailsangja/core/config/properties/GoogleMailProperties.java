@@ -20,6 +20,8 @@ public class GoogleMailProperties {
     private String topicName;
     private String watchUri;
     private String threadModifyUri;
+    private String sendUri;
+    private String messagesUri;
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private Duration readTimeout = DEFAULT_READ_TIMEOUT;
     private List<String> labelIds;
