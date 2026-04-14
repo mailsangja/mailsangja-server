@@ -28,7 +28,6 @@ public class GmailNewMessageApplyCommandService {
     ) {
         gmailThreadLockRepositoryPort.acquireThreadLock(mailAccount, event.gmailThreadId());
 
-        // 삭제된 Thread/Message가 존재하면 복구한다 (신규 메시지 수신 시 삭제 상태 해제)
         restoreIfDeleted(mailAccount, event.gmailThreadId());
 
         initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand));
