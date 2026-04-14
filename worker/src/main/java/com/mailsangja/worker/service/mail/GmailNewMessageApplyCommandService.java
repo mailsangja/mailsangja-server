@@ -3,7 +3,6 @@ package com.mailsangja.worker.service.mail;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
-import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
@@ -19,7 +18,6 @@ public class GmailNewMessageApplyCommandService {
 
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
     private final ThreadRepositoryPort threadRepositoryPort;
-    private final MessageRepositoryPort messageRepositoryPort;
     private final InitialMailSyncCommandService initialMailSyncCommandService;
 
     @Transactional
@@ -46,10 +44,9 @@ public class GmailNewMessageApplyCommandService {
             return;
         }
 
-        threadRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(
-                mailAccount.getId(), gmailThreadId
-        );
-        messageRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(
+        // Thread만 복구하고 messageCount를 0으로 초기화한다.
+        // 기존 soft-deleted 메시지는 복구하지 않으며, 이후 saveThreadBatch에서 신규 메시지만 삽입된다.
+        threadRepositoryPort.bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(
                 mailAccount.getId(), gmailThreadId
         );
     }

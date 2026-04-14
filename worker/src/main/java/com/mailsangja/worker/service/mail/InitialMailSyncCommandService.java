@@ -142,23 +142,23 @@ public class InitialMailSyncCommandService {
     ) {
         validateThreadMessage(threadCommand, messageCommand);
 
-        Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+        Optional<Message> anyMessage = messageRepositoryPort.findByThreadIdAndGmailMessageId(
                 thread.getId(),
                 messageCommand.gmailMessageId()
         );
-        boolean inserted = existingMessage.isEmpty();
 
-        if (!inserted) {
-            Message message = existingMessage.get();
-            message.updateFrom(messageCommand.toCreateValues());
-            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
-        } else {
+        if (anyMessage.isEmpty()) {
             Message message = Message.from(thread, messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
             messageRepositoryPort.save(message);
+            aggregate.merge(threadCommand, messageCommand, true);
+        } else if (!anyMessage.get().isDeleted()) {
+            Message message = anyMessage.get();
+            message.updateFrom(messageCommand.toCreateValues());
+            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
+            aggregate.merge(threadCommand, messageCommand, false);
         }
-
-        aggregate.merge(threadCommand, messageCommand, inserted);
+        // 소프트 삭제된 메시지는 건너뛴다 (의도적으로 삭제된 메시지는 재삽입하지 않는다)
     }
 
     private Thread findOrCreateThread(MailAccount mailAccount, String gmailThreadId, Direction direction) {

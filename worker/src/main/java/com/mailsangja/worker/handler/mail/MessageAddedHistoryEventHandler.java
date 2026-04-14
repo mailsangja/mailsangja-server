@@ -1,4 +1,4 @@
-정package com.mailsangja.worker.handler.mail;
+package com.mailsangja.worker.handler.mail;
 
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;

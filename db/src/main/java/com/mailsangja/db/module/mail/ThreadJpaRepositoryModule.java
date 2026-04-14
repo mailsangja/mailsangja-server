@@ -73,6 +73,13 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             @Param("gmailThreadId") String gmailThreadId
     );
 
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Thread t SET t.deletedAt = NULL, t.messageCount = 0 WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId AND t.deletedAt IS NOT NULL")
+    int bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
+
     @EntityGraph(attributePaths = {"mailAccount"})
     @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.deletedAt IS NOT NULL AND (:markerId IS NULL OR t.deletedAt < (SELECT m.deletedAt FROM Thread m WHERE m.id = :markerId)) ORDER BY t.deletedAt DESC")
     Slice<Thread> findTrashByUserId(
