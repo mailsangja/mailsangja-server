@@ -6,6 +6,7 @@ public record GoogleMailHistoryItemResponse(
         String id,
         List<GoogleMailHistoryLabelChangeResponse> labelsAdded,
         List<GoogleMailHistoryLabelChangeResponse> labelsRemoved,
-        List<GoogleMailHistoryLabelChangeResponse> messagesDeleted
+        List<GoogleMailHistoryLabelChangeResponse> messagesDeleted,
+        List<GoogleMailHistoryMessageAddedResponse> messagesAdded
 ) {
 }
