@@ -89,13 +89,14 @@ public class GoogleMailHistoryQueryService {
 
     private GoogleMailHistoryItemResult mapHistoryItem(GoogleMailHistoryItemResponse historyItem) {
         if (historyItem == null) {
-            return new GoogleMailHistoryItemResult(null, List.of(), List.of());
+            return new GoogleMailHistoryItemResult(null, List.of(), List.of(), List.of());
         }
 
         return new GoogleMailHistoryItemResult(
                 historyItem.id(),
                 mapLabelChanges(historyItem.labelsAdded()),
-                mapLabelChanges(historyItem.labelsRemoved())
+                mapLabelChanges(historyItem.labelsRemoved()),
+                mapLabelChanges(historyItem.messagesDeleted())
         );
     }
 

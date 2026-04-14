@@ -117,4 +117,14 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
+
+    @Override
+    public void hardDelete(Message message) {
+        messageJpaRepositoryModule.delete(message);
+    }
+
+    @Override
+    public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
 }

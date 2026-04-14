@@ -34,6 +34,9 @@ public class GmailHistoryEventClassifier {
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsAdded, GmailHistoryEventType.MESSAGE_UNREAD, UNREAD_LABEL_ID);
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsAdded, GmailHistoryEventType.MESSAGE_TRASHED, TRASH_LABEL_ID);
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsRemoved, GmailHistoryEventType.MESSAGE_RESTORED, TRASH_LABEL_ID);
+
+            List<GoogleMailHistoryLabelChangeResult> messagesDeleted = historyItem == null ? List.of() : historyItem.messagesDeleted();
+            classifyPermanentlyDeletedMessages(deduplicatedEvents, mailAccount, historyId, messagesDeleted);
         }
 
         return List.copyOf(deduplicatedEvents.values());
@@ -61,6 +64,34 @@ public class GmailHistoryEventClassifier {
                     mailAccount.getId(),
                     labelChange.gmailMessageId(),
                     labelChange.gmailThreadId(),
+                    historyId
+            );
+            deduplicatedEvents.put(buildDeduplicationKey(event), event);
+        }
+    }
+
+    private void classifyPermanentlyDeletedMessages(
+            Map<String, GmailHistoryEvent> deduplicatedEvents,
+            MailAccount mailAccount,
+            String historyId,
+            List<GoogleMailHistoryLabelChangeResult> messagesDeleted
+    ) {
+        if (messagesDeleted == null || messagesDeleted.isEmpty()) {
+            return;
+        }
+
+        for (GoogleMailHistoryLabelChangeResult deletedMessage : messagesDeleted) {
+            if (deletedMessage == null
+                    || isBlank(deletedMessage.gmailMessageId())
+                    || isBlank(deletedMessage.gmailThreadId())) {
+                continue;
+            }
+
+            GmailHistoryEvent event = new GmailHistoryEvent(
+                    GmailHistoryEventType.MESSAGE_PERMANENTLY_DELETED,
+                    mailAccount.getId(),
+                    deletedMessage.gmailMessageId(),
+                    deletedMessage.gmailThreadId(),
                     historyId
             );
             deduplicatedEvents.put(buildDeduplicationKey(event), event);

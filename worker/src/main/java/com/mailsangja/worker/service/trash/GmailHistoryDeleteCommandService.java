@@ -27,6 +27,12 @@ public class GmailHistoryDeleteCommandService {
         gmailHistoryDeleteApplyCommandService.applyMessageRestored(mailAccount, event);
     }
 
+    public void permanentlyDeleteMessage(GmailHistoryEvent event) {
+        validateEvent(event);
+        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+        gmailHistoryDeleteApplyCommandService.applyMessagePermanentlyDeleted(mailAccount, event);
+    }
+
     private void validateEvent(GmailHistoryEvent event) {
         if (event == null
                 || event.mailAccountId() == null

@@ -103,6 +103,17 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailThreadId") String gmailThreadId
     );
 
+    @Query("""
+            SELECT COUNT(m) > 0
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+            """)
+    boolean existsByMailAccountIdAndGmailThreadId(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Message m SET m.deletedAt = :deletedAt WHERE m.thread.id IN (SELECT t.id FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId) AND m.deletedAt IS NULL")
     int bulkSoftDeleteByMailAccountIdAndGmailThreadId(

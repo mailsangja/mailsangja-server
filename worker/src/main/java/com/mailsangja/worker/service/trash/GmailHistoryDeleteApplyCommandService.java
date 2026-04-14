@@ -66,4 +66,29 @@ public class GmailHistoryDeleteApplyCommandService {
                 mailAccount.getId(), event.gmailThreadId()
         );
     }
+
+    @Transactional
+    public void applyMessagePermanentlyDeleted(MailAccount mailAccount, GmailHistoryEvent event) {
+        gmailThreadLockRepositoryPort.acquireThreadLock(mailAccount, event.gmailThreadId());
+
+        Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
+        );
+
+        if (messageOpt.isEmpty()) {
+            return;
+        }
+
+        messageRepositoryPort.hardDelete(messageOpt.get());
+
+        boolean hasRemainingMessages = messageRepositoryPort.existsByMailAccountIdAndGmailThreadId(
+                mailAccount.getId(), event.gmailThreadId()
+        );
+
+        if (!hasRemainingMessages) {
+            threadRepositoryPort.hardDeleteAllByMailAccountIdAndGmailThreadId(
+                    mailAccount.getId(), event.gmailThreadId()
+            );
+        }
+    }
 }

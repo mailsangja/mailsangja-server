@@ -5,6 +5,7 @@ import java.util.List;
 public record GoogleMailHistoryItemResponse(
         String id,
         List<GoogleMailHistoryLabelChangeResponse> labelsAdded,
-        List<GoogleMailHistoryLabelChangeResponse> labelsRemoved
+        List<GoogleMailHistoryLabelChangeResponse> labelsRemoved,
+        List<GoogleMailHistoryLabelChangeResponse> messagesDeleted
 ) {
 }

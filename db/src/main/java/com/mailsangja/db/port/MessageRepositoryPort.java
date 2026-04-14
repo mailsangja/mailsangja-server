@@ -37,4 +37,6 @@ public interface MessageRepositoryPort {
     List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
     int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt);
     int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
+    void hardDelete(Message message);
+    boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
 }
