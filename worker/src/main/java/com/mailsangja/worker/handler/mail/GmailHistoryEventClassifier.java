@@ -6,6 +6,7 @@ import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryItemResult;
 import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryLabelChangeResult;
 import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryListResult;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryMessageAddedResult;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -29,13 +30,15 @@ public class GmailHistoryEventClassifier {
             String historyId = historyItem == null ? null : historyItem.historyId();
             List<GoogleMailHistoryLabelChangeResult> labelsAdded = historyItem == null ? List.of() : historyItem.labelsAdded();
             List<GoogleMailHistoryLabelChangeResult> labelsRemoved = historyItem == null ? List.of() : historyItem.labelsRemoved();
+            List<GoogleMailHistoryLabelChangeResult> messagesDeleted = historyItem == null ? List.of() : historyItem.messagesDeleted();
+            List<GoogleMailHistoryMessageAddedResult> messagesAdded = historyItem == null ? List.of() : historyItem.messagesAdded();
 
+            // 신규 메시지를 먼저 반영해 이후 READ/UNREAD 처리 시 불필요한 외부 재조회 가능성을 낮춘다.
+            classifyMessagesAdded(deduplicatedEvents, mailAccount, historyId, messagesAdded);
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsRemoved, GmailHistoryEventType.MESSAGE_READ, UNREAD_LABEL_ID);
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsAdded, GmailHistoryEventType.MESSAGE_UNREAD, UNREAD_LABEL_ID);
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsAdded, GmailHistoryEventType.MESSAGE_TRASHED, TRASH_LABEL_ID);
             classifyLabelChanges(deduplicatedEvents, mailAccount, historyId, labelsRemoved, GmailHistoryEventType.MESSAGE_RESTORED, TRASH_LABEL_ID);
-
-            List<GoogleMailHistoryLabelChangeResult> messagesDeleted = historyItem == null ? List.of() : historyItem.messagesDeleted();
             classifyPermanentlyDeletedMessages(deduplicatedEvents, mailAccount, historyId, messagesDeleted);
         }
 
@@ -96,6 +99,38 @@ public class GmailHistoryEventClassifier {
             );
             deduplicatedEvents.put(buildDeduplicationKey(event), event);
         }
+    }
+
+    private void classifyMessagesAdded(
+            Map<String, GmailHistoryEvent> deduplicatedEvents,
+            MailAccount mailAccount,
+            String historyId,
+            List<GoogleMailHistoryMessageAddedResult> messagesAdded
+    ) {
+        if (messagesAdded == null || messagesAdded.isEmpty()) {
+            return;
+        }
+
+        for (GoogleMailHistoryMessageAddedResult addedMessage : messagesAdded) {
+            if (!supportsMessageAdded(addedMessage)) {
+                continue;
+            }
+
+            GmailHistoryEvent event = new GmailHistoryEvent(
+                    GmailHistoryEventType.MESSAGE_ADDED,
+                    mailAccount.getId(),
+                    addedMessage.gmailMessageId(),
+                    addedMessage.gmailThreadId(),
+                    historyId
+            );
+            deduplicatedEvents.put(buildDeduplicationKey(event), event);
+        }
+    }
+
+    private boolean supportsMessageAdded(GoogleMailHistoryMessageAddedResult addedMessage) {
+        return addedMessage != null
+                && !isBlank(addedMessage.gmailMessageId())
+                && !isBlank(addedMessage.gmailThreadId());
     }
 
     private boolean supportsEvent(GoogleMailHistoryLabelChangeResult labelChange, String targetLabelId) {
