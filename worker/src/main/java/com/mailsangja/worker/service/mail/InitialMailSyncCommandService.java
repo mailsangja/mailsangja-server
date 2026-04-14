@@ -115,11 +115,12 @@ public class InitialMailSyncCommandService {
                 throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
             }
 
-            Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+            Optional<Message> anyMessage = messageRepositoryPort.findByThreadIdAndGmailMessageId(
                     thread.getId(),
                     messageCommand.gmailMessageId()
             );
-            if (existingMessage.isPresent()) {
+            if (anyMessage.isPresent()) {
+                // 활성 메시지는 이미 존재, 소프트 삭제된 메시지는 재삽입하지 않고 skip
                 continue;
             }
 
