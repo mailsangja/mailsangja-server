@@ -30,6 +30,8 @@ import com.mailsangja.db.port.MailAccountRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.RestClient;
 
@@ -493,6 +495,10 @@ class MailFacadeTest {
             return threads.stream().filter(thread -> id.equals(thread.getId())).findFirst();
         }
 
+        public Optional<Thread> findByIdIncludingDeleted(UUID id) {
+            return threads.stream().filter(thread -> id.equals(thread.getId())).findFirst();
+        }
+
         @Override
         public Optional<Thread> findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
                 UUID mailAccountId,
@@ -512,6 +518,10 @@ class MailFacadeTest {
             return List.of();
         }
 
+        public List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return List.of();
+        }
+
         public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         }
 
@@ -520,6 +530,14 @@ class MailFacadeTest {
         }
 
         public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
+        }
+
+        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(
+                UUID mailAccountId,
+                String gmailThreadId,
+                LocalDateTime deletedAt
+        ) {
             return 0;
         }
 
@@ -538,6 +556,10 @@ class MailFacadeTest {
                 UUID markerId,
                 org.springframework.data.domain.Pageable pageable
         ) {
+            throw new UnsupportedOperationException();
+        }
+
+        public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 
@@ -579,6 +601,12 @@ class MailFacadeTest {
 
         private final List<Message> messages = new ArrayList<>();
 
+        public Optional<Message> findByIdIncludingDeleted(UUID id) {
+            return messages.stream()
+                    .filter(message -> id.equals(message.getId()))
+                    .findFirst();
+        }
+
         @Override
         public Message save(Message message) {
             messages.removeIf(existing -> existing.getId() != null && existing.getId().equals(message.getId()));
@@ -598,6 +626,17 @@ class MailFacadeTest {
                     .findFirst();
         }
 
+        public Optional<Message> findByThreadIdAndGmailMessageId(UUID threadId, String gmailMessageId) {
+            if (threadId == null) {
+                return Optional.empty();
+            }
+            return messages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> threadId.equals(message.getThread().getId()))
+                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
+                    .findFirst();
+        }
+
         @Override
         public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 UUID mailAccountId,
@@ -607,8 +646,20 @@ class MailFacadeTest {
             return Optional.empty();
         }
 
+        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return Optional.empty();
+        }
+
         @Override
         public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
+            return List.of();
+        }
+
+        public List<Message> findAllByThreadIdIncludingDeleted(UUID threadId) {
             return List.of();
         }
 
@@ -622,12 +673,29 @@ class MailFacadeTest {
             return List.of();
         }
 
+        public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return List.of();
+        }
+
         public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
             return messages.stream()
                     .filter(message -> message.getThread() != null)
                     .filter(message -> message.getThread().getMailAccount() != null)
                     .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
                             && gmailThreadId.equals(message.getThread().getGmailThreadId()));
+        }
+
+        public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return messages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
+                            && gmailThreadId.equals(message.getThread().getGmailThreadId())
+                            && !gmailMessageId.equals(message.getGmailMessageId()));
         }
 
         public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
@@ -640,6 +708,14 @@ class MailFacadeTest {
                 LocalDateTime deletedAt
         ) {
             return 0;
+        }
+
+        public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return List.of();
+        }
+
+        public Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable) {
+            throw new UnsupportedOperationException();
         }
 
         public void hardDelete(Message message) {
