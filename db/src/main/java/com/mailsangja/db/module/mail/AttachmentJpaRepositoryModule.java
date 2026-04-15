@@ -12,5 +12,5 @@ public interface AttachmentJpaRepositoryModule extends JpaRepository<Attachment,
     @EntityGraph(attributePaths = {"message", "message.thread", "message.thread.mailAccount"})
     Optional<Attachment> findByIdAndDeletedAtIsNull(UUID id);
 
-    List<Attachment> findAllByMessageId(UUID messageId);
+    List<Attachment> findAllByMessageIdAndDeletedAtIsNull(UUID messageId);
 }

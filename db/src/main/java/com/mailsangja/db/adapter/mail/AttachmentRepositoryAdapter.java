@@ -27,7 +27,7 @@ public class AttachmentRepositoryAdapter implements AttachmentRepositoryPort {
     }
 
     @Override
-    public List<Attachment> findAllByMessageId(UUID messageId) {
-        return attachmentJpaRepositoryModule.findAllByMessageId(messageId);
+    public List<Attachment> findAllByMessageIdAndDeletedAtIsNull(UUID messageId) {
+        return attachmentJpaRepositoryModule.findAllByMessageIdAndDeletedAtIsNull(messageId);
     }
 }

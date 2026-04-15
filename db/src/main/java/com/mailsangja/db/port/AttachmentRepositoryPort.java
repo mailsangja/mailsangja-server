@@ -9,5 +9,5 @@ import java.util.UUID;
 public interface AttachmentRepositoryPort {
     Attachment save(Attachment attachment);
     Optional<Attachment> findByIdAndDeletedAtIsNull(UUID id);
-    List<Attachment> findAllByMessageId(UUID messageId);
+    List<Attachment> findAllByMessageIdAndDeletedAtIsNull(UUID messageId);
 }

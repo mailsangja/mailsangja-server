@@ -397,7 +397,7 @@ class MailFacadeTest {
         }
 
         @Override
-        public List<Attachment> findAllByMessageId(UUID messageId) {
+        public List<Attachment> findAllByMessageIdAndDeletedAtIsNull(UUID messageId) {
             return List.of();
         }
     }
