@@ -16,7 +16,6 @@ import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,12 +26,10 @@ import org.springframework.web.client.RestClientException;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 @Service
-@Slf4j
 public class GoogleMailSendCommandService {
 
     private final GoogleMailProperties googleMailProperties;
@@ -93,15 +90,15 @@ public class GoogleMailSendCommandService {
         try {
             Session session = Session.getInstance(new Properties());
             MimeMessage mimeMessage = new MimeMessage(session);
-            mimeMessage.setFrom(new InternetAddress(command.from()));
-            mimeMessage.setRecipients(Message.RecipientType.TO, InternetAddress.parse(String.join(",", command.to())));
+            mimeMessage.setFrom(createInternetAddress(command.from(), MailSendErrorCode.INVALID_SENDER_ADDRESS));
+            mimeMessage.setRecipients(Message.RecipientType.TO, createInternetAddresses(command.to()));
 
             if (command.cc() != null && !command.cc().isEmpty()) {
-                mimeMessage.setRecipients(Message.RecipientType.CC, InternetAddress.parse(String.join(",", command.cc())));
+                mimeMessage.setRecipients(Message.RecipientType.CC, createInternetAddresses(command.cc()));
             }
 
             if (command.bcc() != null && !command.bcc().isEmpty()) {
-                mimeMessage.setRecipients(Message.RecipientType.BCC, InternetAddress.parse(String.join(",", command.bcc())));
+                mimeMessage.setRecipients(Message.RecipientType.BCC, createInternetAddresses(command.bcc()));
             }
 
             String normalizedSubject = normalizeSubject(command.subject());
@@ -138,8 +135,30 @@ public class GoogleMailSendCommandService {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             mimeMessage.writeTo(outputStream);
             return Base64.getUrlEncoder().withoutPadding().encodeToString(outputStream.toByteArray());
+        } catch (MailSendException e) {
+            throw e;
         } catch (MessagingException | java.io.IOException e) {
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
+        }
+    }
+
+    private InternetAddress createInternetAddress(String address, MailSendErrorCode errorCode) {
+        try {
+            return new InternetAddress(address, true);
+        } catch (MessagingException e) {
+            throw new MailSendException(errorCode);
+        }
+    }
+
+    private InternetAddress[] createInternetAddresses(java.util.List<String> addresses) {
+        try {
+            InternetAddress[] internetAddresses = new InternetAddress[addresses.size()];
+            for (int i = 0; i < addresses.size(); i++) {
+                internetAddresses[i] = new InternetAddress(addresses.get(i), true);
+            }
+            return internetAddresses;
+        } catch (MessagingException e) {
+            throw new MailSendException(MailSendErrorCode.INVALID_RECIPIENT_ADDRESS);
         }
     }
 

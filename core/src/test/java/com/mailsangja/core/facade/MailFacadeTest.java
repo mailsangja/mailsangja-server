@@ -111,6 +111,24 @@ class MailFacadeTest {
     }
 
     @Test
+    void sendMail_to가비어있고cc만있어도실패한다() {
+        User user = createUser(UUID.randomUUID());
+        MailFacade mailFacade = createMailFacade(List.of());
+
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                List.of(),
+                List.of("cc@example.com"),
+                null,
+                "제목",
+                "본문",
+                null
+        );
+
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+    }
+
+    @Test
     void sendMail_내메일계정이아니면실패한다() {
         User owner = createUser(UUID.randomUUID());
         User anotherUser = createUser(UUID.randomUUID());

@@ -6,7 +6,6 @@ import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.db.entity.user.User;
-import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,7 +16,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 @Component
-@Slf4j
 @RequiredArgsConstructor
 public class MailFacade {
 
@@ -36,7 +34,6 @@ public class MailFacade {
         validateAttachments(request.attachments());
 
         MailSendCommand command = MailSendCommand.from(user, request);
-        log.info("Mail send request bound values. request.to={}, command.to={}", request.to(), command.to());
         var persistCommand = mailCommandService.sendMail(command);
         mailCommandService.saveSentMail(persistCommand);
     }
