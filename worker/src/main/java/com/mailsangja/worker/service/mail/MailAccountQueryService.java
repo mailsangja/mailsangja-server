@@ -30,7 +30,7 @@ public class MailAccountQueryService {
     }
 
     public MailAccount findActiveMailAccountById(UUID id) {
-        MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(id, true)
+        MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
 
         validateActiveMailAccount(mailAccount);

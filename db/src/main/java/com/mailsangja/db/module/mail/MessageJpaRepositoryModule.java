@@ -18,6 +18,8 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
 
     Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId);
 
+    Optional<Message> findByThreadIdAndGmailMessageId(UUID threadId, String gmailMessageId);
+
     @Query("""
             SELECT m
             FROM Message m

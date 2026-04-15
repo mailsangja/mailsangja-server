@@ -30,6 +30,11 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Optional<Message> findByThreadIdAndGmailMessageId(UUID threadId, String gmailMessageId) {
+        return messageJpaRepositoryModule.findByThreadIdAndGmailMessageId(threadId, gmailMessageId);
+    }
+
+    @Override
     public Optional<Message> findByIdIncludingDeleted(UUID messageId) {
         return messageJpaRepositoryModule.findById(messageId);
     }
