@@ -1,14 +1,20 @@
 package com.mailsangja.core.facade;
 
+import com.mailsangja.core.common.exception.inbox.InboxException;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
+import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
 import com.mailsangja.core.dto.mail.MailSendRequest;
+import com.mailsangja.core.service.google.GoogleMailAttachmentQueryService;
 import com.mailsangja.core.service.google.GoogleMailMessageQueryService;
 import com.mailsangja.core.service.google.GoogleMailSendCommandService;
+import com.mailsangja.core.service.mail.MailAttachmentQueryService;
+import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.core.service.mail.MailQueryService;
+import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -17,6 +23,7 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
+import com.mailsangja.db.port.AttachmentRepositoryPort;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
@@ -170,8 +177,47 @@ class MailFacadeTest {
         assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
     }
 
+    @Test
+    void getAttachment_내활성메일계정의지메일첨부파일이면다운로드한다() {
+        User user = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+        Attachment attachment = createAttachment(mailAccount, MailProvider.GMAIL);
+        MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
+
+        MailAttachmentDownloadResult result = mailFacade.getAttachment(user, attachment.getId());
+
+        org.junit.jupiter.api.Assertions.assertArrayEquals("file-content".getBytes(), result.bytes());
+        org.junit.jupiter.api.Assertions.assertEquals("text/plain", result.mimeType());
+    }
+
+    @Test
+    void getAttachment_다른사용자계정의첨부파일이면실패한다() {
+        User owner = createUser(UUID.randomUUID());
+        User anotherUser = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(owner, "sender@example.com", true);
+        Attachment attachment = createAttachment(mailAccount, MailProvider.GMAIL);
+        MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
+
+        assertThrows(InboxException.class, () -> mailFacade.getAttachment(anotherUser, attachment.getId()));
+    }
+
+    @Test
+    void getAttachment_지메일이아닌첨부파일이면실패한다() {
+        User user = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true, MailProvider.NAVER);
+        Attachment attachment = createAttachment(mailAccount, MailProvider.NAVER);
+        MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
+
+        assertThrows(InboxException.class, () -> mailFacade.getAttachment(user, attachment.getId()));
+    }
+
     private MailFacade createMailFacade(List<MailAccount> mailAccounts) {
+        return createMailFacade(mailAccounts, List.of());
+    }
+
+    private MailFacade createMailFacade(List<MailAccount> mailAccounts, List<Attachment> attachments) {
         MailQueryService mailQueryService = new MailQueryService(new FakeMailAccountRepositoryPort(mailAccounts));
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(new FakeMailAccountRepositoryPort(mailAccounts));
         MailCommandService mailCommandService = new MailCommandService(
                 mailQueryService,
                 new FakeGoogleMailSendCommandService(),
@@ -179,7 +225,15 @@ class MailFacadeTest {
                 new FakeThreadRepositoryPort(),
                 new FakeMessageRepositoryPort()
         );
-        return new MailFacade(mailCommandService);
+        MailAttachmentQueryService mailAttachmentQueryService = new MailAttachmentQueryService(
+                new FakeAttachmentRepositoryPort(attachments)
+        );
+        return new MailFacade(
+                mailAccountQueryService,
+                mailCommandService,
+                mailAttachmentQueryService,
+                new FakeGoogleMailAttachmentQueryService()
+        );
     }
 
     private User createUser(UUID userId) {
@@ -195,10 +249,14 @@ class MailFacadeTest {
     }
 
     private MailAccount createMailAccount(User user, String emailAddress, boolean active) {
+        return createMailAccount(user, emailAddress, active, MailProvider.GMAIL);
+    }
+
+    private MailAccount createMailAccount(User user, String emailAddress, boolean active, MailProvider provider) {
         return MailAccount.builder()
                 .id(UUID.randomUUID())
                 .user(user)
-                .provider(MailProvider.GMAIL)
+                .provider(provider)
                 .emailAddress(emailAddress)
                 .alias("alias")
                 .icon("icon")
@@ -207,6 +265,33 @@ class MailFacadeTest {
                 .accessTokenExpiresAt(LocalDateTime.now().plusHours(1))
                 .refreshToken("refresh")
                 .active(active)
+                .build();
+    }
+
+    private Attachment createAttachment(MailAccount mailAccount, MailProvider provider) {
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId("gmail-thread-id")
+                .direction(Direction.OUTBOUND)
+                .read(true)
+                .messageCount(1)
+                .build();
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(thread)
+                .gmailMessageId("gmail-message-id")
+                .direction(Direction.OUTBOUND)
+                .fromAddress(mailAccount.getEmailAddress())
+                .read(true)
+                .build();
+        return Attachment.builder()
+                .id(UUID.randomUUID())
+                .message(message)
+                .gmailAttachmentId(provider == MailProvider.GMAIL ? "gmail-attachment-id" : null)
+                .filename("file.txt")
+                .mimeType("text/plain")
+                .size(12)
                 .build();
     }
 
@@ -283,6 +368,36 @@ class MailFacadeTest {
 
         @Override
         public List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active) {
+            return mailAccounts.stream()
+                    .filter(mailAccount -> mailAccount.getUser() != null)
+                    .filter(mailAccount -> userId.equals(mailAccount.getUser().getId()))
+                    .filter(mailAccount -> mailAccount.isActive() == active)
+                    .toList();
+        }
+    }
+
+    private static class FakeAttachmentRepositoryPort implements AttachmentRepositoryPort {
+
+        private final List<Attachment> attachments;
+
+        private FakeAttachmentRepositoryPort(List<Attachment> attachments) {
+            this.attachments = attachments;
+        }
+
+        @Override
+        public Attachment save(Attachment attachment) {
+            return attachment;
+        }
+
+        @Override
+        public Optional<Attachment> findByIdAndDeletedAtIsNull(UUID id) {
+            return attachments.stream()
+                    .filter(attachment -> id.equals(attachment.getId()))
+                    .findFirst();
+        }
+
+        @Override
+        public List<Attachment> findAllByMessageId(UUID messageId) {
             return List.of();
         }
     }
@@ -330,6 +445,18 @@ class MailFacadeTest {
                             5
                     ))
             );
+        }
+    }
+
+    private static class FakeGoogleMailAttachmentQueryService extends GoogleMailAttachmentQueryService {
+
+        private FakeGoogleMailAttachmentQueryService() {
+            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+        }
+
+        @Override
+        public byte[] download(MailAccount mailAccount, Message message, Attachment attachment) {
+            return "file-content".getBytes();
         }
     }
 

@@ -15,6 +15,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 
+import java.util.UUID;
+
 @Tag(name = "Mail", description = "메일 작성 및 전송 API")
 public interface MailControllerDocs {
 
@@ -55,5 +57,44 @@ public interface MailControllerDocs {
                     )
             )
             MailSendRequest request
+    );
+
+    @Operation(
+            summary = "메일 첨부파일 다운로드",
+            description = "attachmentId에 해당하는 첨부파일을 다운로드합니다. " +
+                    "로그인 사용자의 메일 계정에 속한 첨부파일만 접근할 수 있으며, 현재는 Gmail 첨부파일만 지원합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "첨부파일 다운로드 성공",
+                    content = @Content(mediaType = "application/octet-stream", schema = @Schema(type = "string", format = "binary"))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "첨부파일 접근 권한 없음",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "첨부파일을 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "501",
+                    description = "현재 지원하지 않는 메일 제공자의 첨부파일",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "502",
+                    description = "원본 첨부파일 조회 실패",
+                    content = @Content(schema = @Schema(hidden = true))
+            )
+    })
+    ResponseEntity<byte[]> getAttachment(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "첨부파일 ID", required = true)
+            UUID attachmentId
     );
 }

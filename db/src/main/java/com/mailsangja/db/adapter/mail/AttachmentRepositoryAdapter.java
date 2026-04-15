@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -18,6 +19,11 @@ public class AttachmentRepositoryAdapter implements AttachmentRepositoryPort {
     @Override
     public Attachment save(Attachment attachment) {
         return attachmentJpaRepositoryModule.save(attachment);
+    }
+
+    @Override
+    public Optional<Attachment> findByIdAndDeletedAtIsNull(UUID id) {
+        return attachmentJpaRepositoryModule.findByIdAndDeletedAtIsNull(id);
     }
 
     @Override

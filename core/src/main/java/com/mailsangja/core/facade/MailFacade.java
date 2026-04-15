@@ -1,10 +1,19 @@
 package com.mailsangja.core.facade;
 
+import com.mailsangja.core.common.exception.inbox.InboxErrorCode;
+import com.mailsangja.core.common.exception.inbox.InboxException;
+import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
+import com.mailsangja.core.service.google.GoogleMailAttachmentQueryService;
+import com.mailsangja.core.service.mail.MailAttachmentQueryService;
+import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.mail.MailCommandService;
+import com.mailsangja.db.entity.mail.Attachment;
+import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -13,7 +22,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -24,7 +35,10 @@ public class MailFacade {
     private static final long MAX_ATTACHMENT_SIZE = 10L * 1024 * 1024;
     private static final long MAX_TOTAL_ATTACHMENT_SIZE = 20L * 1024 * 1024;
 
+    private final MailAccountQueryService mailAccountQueryService;
     private final MailCommandService mailCommandService;
+    private final MailAttachmentQueryService mailAttachmentQueryService;
+    private final GoogleMailAttachmentQueryService googleMailAttachmentQueryService;
 
     public void sendMail(User user, MailSendRequest request) {
         validateSender(request.from());
@@ -38,9 +52,35 @@ public class MailFacade {
         mailCommandService.saveSentMail(persistCommand);
     }
 
+    public MailAttachmentDownloadResult getAttachment(User user, UUID attachmentId) {
+        validateAttachmentId(attachmentId);
+
+        Attachment attachment = mailAttachmentQueryService.findById(attachmentId);
+        validateAttachmentAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), attachment);
+        validateAttachmentProvider(attachment);
+
+        byte[] attachmentBytes = googleMailAttachmentQueryService.download(
+                attachment.getMessage().getThread().getMailAccount(),
+                attachment.getMessage(),
+                attachment
+        );
+
+        return new MailAttachmentDownloadResult(
+                attachment.getFilename(),
+                attachment.getMimeType(),
+                attachmentBytes
+        );
+    }
+
     private void validateSender(String from) {
         if (!isValidEmail(from)) {
             throw new MailSendException(MailSendErrorCode.INVALID_SENDER_ADDRESS);
+        }
+    }
+
+    private void validateAttachmentId(UUID attachmentId) {
+        if (attachmentId == null) {
+            throw new InboxException(InboxErrorCode.ATTACHMENT_NOT_FOUND);
         }
     }
 
@@ -116,6 +156,22 @@ public class MailFacade {
 
         if (totalAttachmentSize > MAX_TOTAL_ATTACHMENT_SIZE) {
             throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
+        }
+    }
+
+    private void validateAttachmentAccess(List<MailAccount> userAccounts, Attachment attachment) {
+        Set<UUID> userAccountIds = userAccounts.stream()
+                .map(MailAccount::getId)
+                .collect(Collectors.toSet());
+
+        if (!userAccountIds.contains(attachment.getMessage().getThread().getMailAccount().getId())) {
+            throw new InboxException(InboxErrorCode.ATTACHMENT_ACCESS_DENIED);
+        }
+    }
+
+    private void validateAttachmentProvider(Attachment attachment) {
+        if (attachment.getMessage().getThread().getMailAccount().getProvider() != MailProvider.GMAIL) {
+            throw new InboxException(InboxErrorCode.ATTACHMENT_PROVIDER_NOT_SUPPORTED);
         }
     }
 
