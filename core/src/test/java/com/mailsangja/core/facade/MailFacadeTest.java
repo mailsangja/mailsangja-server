@@ -519,6 +519,10 @@ class MailFacadeTest {
             return 0;
         }
 
+        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
+        }
+
         @Override
         public org.springframework.data.domain.Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(
                 UUID userId,
@@ -627,6 +631,14 @@ class MailFacadeTest {
         }
 
         public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
+        }
+
+        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(
+                UUID mailAccountId,
+                String gmailThreadId,
+                LocalDateTime deletedAt
+        ) {
             return 0;
         }
 
