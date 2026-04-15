@@ -33,7 +33,6 @@ public class MailCommandService {
 
     public MailSendPersistCommand sendMail(MailSendCommand command) {
         MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(command.userId(), command.from());
-        validateSenderMailAccount(senderMailAccount);
 
         var sendResult = googleMailSendCommandService.send(senderMailAccount, command);
         GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
@@ -63,12 +62,6 @@ public class MailCommandService {
 
         if (inserted) {
             thread.updateMessageCount(thread.getMessageCount() + 1);
-        }
-    }
-
-    private void validateSenderMailAccount(MailAccount senderMailAccount) {
-        if (senderMailAccount == null || senderMailAccount.getId() == null || !senderMailAccount.isActive()) {
-            throw new MailSendException(MailSendErrorCode.SENDER_MAIL_ACCOUNT_NOT_FOUND);
         }
     }
 
