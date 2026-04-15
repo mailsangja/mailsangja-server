@@ -2,9 +2,11 @@ package com.mailsangja.core.service.mail;
 
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
+import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendPersistCommand;
+import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.core.service.google.GoogleMailMessageQueryService;
 import com.mailsangja.core.service.google.GoogleMailSendCommandService;
 import com.mailsangja.db.entity.mail.Direction;
@@ -16,6 +18,8 @@ import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -112,13 +116,35 @@ public class MailCommandService {
                 .orElse(null);
 
         if (message == null) {
-            messageRepositoryPort.save(Message.from(thread, command.toCreateValues()));
+            Message newMessage = Message.from(thread, command.toCreateValues());
+            newMessage.replaceAttachments(createAttachments(newMessage, command.messageResult().attachments()));
+            messageRepositoryPort.save(newMessage);
             return true;
         }
 
         message.updateFrom(command.toCreateValues());
+        message.replaceAttachments(createAttachments(message, command.messageResult().attachments()));
         messageRepositoryPort.save(message);
         return false;
+    }
+
+    private List<Attachment> createAttachments(
+            Message message,
+            List<GoogleMailAttachmentResult> attachments
+    ) {
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
+
+        return attachments.stream()
+                .map(attachment -> Attachment.builder()
+                        .message(message)
+                        .gmailAttachmentId(attachment.gmailAttachmentId())
+                        .filename(attachment.filename())
+                        .mimeType(attachment.mimeType())
+                        .size(attachment.size())
+                        .build())
+                .toList();
     }
 
     private boolean isBlank(String value) {

@@ -3,6 +3,7 @@ package com.mailsangja.core.service.google;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
+import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResponse;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import jakarta.mail.internet.AddressException;
@@ -96,7 +97,8 @@ public class GoogleMailMessageQueryService {
                 response.snippet(),
                 resolveSentAt(response.internalDate()),
                 bodyContent.text(),
-                bodyContent.html()
+                bodyContent.html(),
+                createAttachments(response.payload())
         );
     }
 
@@ -207,6 +209,43 @@ public class GoogleMailMessageQueryService {
         } catch (IllegalArgumentException e) {
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
         }
+    }
+
+    private List<GoogleMailAttachmentResult> createAttachments(
+            GoogleMailMessageResponse.GoogleMailPayloadResponse payload
+    ) {
+        List<GoogleMailMessageResponse.GoogleMailPayloadResponse> attachmentParts = new ArrayList<>();
+        collectAttachmentParts(payload, attachmentParts);
+
+        return attachmentParts.stream()
+                .map(part -> new GoogleMailAttachmentResult(
+                        part.body() == null ? null : part.body().attachmentId(),
+                        part.filename(),
+                        part.mimeType(),
+                        part.body() == null ? null : part.body().size()
+                ))
+                .toList();
+    }
+
+    private void collectAttachmentParts(
+            GoogleMailMessageResponse.GoogleMailPayloadResponse payload,
+            List<GoogleMailMessageResponse.GoogleMailPayloadResponse> attachmentParts
+    ) {
+        if (payload == null) {
+            return;
+        }
+
+        if (!isBlank(payload.filename())
+                && payload.body() != null
+                && !isBlank(payload.body().attachmentId())) {
+            attachmentParts.add(payload);
+        }
+
+        if (payload.parts() == null || payload.parts().isEmpty()) {
+            return;
+        }
+
+        payload.parts().forEach(part -> collectAttachmentParts(part, attachmentParts));
     }
 
     private boolean isBlank(String value) {

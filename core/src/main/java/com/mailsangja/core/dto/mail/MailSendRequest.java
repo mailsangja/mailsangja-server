@@ -8,9 +8,6 @@ import java.util.List;
 
 @Schema(description = "메일 전송 요청")
 public record MailSendRequest(
-        @Schema(description = "메일 작성 컨텍스트를 식별하는 compose session ID", example = "8d3e8eb8-2c8a-41d5-beb9-5e9c12d85ddf")
-        String composeSessionId,
-
         @Schema(description = "보내는 메일 주소", example = "sender@gmail.com")
         String from,
 

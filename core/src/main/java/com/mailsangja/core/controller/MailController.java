@@ -2,7 +2,6 @@ package com.mailsangja.core.controller;
 
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.MailControllerDocs;
-import com.mailsangja.core.dto.mail.MailComposeResponse;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.facade.MailFacade;
 import com.mailsangja.db.entity.user.User;
@@ -24,12 +23,5 @@ public class MailController implements MailControllerDocs {
     public ResponseEntity<Void> sendMail(@AuthUser User user, @ModelAttribute MailSendRequest request) {
         mailFacade.sendMail(user, request);
         return ResponseEntity.ok().build();
-    }
-
-    @Override
-    @PostMapping("/api/v1/mail/composes")
-    public ResponseEntity<MailComposeResponse> createCompose(@AuthUser User user) {
-        return ResponseEntity.status(201)
-                .body(mailFacade.createCompose(user));
     }
 }

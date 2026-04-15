@@ -14,6 +14,7 @@ public record GoogleMailMessageResult(
         String snippet,
         LocalDateTime sentAt,
         String bodyText,
-        String bodyHtml
+        String bodyHtml,
+        List<GoogleMailAttachmentResult> attachments
 ) {
 }

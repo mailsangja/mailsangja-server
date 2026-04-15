@@ -2,7 +2,6 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
-import com.mailsangja.core.dto.mail.MailComposeResponse;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.service.mail.MailCommandService;
@@ -14,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Component
@@ -29,7 +27,6 @@ public class MailFacade {
     private final MailCommandService mailCommandService;
 
     public void sendMail(User user, MailSendRequest request) {
-        validateComposeSessionId(request.composeSessionId());
         validateSender(request.from());
         validateRecipients(request.to(), request.cc(), request.bcc());
         validateSubjectAndContent(request.subject(), request.content());
@@ -38,22 +35,6 @@ public class MailFacade {
         MailSendCommand command = MailSendCommand.from(user, request);
         var persistCommand = mailCommandService.sendMail(command);
         mailCommandService.saveSentMail(persistCommand);
-    }
-
-    public MailComposeResponse createCompose(User user) {
-        return new MailComposeResponse(UUID.randomUUID().toString());
-    }
-
-    private void validateComposeSessionId(String composeSessionId) {
-        if (isBlank(composeSessionId)) {
-            throw new MailSendException(MailSendErrorCode.INVALID_COMPOSE_SESSION_ID);
-        }
-
-        try {
-            UUID.fromString(composeSessionId);
-        } catch (IllegalArgumentException e) {
-            throw new MailSendException(MailSendErrorCode.INVALID_COMPOSE_SESSION_ID);
-        }
     }
 
     private void validateSender(String from) {

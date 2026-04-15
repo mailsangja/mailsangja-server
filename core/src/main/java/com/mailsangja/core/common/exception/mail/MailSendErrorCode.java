@@ -8,7 +8,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum MailSendErrorCode implements ErrorCode {
 
-    INVALID_COMPOSE_SESSION_ID(400, "MS-MAIL-INVALID-COMPOSE-SESSION-ID", "유효하지 않은 composeSessionId 입니다."),
     INVALID_SENDER_ADDRESS(400, "MS-MAIL-INVALID-SENDER-ADDRESS", "유효하지 않은 발신 메일 주소입니다."),
     SENDER_MAIL_ACCOUNT_NOT_FOUND(404, "MS-MAIL-SENDER-MAIL-ACCOUNT-NOT-FOUND", "발신 메일 계정을 찾을 수 없습니다."),
     EMPTY_RECIPIENT(400, "MS-MAIL-EMPTY-RECIPIENT", "최소 한 명 이상의 수신자가 필요합니다."),

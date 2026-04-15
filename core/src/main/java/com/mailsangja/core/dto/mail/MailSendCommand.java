@@ -7,7 +7,6 @@ import java.util.UUID;
 
 public record MailSendCommand(
         UUID userId,
-        String composeSessionId,
         String from,
         List<String> to,
         List<String> cc,
@@ -20,7 +19,6 @@ public record MailSendCommand(
     public static MailSendCommand from(User user, MailSendRequest request) {
         return new MailSendCommand(
                 user.getId(),
-                request.composeSessionId(),
                 request.from(),
                 request.to(),
                 request.cc(),

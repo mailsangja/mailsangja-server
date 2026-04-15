@@ -1,7 +1,7 @@
 package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailSendException;
-import com.mailsangja.core.dto.mail.MailComposeResponse;
+import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
 import com.mailsangja.core.dto.mail.MailSendRequest;
@@ -36,22 +36,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class MailFacadeTest {
 
     @Test
-    void createCompose_composeSessionId를가진응답을반환한다() {
-        MailFacade mailFacade = createMailFacade(List.of());
-
-        MailComposeResponse response = mailFacade.createCompose(createUser(UUID.randomUUID()));
-
-        assertDoesNotThrow(() -> UUID.fromString(response.composeSessionId()));
-    }
-
-    @Test
     void sendMail_내활성메일계정이면검증을통과한다() {
         User user = createUser(UUID.randomUUID());
         MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                UUID.randomUUID().toString(),
                 "sender@example.com",
                 List.of("to@example.com"),
                 List.of("cc@example.com"),
@@ -65,32 +55,12 @@ class MailFacadeTest {
     }
 
     @Test
-    void sendMail_composeSessionId가유효하지않으면실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailFacade mailFacade = createMailFacade(List.of());
-
-        MailSendRequest request = new MailSendRequest(
-                "not-a-uuid",
-                "sender@example.com",
-                List.of("to@example.com"),
-                null,
-                null,
-                "제목",
-                "",
-                null
-        );
-
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
-    }
-
-    @Test
     void sendMail_subject와content가둘다비어있으면실패한다() {
         User user = createUser(UUID.randomUUID());
         MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                UUID.randomUUID().toString(),
                 "sender@example.com",
                 List.of("to@example.com"),
                 null,
@@ -109,7 +79,6 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of());
 
         MailSendRequest request = new MailSendRequest(
-                UUID.randomUUID().toString(),
                 "sender@example.com",
                 List.of("dup@example.com"),
                 List.of("dup@example.com"),
@@ -130,7 +99,6 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                UUID.randomUUID().toString(),
                 "sender@example.com",
                 List.of("to@example.com"),
                 null,
@@ -150,7 +118,6 @@ class MailFacadeTest {
 
         byte[] oversized = new byte[11 * 1024 * 1024];
         MailSendRequest request = new MailSendRequest(
-                UUID.randomUUID().toString(),
                 "sender@example.com",
                 List.of("to@example.com"),
                 null,
@@ -318,7 +285,13 @@ class MailFacadeTest {
                     "snippet",
                     LocalDateTime.now(),
                     "본문",
-                    null
+                    null,
+                    List.of(new GoogleMailAttachmentResult(
+                            "gmail-attachment-id",
+                            "file.txt",
+                            "text/plain",
+                            5
+                    ))
             );
         }
     }
