@@ -1,8 +1,10 @@
 package com.mailsangja.worker.service.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
+import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -18,10 +21,11 @@ public class GmailNewMessageApplyCommandService {
 
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
     private final ThreadRepositoryPort threadRepositoryPort;
+    private final MessageRepositoryPort messageRepositoryPort;
     private final InitialMailSyncCommandService initialMailSyncCommandService;
 
     @Transactional
-    public void applyNewMessageSync(
+    public UUID applyNewMessageSync(
             MailAccount mailAccount,
             GmailHistoryEvent event,
             InitialMailSyncThreadSaveCommand syncCommand
@@ -31,6 +35,14 @@ public class GmailNewMessageApplyCommandService {
         restoreIfDeleted(mailAccount, event.gmailThreadId());
 
         initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand));
+
+        return findMessageIdByGmailMessageId(event.gmailMessageId());
+    }
+
+    private UUID findMessageIdByGmailMessageId(String gmailMessageId) {
+        return messageRepositoryPort.findByGmailMessageIdAndDeletedAtIsNull(gmailMessageId)
+                .map(Message::getId)
+                .orElse(null);
     }
 
     private void restoreIfDeleted(MailAccount mailAccount, String gmailThreadId) {

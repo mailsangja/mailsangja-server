@@ -4,13 +4,16 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.service.google.GoogleMailMessageQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -20,7 +23,7 @@ public class GmailNewMessageSyncCommandService {
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final GmailNewMessageApplyCommandService gmailNewMessageApplyCommandService;
 
-    public void syncNewMessage(GmailHistoryEvent event) {
+    public NewMailPushContext syncNewMessage(GmailHistoryEvent event) {
         validateEvent(event);
 
         MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
@@ -35,7 +38,26 @@ public class GmailNewMessageSyncCommandService {
         }
 
         InitialMailSyncThreadSaveCommand syncCommand = InitialMailSyncThreadSaveCommand.from(threadResults.getFirst());
-        gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
+        UUID messageId = gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
+
+        String subject = null;
+        String snippet = null;
+        for (InitialMailSyncMessageSaveCommand message : syncCommand.messages()) {
+            if (event.gmailMessageId().equals(message.gmailMessageId())) {
+                subject = message.subject();
+                snippet = message.snippet();
+                break;
+            }
+        }
+
+        return new NewMailPushContext(
+                mailAccount.getId(),
+                mailAccount.getAlias(),
+                subject,
+                snippet,
+                event.gmailThreadId(),
+                messageId
+        );
     }
 
     private void validateEvent(GmailHistoryEvent event) {
