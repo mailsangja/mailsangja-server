@@ -512,6 +512,9 @@ class MailFacadeTest {
         public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         }
 
+        public void bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        }
+
         @Override
         public org.springframework.data.domain.Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(
                 UUID userId,
@@ -589,6 +592,10 @@ class MailFacadeTest {
                     .filter(message -> message.getThread().getMailAccount() != null)
                     .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
                             && gmailThreadId.equals(message.getThread().getGmailThreadId()));
+        }
+
+        public void hardDelete(Message message) {
+            messages.remove(message);
         }
     }
 }
