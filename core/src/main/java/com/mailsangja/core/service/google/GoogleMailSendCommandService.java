@@ -16,6 +16,7 @@ import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 
 @Service
+@Slf4j
 public class GoogleMailSendCommandService {
 
     private final GoogleMailProperties googleMailProperties;
@@ -102,8 +104,9 @@ public class GoogleMailSendCommandService {
                 mimeMessage.setRecipients(Message.RecipientType.BCC, InternetAddress.parse(String.join(",", command.bcc())));
             }
 
-            if (!isBlank(command.subject())) {
-                mimeMessage.setSubject(command.subject(), StandardCharsets.UTF_8.name());
+            String normalizedSubject = normalizeSubject(command.subject());
+            if (!isBlank(normalizedSubject)) {
+                mimeMessage.setSubject(normalizedSubject, StandardCharsets.UTF_8.name());
             }
 
             if (command.attachments() == null || command.attachments().isEmpty()) {
@@ -142,5 +145,15 @@ public class GoogleMailSendCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String normalizeSubject(String subject) {
+        if (subject == null) {
+            return null;
+        }
+
+        return subject.replace("\r", " ")
+                .replace("\n", " ")
+                .trim();
     }
 }

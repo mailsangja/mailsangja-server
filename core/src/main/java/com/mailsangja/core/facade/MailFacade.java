@@ -6,6 +6,7 @@ import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.db.entity.user.User;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,6 +17,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class MailFacade {
 
@@ -29,10 +31,12 @@ public class MailFacade {
     public void sendMail(User user, MailSendRequest request) {
         validateSender(request.from());
         validateRecipients(request.to(), request.cc(), request.bcc());
+        validateSubject(request.subject());
         validateSubjectAndContent(request.subject(), request.content());
         validateAttachments(request.attachments());
 
         MailSendCommand command = MailSendCommand.from(user, request);
+        log.info("Mail send request bound values. request.to={}, command.to={}", request.to(), command.to());
         var persistCommand = mailCommandService.sendMail(command);
         mailCommandService.saveSentMail(persistCommand);
     }
@@ -74,6 +78,16 @@ public class MailFacade {
     private void validateSubjectAndContent(String subject, String content) {
         if (isBlank(subject) && isBlank(content)) {
             throw new MailSendException(MailSendErrorCode.EMPTY_SUBJECT_AND_CONTENT);
+        }
+    }
+
+    private void validateSubject(String subject) {
+        if (isBlank(subject)) {
+            return;
+        }
+
+        if (subject.contains("\r") || subject.contains("\n")) {
+            throw new MailSendException(MailSendErrorCode.INVALID_MAIL_SUBJECT);
         }
     }
 

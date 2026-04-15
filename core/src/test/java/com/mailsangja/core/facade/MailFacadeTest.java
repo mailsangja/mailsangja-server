@@ -74,6 +74,25 @@ class MailFacadeTest {
     }
 
     @Test
+    void sendMail_subject에개행문자가있으면실패한다() {
+        User user = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+        MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목\n추가",
+                "본문",
+                null
+        );
+
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+    }
+
+    @Test
     void sendMail_중복된수신자가있으면실패한다() {
         User user = createUser(UUID.randomUUID());
         MailFacade mailFacade = createMailFacade(List.of());
