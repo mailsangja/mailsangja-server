@@ -16,6 +16,7 @@ import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.core.service.mail.MailQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Direction;
+import com.mailsangja.db.entity.mail.GmailThreadLock;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -24,6 +25,7 @@ import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.AttachmentRepositoryPort;
+import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
@@ -223,7 +225,8 @@ class MailFacadeTest {
                 new FakeGoogleMailSendCommandService(),
                 new FakeGoogleMailMessageQueryService(),
                 new FakeThreadRepositoryPort(),
-                new FakeMessageRepositoryPort()
+                new FakeMessageRepositoryPort(),
+                new FakeGmailThreadLockRepositoryPort()
         );
         MailAttachmentQueryService mailAttachmentQueryService = new MailAttachmentQueryService(
                 new FakeAttachmentRepositoryPort(attachments)
@@ -512,7 +515,8 @@ class MailFacadeTest {
         public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         }
 
-        public void bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        public int bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
         }
 
         @Override
@@ -536,6 +540,34 @@ class MailFacadeTest {
         @Override
         public long countUnreadInboxByUserId(UUID userId) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class FakeGmailThreadLockRepositoryPort implements GmailThreadLockRepositoryPort {
+
+        @Override
+        public GmailThreadLock save(GmailThreadLock gmailThreadLock) {
+            return gmailThreadLock;
+        }
+
+        @Override
+        public void acquireThreadLock(MailAccount mailAccount, String gmailThreadId) {
+        }
+
+        @Override
+        public Optional<GmailThreadLock> findByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                UUID mailAccountId,
+                String gmailThreadId
+        ) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<GmailThreadLock> findByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullForUpdate(
+                UUID mailAccountId,
+                String gmailThreadId
+        ) {
+            return Optional.empty();
         }
     }
 
@@ -592,6 +624,10 @@ class MailFacadeTest {
                     .filter(message -> message.getThread().getMailAccount() != null)
                     .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
                             && gmailThreadId.equals(message.getThread().getGmailThreadId()));
+        }
+
+        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
         }
 
         public void hardDelete(Message message) {
