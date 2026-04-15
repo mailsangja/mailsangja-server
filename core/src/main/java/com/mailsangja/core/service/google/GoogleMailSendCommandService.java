@@ -137,7 +137,7 @@ public class GoogleMailSendCommandService {
         } catch (MailSendException e) {
             throw e;
         } catch (MessagingException | java.io.IOException e) {
-            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
+            throw new MailSendException(MailSendErrorCode.MAIL_MIME_BUILD_FAILED);
         }
     }
 
