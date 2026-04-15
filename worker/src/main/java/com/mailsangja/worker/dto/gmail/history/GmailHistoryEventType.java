@@ -1,0 +1,10 @@
+package com.mailsangja.worker.dto.gmail.history;
+
+public enum GmailHistoryEventType {
+    MESSAGE_ADDED,
+    MESSAGE_READ,
+    MESSAGE_UNREAD,
+    MESSAGE_TRASHED,
+    MESSAGE_RESTORED,
+    MESSAGE_PERMANENTLY_DELETED
+}

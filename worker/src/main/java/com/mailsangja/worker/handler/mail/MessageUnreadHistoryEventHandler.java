@@ -1,7 +1,7 @@
 package com.mailsangja.worker.handler.mail;
 
-import com.mailsangja.worker.dto.gmail.GmailHistoryEvent;
-import com.mailsangja.worker.dto.gmail.GmailHistoryEventType;
+import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
+import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.service.mail.GmailHistoryStateCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

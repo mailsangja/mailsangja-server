@@ -45,6 +45,22 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:4.1.4-management-alpine
+    container_name: mailsangja-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    volumes:
+      - mailsangja_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   core:
     image: ghcr.io/${CORE_IMAGE_NAME}:${APP_IMAGE_TAG}
     container_name: mailsangja-core
@@ -57,7 +73,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-mailsangja}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -87,6 +103,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   worker:
     image: ghcr.io/${WORKER_IMAGE_NAME}:${APP_IMAGE_TAG}
@@ -99,7 +117,7 @@ services:
       DB_NAME: ${DB_NAME:-mailsangja}
       DB_USERNAME: ${DB_USERNAME:-mailsangja}
       DB_PASSWORD: ${DB_PASSWORD:-mailsangja}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -112,6 +130,7 @@ services:
       MAIL_TASK_PUBLISHER_MANDATORY: ${MAIL_TASK_PUBLISHER_MANDATORY:-true}
       MAIL_SYNC_TASK_NAME: ${MAIL_SYNC_TASK_NAME:-sync.gmail.initial}
       MAIL_WATCH_RENEWAL_TASK_NAME: ${MAIL_WATCH_RENEWAL_TASK_NAME:-watch.renewal.gmail}
+      GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS:-100}
       GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:-false}
       GOOGLE_GMAIL_WATCH_RENEWAL_CRON: ${GOOGLE_GMAIL_WATCH_RENEWAL_CRON:-0 0 * * * *}
       GOOGLE_GMAIL_WATCH_RENEWAL_WINDOW: ${GOOGLE_GMAIL_WATCH_RENEWAL_WINDOW:-1d}
@@ -145,6 +164,8 @@ volumes:
   mailsangja_postgres_data:
     external: true
   mailsangja_redis_data:
+    external: true
+  mailsangja_rabbitmq_data:
     external: true
   mailsangja_caddy_data:
     external: true

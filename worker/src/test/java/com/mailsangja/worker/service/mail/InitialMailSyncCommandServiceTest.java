@@ -6,11 +6,12 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
-import com.mailsangja.worker.dto.mail.InitialMailSyncMessageSaveCommand;
-import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -153,6 +154,11 @@ class InitialMailSyncCommandServiceTest {
         }
 
         @Override
+        public Optional<Thread> findByIdIncludingDeleted(UUID id) {
+            return Optional.empty();
+        }
+
+        @Override
         public Optional<Thread> findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId, Direction direction) {
             return savedThreads.stream()
                     .filter(thread -> thread.getMailAccount() != null
@@ -172,6 +178,30 @@ class InitialMailSyncCommandServiceTest {
         }
 
         @Override
+        public List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return List.of();
+        }
+
+        @Override
+        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt) {
+            return 0;
+        }
+
+        @Override
+        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
+        }
+
+        @Override
+        public int bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
+        }
+
+        @Override
+        public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        }
+
+        @Override
         public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
@@ -184,6 +214,11 @@ class InitialMailSyncCommandServiceTest {
         @Override
         public long countUnreadInboxByUserId(UUID userId) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
+            return null;
         }
     }
 
@@ -200,6 +235,16 @@ class InitialMailSyncCommandServiceTest {
 
         @Override
         public Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null
+                            && gmailMessageId.equals(message.getGmailMessageId())
+                            && (threadId == null || threadId.equals(message.getThread().getId()))
+                            && !message.isDeleted())
+                    .findFirst();
+        }
+
+        @Override
+        public Optional<Message> findByThreadIdAndGmailMessageId(UUID threadId, String gmailMessageId) {
             return savedMessages.stream()
                     .filter(message -> message.getThread() != null
                             && gmailMessageId.equals(message.getGmailMessageId())
@@ -223,7 +268,47 @@ class InitialMailSyncCommandServiceTest {
         }
 
         @Override
+        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
+                    .findFirst();
+        }
+
+        @Override
+        public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
+                UUID mailAccountId,
+                String gmailThreadId,
+                String gmailMessageId
+        ) {
+            return savedMessages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
+                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
+                    .filter(message -> !gmailMessageId.equals(message.getGmailMessageId()))
+                    .anyMatch(message -> !message.isDeleted());
+        }
+
+        @Override
+        public Optional<Message> findByIdIncludingDeleted(UUID messageId) {
+            return Optional.empty();
+        }
+
+        @Override
         public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Message> findAllByThreadIdIncludingDeleted(UUID threadId) {
             return List.of();
         }
 
@@ -235,6 +320,40 @@ class InitialMailSyncCommandServiceTest {
         @Override
         public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
             return List.of();
+        }
+
+        @Override
+        public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return List.of();
+        }
+
+        @Override
+        public Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable) {
+            return new SliceImpl<>(List.of());
+        }
+
+        @Override
+        public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return List.of();
+        }
+
+        @Override
+        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt) {
+            return 0;
+        }
+
+        @Override
+        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return 0;
+        }
+
+        @Override
+        public void hardDelete(Message message) {
+        }
+
+        @Override
+        public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return false;
         }
     }
 }

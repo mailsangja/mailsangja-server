@@ -3,12 +3,14 @@ package com.mailsangja.worker.service.google;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailHistoryProperties;
-import com.mailsangja.worker.dto.gmail.GoogleMailHistoryItemResponse;
-import com.mailsangja.worker.dto.gmail.GoogleMailHistoryItemResult;
-import com.mailsangja.worker.dto.gmail.GoogleMailHistoryLabelChangeResponse;
-import com.mailsangja.worker.dto.gmail.GoogleMailHistoryLabelChangeResult;
-import com.mailsangja.worker.dto.gmail.GoogleMailHistoryListResult;
-import com.mailsangja.worker.dto.gmail.GoogleMailHistoryResponse;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryItemResponse;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryItemResult;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryLabelChangeResponse;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryLabelChangeResult;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryListResult;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryMessageAddedResponse;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryMessageAddedResult;
+import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -89,13 +91,38 @@ public class GoogleMailHistoryQueryService {
 
     private GoogleMailHistoryItemResult mapHistoryItem(GoogleMailHistoryItemResponse historyItem) {
         if (historyItem == null) {
-            return new GoogleMailHistoryItemResult(null, List.of(), List.of());
+            return new GoogleMailHistoryItemResult(null, List.of(), List.of(), List.of(), List.of());
         }
 
         return new GoogleMailHistoryItemResult(
                 historyItem.id(),
                 mapLabelChanges(historyItem.labelsAdded()),
-                mapLabelChanges(historyItem.labelsRemoved())
+                mapLabelChanges(historyItem.labelsRemoved()),
+                mapLabelChanges(historyItem.messagesDeleted()),
+                mapMessagesAdded(historyItem.messagesAdded())
+        );
+    }
+
+    private List<GoogleMailHistoryMessageAddedResult> mapMessagesAdded(
+            List<GoogleMailHistoryMessageAddedResponse> messagesAdded
+    ) {
+        if (messagesAdded == null || messagesAdded.isEmpty()) {
+            return List.of();
+        }
+
+        return messagesAdded.stream()
+                .map(this::mapMessageAdded)
+                .toList();
+    }
+
+    private GoogleMailHistoryMessageAddedResult mapMessageAdded(GoogleMailHistoryMessageAddedResponse addedMessage) {
+        if (addedMessage == null || addedMessage.message() == null) {
+            return new GoogleMailHistoryMessageAddedResult(null, null);
+        }
+
+        return new GoogleMailHistoryMessageAddedResult(
+                addedMessage.message().id(),
+                addedMessage.message().threadId()
         );
     }
 

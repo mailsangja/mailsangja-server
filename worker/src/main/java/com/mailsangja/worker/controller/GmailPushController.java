@@ -1,7 +1,7 @@
 package com.mailsangja.worker.controller;
 
 import com.mailsangja.worker.controller.docs.GmailPushControllerDocs;
-import com.mailsangja.worker.dto.gmail.GooglePubsubPushRequest;
+import com.mailsangja.worker.dto.gmail.push.GooglePubsubPushRequest;
 import com.mailsangja.worker.facade.GmailPushFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;

@@ -1,6 +1,6 @@
 package com.mailsangja.worker.controller.docs;
 
-import com.mailsangja.worker.dto.gmail.GooglePubsubPushRequest;
+import com.mailsangja.worker.dto.gmail.push.GooglePubsubPushRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

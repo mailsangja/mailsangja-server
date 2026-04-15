@@ -9,9 +9,9 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
-import com.mailsangja.worker.dto.mail.InitialMailSyncAttachmentResult;
-import com.mailsangja.worker.dto.mail.InitialMailSyncMessageSaveCommand;
-import com.mailsangja.worker.dto.mail.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncAttachmentResult;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,11 +115,12 @@ public class InitialMailSyncCommandService {
                 throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
             }
 
-            Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+            Optional<Message> anyMessage = messageRepositoryPort.findByThreadIdAndGmailMessageId(
                     thread.getId(),
                     messageCommand.gmailMessageId()
             );
-            if (existingMessage.isPresent()) {
+            if (anyMessage.isPresent()) {
+                // 활성 메시지는 이미 존재, 소프트 삭제된 메시지는 재삽입하지 않고 skip
                 continue;
             }
 
@@ -142,23 +143,23 @@ public class InitialMailSyncCommandService {
     ) {
         validateThreadMessage(threadCommand, messageCommand);
 
-        Optional<Message> existingMessage = messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+        Optional<Message> anyMessage = messageRepositoryPort.findByThreadIdAndGmailMessageId(
                 thread.getId(),
                 messageCommand.gmailMessageId()
         );
-        boolean inserted = existingMessage.isEmpty();
 
-        if (!inserted) {
-            Message message = existingMessage.get();
-            message.updateFrom(messageCommand.toCreateValues());
-            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
-        } else {
+        if (anyMessage.isEmpty()) {
             Message message = Message.from(thread, messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
             messageRepositoryPort.save(message);
+            aggregate.merge(threadCommand, messageCommand, true);
+        } else if (!anyMessage.get().isDeleted()) {
+            Message message = anyMessage.get();
+            message.updateFrom(messageCommand.toCreateValues());
+            message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
+            aggregate.merge(threadCommand, messageCommand, false);
         }
-
-        aggregate.merge(threadCommand, messageCommand, inserted);
+        // 소프트 삭제된 메시지는 건너뛴다 (의도적으로 삭제된 메시지는 재삽입하지 않는다)
     }
 
     private Thread findOrCreateThread(MailAccount mailAccount, String gmailThreadId, Direction direction) {
