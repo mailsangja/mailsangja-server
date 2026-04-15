@@ -13,6 +13,7 @@ import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class MailCommandService {
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
+    private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
 
     public MailSendPersistCommand sendMail(MailSendCommand command) {
         MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(command.userId(), command.from());
@@ -49,6 +51,7 @@ public class MailCommandService {
         validatePersistCommand(command);
 
         Thread thread = findOrCreateThread(command.mailAccount(), command.messageResult().gmailThreadId());
+        gmailThreadLockRepositoryPort.acquireThreadLock(command.mailAccount(), command.messageResult().gmailThreadId());
         boolean inserted = saveMessage(thread, command);
 
         thread.updateHistoryId(command.messageResult().historyId());
