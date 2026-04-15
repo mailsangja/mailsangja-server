@@ -412,8 +412,7 @@ class MailFacadeTest {
         public GoogleMailSendResult send(MailAccount mailAccount, com.mailsangja.core.dto.mail.MailSendCommand command) {
             return new GoogleMailSendResult(
                     "gmail-message-id",
-                    "gmail-thread-id",
-                    "history-id"
+                    "gmail-thread-id"
             );
         }
     }

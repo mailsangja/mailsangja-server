@@ -81,8 +81,7 @@ public class GoogleMailSendCommandService {
 
         return new GoogleMailSendResult(
                 response.id(),
-                response.threadId(),
-                response.historyId()
+                response.threadId()
         );
     }
 
