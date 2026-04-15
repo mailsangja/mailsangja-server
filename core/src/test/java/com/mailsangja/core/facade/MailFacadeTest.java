@@ -510,6 +510,9 @@ class MailFacadeTest {
             return List.of();
         }
 
+        public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+        }
+
         @Override
         public org.springframework.data.domain.Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(
                 UUID userId,
@@ -579,6 +582,14 @@ class MailFacadeTest {
         @Override
         public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
             return List.of();
+        }
+
+        public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
+            return messages.stream()
+                    .filter(message -> message.getThread() != null)
+                    .filter(message -> message.getThread().getMailAccount() != null)
+                    .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
+                            && gmailThreadId.equals(message.getThread().getGmailThreadId()));
         }
     }
 }
