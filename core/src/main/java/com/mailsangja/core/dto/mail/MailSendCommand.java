@@ -7,10 +7,10 @@ import java.util.UUID;
 
 public record MailSendCommand(
         UUID userId,
-        String from,
-        List<String> to,
-        List<String> cc,
-        List<String> bcc,
+        MailAddressCommand from,
+        List<MailAddressCommand> to,
+        List<MailAddressCommand> cc,
+        List<MailAddressCommand> bcc,
         String subject,
         String content,
         List<MailAttachmentCommand> attachments
@@ -19,10 +19,16 @@ public record MailSendCommand(
     public static MailSendCommand from(User user, MailSendRequest request) {
         return new MailSendCommand(
                 user.getId(),
-                request.from(),
-                request.to(),
-                request.cc(),
-                request.bcc(),
+                MailAddressCommand.fromRaw(request.from()),
+                request.to() == null ? List.of() : request.to().stream()
+                        .map(MailAddressCommand::fromRaw)
+                        .toList(),
+                request.cc() == null ? List.of() : request.cc().stream()
+                        .map(MailAddressCommand::fromRaw)
+                        .toList(),
+                request.bcc() == null ? List.of() : request.bcc().stream()
+                        .map(MailAddressCommand::fromRaw)
+                        .toList(),
                 request.subject(),
                 request.content(),
                 request.attachments() == null ? List.of() : request.attachments().stream()

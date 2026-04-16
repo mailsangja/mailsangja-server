@@ -14,6 +14,7 @@ public enum MailSendErrorCode implements ErrorCode {
     INVALID_RECIPIENT_ADDRESS(400, "MS-MAIL-INVALID-RECIPIENT-ADDRESS", "유효하지 않은 수신 메일 주소가 포함되어 있습니다."),
     DUPLICATE_RECIPIENT_ADDRESS(400, "MS-MAIL-DUPLICATE-RECIPIENT-ADDRESS", "중복된 수신 메일 주소는 허용되지 않습니다."),
     INVALID_MAIL_SUBJECT(400, "MS-MAIL-INVALID-MAIL-SUBJECT", "메일 제목에 허용되지 않은 문자가 포함되어 있습니다."),
+    INVALID_MAIL_REQUEST(400, "MS-MAIL-INVALID-MAIL-REQUEST", "메일 전송 요청 형식이 올바르지 않습니다."),
     EMPTY_SUBJECT_AND_CONTENT(400, "MS-MAIL-EMPTY-SUBJECT-AND-CONTENT", "메일 제목과 본문을 모두 비워둘 수 없습니다."),
     ATTACHMENT_COUNT_EXCEEDED(400, "MS-MAIL-ATTACHMENT-COUNT-EXCEEDED", "첨부파일은 최대 10개까지 업로드할 수 있습니다."),
     ATTACHMENT_SIZE_EXCEEDED(400, "MS-MAIL-ATTACHMENT-SIZE-EXCEEDED", "첨부파일 크기 제한을 초과했습니다."),

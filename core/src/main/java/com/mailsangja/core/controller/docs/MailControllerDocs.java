@@ -22,10 +22,10 @@ public interface MailControllerDocs {
 
     @Operation(
             summary = "메일 전송",
-            description = "사용자가 작성한 메일을 전송하기 위한 API입니다. multipart/form-data 형식으로 본문 필드와 첨부파일을 함께 전달합니다. " +
+            description = "사용자가 작성한 메일을 전송하기 위한 API입니다. multipart/form-data 형식으로 일반 form 필드와 첨부파일을 함께 전달합니다. " +
                     "20MB 이하의 일반 첨부파일만 허용합니다. " +
-                    "to/cc/bcc/attachments 배열 필드는 JSON 배열 문자열이 아니라 동일한 필드를 여러 번 반복해 전달해야 합니다. " +
-                    "예: to=user1@example.com, to=user2@example.com",
+                    "from/to/cc/bcc는 `user@example.com` 또는 `\"이름\" <user@example.com>` 형식을 지원합니다. " +
+                    "to/cc/bcc/attachments 배열 필드는 동일한 필드를 여러 번 반복 전달합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({

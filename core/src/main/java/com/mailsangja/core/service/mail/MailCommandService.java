@@ -34,7 +34,10 @@ public class MailCommandService {
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
 
     public MailSendPersistCommand sendMail(MailSendCommand command) {
-        MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(command.userId(), command.from());
+        MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(
+                command.userId(),
+                command.from().address()
+        );
 
         var sendResult = googleMailSendCommandService.send(senderMailAccount, command);
         GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
@@ -43,7 +46,7 @@ public class MailCommandService {
         );
         validateMessageResult(sendResult.gmailMessageId(), sendResult.gmailThreadId(), messageResult);
 
-        return new MailSendPersistCommand(senderMailAccount, messageResult);
+        return new MailSendPersistCommand(senderMailAccount, messageResult, command);
     }
 
     @Transactional

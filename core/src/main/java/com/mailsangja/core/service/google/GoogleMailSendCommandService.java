@@ -5,6 +5,7 @@ import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailSendResponse;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
+import com.mailsangja.core.dto.mail.MailAddressCommand;
 import com.mailsangja.core.dto.mail.MailAttachmentCommand;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
@@ -24,8 +25,10 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -141,22 +144,41 @@ public class GoogleMailSendCommandService {
         }
     }
 
-    private InternetAddress createInternetAddress(String address, MailSendErrorCode errorCode) {
+    private InternetAddress createInternetAddress(MailAddressCommand addressCommand, MailSendErrorCode errorCode) {
         try {
-            return new InternetAddress(address, true);
-        } catch (MessagingException e) {
+            String address = addressCommand.address();
+            String name = normalizeDisplayName(addressCommand.name());
+
+            if (isBlank(name) || address.equalsIgnoreCase(name)) {
+                return new InternetAddress(address, true);
+            }
+
+            return new InternetAddress(address, name, StandardCharsets.UTF_8.name());
+        } catch (MessagingException | UnsupportedEncodingException e) {
             throw new MailSendException(errorCode);
         }
     }
 
-    private InternetAddress[] createInternetAddresses(java.util.List<String> addresses) {
+    private InternetAddress[] createInternetAddresses(List<MailAddressCommand> addresses) {
         try {
             InternetAddress[] internetAddresses = new InternetAddress[addresses.size()];
             for (int i = 0; i < addresses.size(); i++) {
-                internetAddresses[i] = new InternetAddress(addresses.get(i), true);
+                MailAddressCommand addressCommand = addresses.get(i);
+                String name = normalizeDisplayName(addressCommand.name());
+
+                if (isBlank(name) || addressCommand.address().equalsIgnoreCase(name)) {
+                    internetAddresses[i] = new InternetAddress(addressCommand.address(), true);
+                    continue;
+                }
+
+                internetAddresses[i] = new InternetAddress(
+                        addressCommand.address(),
+                        name,
+                        StandardCharsets.UTF_8.name()
+                );
             }
             return internetAddresses;
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             throw new MailSendException(MailSendErrorCode.INVALID_RECIPIENT_ADDRESS);
         }
     }
@@ -173,5 +195,16 @@ public class GoogleMailSendCommandService {
         return subject.replace("\r", " ")
                 .replace("\n", " ")
                 .trim();
+    }
+
+    private String normalizeDisplayName(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        String normalizedName = name.replace("\r", " ")
+                .replace("\n", " ")
+                .trim();
+        return normalizedName.isEmpty() ? null : normalizedName;
     }
 }

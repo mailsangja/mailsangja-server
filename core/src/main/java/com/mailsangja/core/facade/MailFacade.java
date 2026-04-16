@@ -5,6 +5,7 @@ import com.mailsangja.core.common.exception.inbox.InboxException;
 import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
+import com.mailsangja.core.dto.mail.MailAddressCommand;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.service.google.GoogleMailAttachmentQueryService;
@@ -40,7 +41,8 @@ public class MailFacade {
     private final MailAttachmentQueryService mailAttachmentQueryService;
     private final GoogleMailAttachmentQueryService googleMailAttachmentQueryService;
 
-    public void sendMail(User user, MailSendRequest request) {
+    public void sendMail(User user, MailSendRequest request, List<MultipartFile> attachments) {
+        validateRequest(request);
         validateSender(request.from());
         validateRecipients(request.to(), request.cc(), request.bcc());
         validateSubject(request.subject());
@@ -72,8 +74,15 @@ public class MailFacade {
         );
     }
 
+    private void validateRequest(MailSendRequest request) {
+        if (request == null) {
+            throw new MailSendException(MailSendErrorCode.INVALID_SENDER_ADDRESS);
+        }
+    }
+
     private void validateSender(String from) {
-        if (!isValidEmail(from)) {
+        MailAddressCommand parsedSender = parseMailAddress(from, MailSendErrorCode.INVALID_SENDER_ADDRESS);
+        if (!isValidEmail(parsedSender.address())) {
             throw new MailSendException(MailSendErrorCode.INVALID_SENDER_ADDRESS);
         }
     }
@@ -101,11 +110,12 @@ public class MailFacade {
         }
 
         for (String recipient : recipients) {
-            if (!isValidEmail(recipient)) {
+            MailAddressCommand parsedRecipient = parseMailAddress(recipient, MailSendErrorCode.INVALID_RECIPIENT_ADDRESS);
+            if (!isValidEmail(parsedRecipient.address())) {
                 throw new MailSendException(MailSendErrorCode.INVALID_RECIPIENT_ADDRESS);
             }
 
-            String normalizedRecipient = recipient.trim().toLowerCase();
+            String normalizedRecipient = parsedRecipient.address().trim().toLowerCase();
             if (!normalizedRecipients.add(normalizedRecipient)) {
                 throw new MailSendException(MailSendErrorCode.DUPLICATE_RECIPIENT_ADDRESS);
             }
@@ -175,8 +185,28 @@ public class MailFacade {
         }
     }
 
+    private MailAddressCommand parseMailAddress(String rawValue, MailSendErrorCode errorCode) {
+        try {
+            MailAddressCommand command = MailAddressCommand.fromRaw(rawValue);
+            validateDisplayName(command.name(), errorCode);
+            return command;
+        } catch (IllegalArgumentException e) {
+            throw new MailSendException(errorCode);
+        }
+    }
+
     private boolean isValidEmail(String email) {
         return !isBlank(email) && EMAIL_PATTERN.matcher(email.trim()).matches();
+    }
+
+    private void validateDisplayName(String name, MailSendErrorCode errorCode) {
+        if (isBlank(name)) {
+            return;
+        }
+
+        if (name.contains("\r") || name.contains("\n")) {
+            throw new MailSendException(errorCode);
+        }
     }
 
     private boolean isBlank(String value) {

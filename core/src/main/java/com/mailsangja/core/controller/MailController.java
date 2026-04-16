@@ -29,8 +29,11 @@ public class MailController implements MailControllerDocs {
 
     @Override
     @PostMapping(value = "/api/v1/mail/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Void> sendMail(@AuthUser User user, @ModelAttribute MailSendRequest request) {
-        mailFacade.sendMail(user, request);
+    public ResponseEntity<Void> sendMail(
+            @AuthUser User user,
+            @ModelAttribute MailSendRequest request
+    ) {
+        mailFacade.sendMail(user, request, request.attachments());
         return ResponseEntity.ok().build();
     }
 

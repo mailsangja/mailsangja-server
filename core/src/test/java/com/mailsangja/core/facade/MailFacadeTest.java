@@ -53,16 +53,16 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
-                List.of("to@example.com"),
-                List.of("cc@example.com"),
-                List.of("bcc@example.com"),
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                List.of("\"Cc\" <cc@example.com>"),
+                List.of("\"Bcc\" <bcc@example.com>"),
                 "",
                 "본문",
                 List.of(new MockMultipartFile("attachments", "file.txt", "text/plain", "hello".getBytes()))
         );
 
-        assertDoesNotThrow(() -> mailFacade.sendMail(user, request));
+        assertDoesNotThrow(() -> mailFacade.sendMail(user, request, request.attachments()));
     }
 
     @Test
@@ -72,8 +72,8 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
-                List.of("to@example.com"),
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
                 null,
                 null,
                 " ",
@@ -81,7 +81,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
     }
 
     @Test
@@ -91,8 +91,8 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
-                List.of("to@example.com"),
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
                 null,
                 null,
                 "제목\n추가",
@@ -100,7 +100,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
     }
 
     @Test
@@ -109,16 +109,16 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of());
 
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
-                List.of("dup@example.com"),
-                List.of("dup@example.com"),
+                "\"Sender\" <sender@example.com>",
+                List.of("\"수신자A\" <dup@example.com>"),
+                List.of("\"수신자B\" <dup@example.com>"),
                 null,
                 "제목",
                 "",
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
     }
 
     @Test
@@ -127,16 +127,16 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of());
 
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
+                "\"Sender\" <sender@example.com>",
                 List.of(),
-                List.of("cc@example.com"),
+                List.of("\"Cc\" <cc@example.com>"),
                 null,
                 "제목",
                 "본문",
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
     }
 
     @Test
@@ -147,8 +147,8 @@ class MailFacadeTest {
         MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
-                List.of("to@example.com"),
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
                 null,
                 null,
                 "제목",
@@ -156,7 +156,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(anotherUser, request));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(anotherUser, request, null));
     }
 
     @Test
@@ -166,8 +166,8 @@ class MailFacadeTest {
 
         byte[] oversized = new byte[11 * 1024 * 1024];
         MailSendRequest request = new MailSendRequest(
-                "sender@example.com",
-                List.of("to@example.com"),
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
                 null,
                 null,
                 "제목",
@@ -178,7 +178,7 @@ class MailFacadeTest {
                 )
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, request.attachments()));
     }
 
     @Test
