@@ -46,15 +46,26 @@ public class Message extends BaseEntity {
     @Column(name = "from_address", nullable = false, length = 255)
     private String fromAddress;
 
+    @Column(name = "from_name", length = 255)
+    private String fromName;
+
     // To 수신자 목록
     @Column(name = "to_addresses", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> toAddresses;
 
+    @Column(name = "to_names", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> toNames;
+
     // CC 수신자 목록
     @Column(name = "cc_addresses", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> ccAddresses;
+
+    @Column(name = "cc_names", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> ccNames;
 
     // Gmail 메시지 snippet (180자 이내 미리보기)
     @Column(name = "snippet", length = 500)
@@ -93,8 +104,11 @@ public class Message extends BaseEntity {
                 .direction(values.direction())
                 .subject(values.subject())
                 .fromAddress(values.fromAddress())
-                .toAddresses(values.toAddresses())
-                .ccAddresses(values.ccAddresses())
+                .fromName(values.fromName())
+                .toAddresses(copyList(values.toAddresses()))
+                .toNames(copyList(values.toNames()))
+                .ccAddresses(copyList(values.ccAddresses()))
+                .ccNames(copyList(values.ccNames()))
                 .snippet(values.snippet())
                 .read(values.read())
                 .sentAt(values.sentAt())
@@ -110,8 +124,11 @@ public class Message extends BaseEntity {
             Direction direction,
             String subject,
             String fromAddress,
+            String fromName,
             List<String> toAddresses,
+            List<String> toNames,
             List<String> ccAddresses,
+            List<String> ccNames,
             String snippet,
             boolean read,
             LocalDateTime sentAt,
@@ -132,8 +149,11 @@ public class Message extends BaseEntity {
         updateBasicContent(
                 values.subject(),
                 values.fromAddress(),
+                values.fromName(),
                 values.toAddresses(),
+                values.toNames(),
                 values.ccAddresses(),
+                values.ccNames(),
                 values.snippet(),
                 values.read(),
                 values.sentAt()
@@ -144,16 +164,22 @@ public class Message extends BaseEntity {
     public void updateBasicContent(
             String subject,
             String fromAddress,
+            String fromName,
             List<String> toAddresses,
+            List<String> toNames,
             List<String> ccAddresses,
+            List<String> ccNames,
             String snippet,
             boolean read,
             LocalDateTime sentAt
     ) {
         this.subject = subject;
         this.fromAddress = fromAddress;
-        this.toAddresses = toAddresses == null ? List.of() : List.copyOf(toAddresses);
-        this.ccAddresses = ccAddresses == null ? List.of() : List.copyOf(ccAddresses);
+        this.fromName = fromName;
+        this.toAddresses = copyList(toAddresses);
+        this.toNames = copyList(toNames);
+        this.ccAddresses = copyList(ccAddresses);
+        this.ccNames = copyList(ccNames);
         this.snippet = snippet;
         this.read = read;
         this.sentAt = sentAt;
@@ -169,5 +195,12 @@ public class Message extends BaseEntity {
         if (attachments != null) {
             this.attachments.addAll(attachments);
         }
+    }
+
+    private static List<String> copyList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(values));
     }
 }

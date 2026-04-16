@@ -49,6 +49,11 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
+    public Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active) {
+        return mailAccountJpaRepositoryModule.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(userId, emailAddress, active);
+    }
+
+    @Override
     public Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress) {
         return mailAccountJpaRepositoryModule.findByProviderAndEmailAddressAndDeletedAtIsNull(provider, emailAddress);
     }

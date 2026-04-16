@@ -43,22 +43,24 @@ public record MessageResponse(
                 .map(AttachmentResponse::from)
                 .toList();
 
-        List<MailAddressResponse> toAddresses = message.getToAddresses() == null ? List.of() :
-                message.getToAddresses().stream()
-                        .map(email -> MailAddressResponse.of(email, contactNameByEmail))
-                        .toList();
+        List<MailAddressResponse> toAddresses = toMailAddressResponses(
+                message.getToAddresses(),
+                message.getToNames(),
+                contactNameByEmail
+        );
 
-        List<MailAddressResponse> ccAddresses = message.getCcAddresses() == null ? List.of() :
-                message.getCcAddresses().stream()
-                        .map(email -> MailAddressResponse.of(email, contactNameByEmail))
-                        .toList();
+        List<MailAddressResponse> ccAddresses = toMailAddressResponses(
+                message.getCcAddresses(),
+                message.getCcNames(),
+                contactNameByEmail
+        );
 
         return new MessageResponse(
                 message.getId(),
                 message.getGmailMessageId(),
                 message.getSubject(),
                 message.getDirection(),
-                MailAddressResponse.of(message.getFromAddress(), contactNameByEmail),
+                MailAddressResponse.of(message.getFromName(), message.getFromAddress(), contactNameByEmail),
                 toAddresses,
                 ccAddresses,
                 message.getSnippet(),
@@ -68,5 +70,30 @@ public record MessageResponse(
                 message.getBodyHtml(),
                 attachmentResponses
         );
+    }
+
+    private static List<MailAddressResponse> toMailAddressResponses(
+            List<String> emails,
+            List<String> names,
+            Map<String, String> contactNameByEmail
+    ) {
+        if (emails == null || emails.isEmpty()) {
+            return List.of();
+        }
+
+        return java.util.stream.IntStream.range(0, emails.size())
+                .mapToObj(index -> MailAddressResponse.of(
+                        resolveName(names, index),
+                        emails.get(index),
+                        contactNameByEmail
+                ))
+                .toList();
+    }
+
+    private static String resolveName(List<String> names, int index) {
+        if (names == null || index >= names.size()) {
+            return null;
+        }
+        return names.get(index);
     }
 }

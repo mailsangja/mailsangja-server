@@ -1,15 +1,12 @@
-package com.mailsangja.worker.dto.mail.sync;
-
-import com.mailsangja.db.entity.mail.Direction;
+package com.mailsangja.core.dto.mail;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record InitialMailSyncMessageResult(
+public record GoogleMailMessageResult(
         String gmailMessageId,
         String gmailThreadId,
         String historyId,
-        Direction direction,
         String subject,
         String fromAddress,
         String fromName,
@@ -18,10 +15,9 @@ public record InitialMailSyncMessageResult(
         List<String> ccAddresses,
         List<String> ccNames,
         String snippet,
-        boolean read,
         LocalDateTime sentAt,
         String bodyText,
         String bodyHtml,
-        List<InitialMailSyncAttachmentResult> attachments
+        List<GoogleMailAttachmentResult> attachments
 ) {
 }
