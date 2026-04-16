@@ -4,6 +4,7 @@ import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
+import com.mailsangja.core.dto.mail.GoogleMailSendResult;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendPersistCommand;
 import com.mailsangja.db.entity.mail.Attachment;
@@ -40,6 +41,7 @@ public class MailCommandService {
         );
 
         var sendResult = googleMailSendCommandService.send(senderMailAccount, command);
+        validateSendResult(sendResult);
         GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
                 senderMailAccount.getAccessToken(),
                 sendResult.gmailMessageId()
@@ -47,6 +49,14 @@ public class MailCommandService {
         validateMessageResult(sendResult.gmailMessageId(), sendResult.gmailThreadId(), messageResult);
 
         return new MailSendPersistCommand(senderMailAccount, messageResult, command);
+    }
+
+    private void validateSendResult(GoogleMailSendResult sendResult) {
+        if (sendResult == null
+                || isBlank(sendResult.gmailMessageId())
+                || isBlank(sendResult.gmailThreadId())) {
+            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_RESULT_INVALID);
+        }
     }
 
     @Transactional
