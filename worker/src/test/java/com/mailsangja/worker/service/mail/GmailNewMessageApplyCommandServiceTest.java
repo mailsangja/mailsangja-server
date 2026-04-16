@@ -54,8 +54,8 @@ class GmailNewMessageApplyCommandServiceTest {
         threadRepository.savedThreads.add(deletedThread);
 
         Message oldMessage = Message.from(deletedThread, new Message.CreateValues(
-                "message-old", Direction.INBOUND, "old subject", "sender@example.com",
-                List.of("me@example.com"), List.of(), "old snippet", false,
+                "message-old", Direction.INBOUND, "old subject", "sender@example.com", "Sender",
+                List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null));
         oldMessage.delete();
         messageRepository.savedMessages.add(oldMessage);
@@ -74,13 +74,13 @@ class GmailNewMessageApplyCommandServiceTest {
                 List.of(
                         new InitialMailSyncMessageSaveCommand(
                                 "message-old", "history-1", Direction.INBOUND,
-                                "old subject", "sender@example.com", List.of("me@example.com"),
-                                List.of(), "old snippet", false,
+                                "old subject", "sender@example.com", "Sender", List.of("me@example.com"),
+                                List.of("Me"), List.of(), List.of(), "old snippet", false,
                                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null, List.of()),
                         new InitialMailSyncMessageSaveCommand(
                                 "message-new", "history-2", Direction.INBOUND,
-                                "new subject", "sender@example.com", List.of("me@example.com"),
-                                List.of(), "new snippet", false,
+                                "new subject", "sender@example.com", "Sender", List.of("me@example.com"),
+                                List.of("Me"), List.of(), List.of(), "new snippet", false,
                                 LocalDateTime.of(2026, 4, 14, 10, 0), null, null, List.of())
                 )
         );
@@ -137,8 +137,8 @@ class GmailNewMessageApplyCommandServiceTest {
         threadRepository.savedThreads.add(activeThread);
 
         Message existingMessage = Message.from(activeThread, new Message.CreateValues(
-                "message-old", Direction.INBOUND, "old subject", "sender@example.com",
-                List.of("me@example.com"), List.of(), "old snippet", false,
+                "message-old", Direction.INBOUND, "old subject", "sender@example.com", "Sender",
+                List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null));
         messageRepository.savedMessages.add(existingMessage);
 
@@ -156,13 +156,13 @@ class GmailNewMessageApplyCommandServiceTest {
                 List.of(
                         new InitialMailSyncMessageSaveCommand(
                                 "message-old", "history-1", Direction.INBOUND,
-                                "old subject", "sender@example.com", List.of("me@example.com"),
-                                List.of(), "old snippet", false,
+                                "old subject", "sender@example.com", "Sender", List.of("me@example.com"),
+                                List.of("Me"), List.of(), List.of(), "old snippet", false,
                                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null, List.of()),
                         new InitialMailSyncMessageSaveCommand(
                                 "message-new", "history-2", Direction.INBOUND,
-                                "new subject", "sender@example.com", List.of("me@example.com"),
-                                List.of(), "new snippet", false,
+                                "new subject", "sender@example.com", "Sender", List.of("me@example.com"),
+                                List.of("Me"), List.of(), List.of(), "new snippet", false,
                                 LocalDateTime.of(2026, 4, 14, 10, 0), null, null, List.of())
                 )
         );

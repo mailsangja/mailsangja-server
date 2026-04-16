@@ -164,6 +164,9 @@ public class GoogleMailMessageQueryService {
     ) {
         validateThreadMessage(threadResponse, messageResponse);
         MimeBodyContent bodyContent = extractBodyContent(messageResponse.payload());
+        ParsedMailAddresses from = extractRequiredMailAddresses(messageResponse, "From");
+        ParsedMailAddresses to = extractMailAddresses(messageResponse, "To");
+        ParsedMailAddresses cc = extractMailAddresses(messageResponse, "Cc");
 
         return new InitialMailSyncMessageResult(
                 messageResponse.id(),
@@ -171,9 +174,12 @@ public class GoogleMailMessageQueryService {
                 firstNonBlank(messageResponse.historyId(), threadResponse.historyId()),
                 resolveDirection(messageResponse.labelIds()),
                 extractHeaderValue(messageResponse, "Subject"),
-                extractRequiredAddress(messageResponse, "From"),
-                extractAddresses(messageResponse, "To"),
-                extractAddresses(messageResponse, "Cc"),
+                from.addresses().getFirst(),
+                from.names().getFirst(),
+                to.addresses(),
+                to.names(),
+                cc.addresses(),
+                cc.names(),
                 messageResponse.snippet(),
                 isRead(messageResponse.labelIds()),
                 resolveSentAt(messageResponse),
@@ -205,12 +211,12 @@ public class GoogleMailMessageQueryService {
         return labelIds == null || !labelIds.contains("UNREAD");
     }
 
-    private String extractRequiredAddress(
+    private ParsedMailAddresses extractRequiredMailAddresses(
             GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
             String headerName
     ) {
-        List<String> addresses = extractAddresses(messageResponse, headerName);
-        if (addresses.isEmpty()) {
+        ParsedMailAddresses addresses = extractMailAddresses(messageResponse, headerName);
+        if (addresses.addresses().isEmpty()) {
             log.warn(
                     "Failed to normalize required mail header. threadId={} gmailMessageId={} headerName={}",
                     messageResponse.threadId(),
@@ -219,7 +225,7 @@ public class GoogleMailMessageQueryService {
             );
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
-        return addresses.getFirst();
+        return addresses;
     }
 
     private String extractHeaderValue(
@@ -240,24 +246,26 @@ public class GoogleMailMessageQueryService {
                 .orElse(null);
     }
 
-    private List<String> extractAddresses(
+    private ParsedMailAddresses extractMailAddresses(
             GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse,
             String headerName
     ) {
         String headerValue = extractHeaderValue(messageResponse, headerName);
         if (isBlank(headerValue)) {
-            return Collections.emptyList();
+            return ParsedMailAddresses.empty();
         }
 
         try {
             InternetAddress[] addresses = InternetAddress.parseHeader(headerValue, true);
             List<String> normalizedAddresses = new ArrayList<>();
+            List<String> names = new ArrayList<>();
             for (InternetAddress address : addresses) {
                 if (address != null && !isBlank(address.getAddress())) {
                     normalizedAddresses.add(address.getAddress().trim().toLowerCase());
+                    names.add(normalizePersonalName(address.getPersonal()));
                 }
             }
-            return List.copyOf(normalizedAddresses);
+            return ParsedMailAddresses.of(normalizedAddresses, names);
         } catch (AddressException e) {
             log.warn(
                     "Failed to normalize mail header. threadId={} gmailMessageId={} headerName={} headerValue={}",
@@ -269,7 +277,7 @@ public class GoogleMailMessageQueryService {
             if ("From".equalsIgnoreCase(headerName)) {
                 throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
             }
-            return Collections.emptyList();
+            return ParsedMailAddresses.empty();
         }
     }
 
@@ -377,6 +385,13 @@ public class GoogleMailMessageQueryService {
         return !isBlank(primary) ? primary : secondary;
     }
 
+    private String normalizePersonalName(String personalName) {
+        if (isBlank(personalName)) {
+            return null;
+        }
+        return personalName.trim();
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
@@ -385,5 +400,21 @@ public class GoogleMailMessageQueryService {
             String text,
             String html
     ) {
+    }
+
+    private record ParsedMailAddresses(
+            List<String> addresses,
+            List<String> names
+    ) {
+        private static ParsedMailAddresses empty() {
+            return new ParsedMailAddresses(List.of(), List.of());
+        }
+
+        private static ParsedMailAddresses of(List<String> addresses, List<String> names) {
+            return new ParsedMailAddresses(
+                    Collections.unmodifiableList(new ArrayList<>(addresses)),
+                    Collections.unmodifiableList(new ArrayList<>(names))
+            );
+        }
     }
 }

@@ -85,15 +85,21 @@ public class GoogleMailMessageQueryService {
 
     private GoogleMailMessageResult toMessageResult(GoogleMailMessageResponse response) {
         MimeBodyContent bodyContent = extractBodyContent(response.payload());
+        ParsedMailAddresses from = extractRequiredMailAddresses(response, "From");
+        ParsedMailAddresses to = extractMailAddresses(response, "To");
+        ParsedMailAddresses cc = extractMailAddresses(response, "Cc");
 
         return new GoogleMailMessageResult(
                 response.id(),
                 response.threadId(),
                 response.historyId(),
                 extractHeaderValue(response, "Subject"),
-                extractRequiredAddress(response, "From"),
-                extractAddresses(response, "To"),
-                extractAddresses(response, "Cc"),
+                from.addresses().getFirst(),
+                from.names().getFirst(),
+                to.addresses(),
+                to.names(),
+                cc.addresses(),
+                cc.names(),
                 response.snippet(),
                 resolveSentAt(response.internalDate()),
                 bodyContent.text(),
@@ -102,12 +108,12 @@ public class GoogleMailMessageQueryService {
         );
     }
 
-    private String extractRequiredAddress(GoogleMailMessageResponse response, String headerName) {
-        List<String> addresses = extractAddresses(response, headerName);
-        if (addresses.isEmpty()) {
+    private ParsedMailAddresses extractRequiredMailAddresses(GoogleMailMessageResponse response, String headerName) {
+        ParsedMailAddresses addresses = extractMailAddresses(response, headerName);
+        if (addresses.addresses().isEmpty()) {
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
         }
-        return addresses.getFirst();
+        return addresses;
     }
 
     private String extractHeaderValue(GoogleMailMessageResponse response, String headerName) {
@@ -125,26 +131,28 @@ public class GoogleMailMessageQueryService {
                 .orElse(null);
     }
 
-    private List<String> extractAddresses(GoogleMailMessageResponse response, String headerName) {
+    private ParsedMailAddresses extractMailAddresses(GoogleMailMessageResponse response, String headerName) {
         String headerValue = extractHeaderValue(response, headerName);
         if (isBlank(headerValue)) {
-            return Collections.emptyList();
+            return ParsedMailAddresses.empty();
         }
 
         try {
             InternetAddress[] addresses = InternetAddress.parseHeader(headerValue, true);
             List<String> normalizedAddresses = new ArrayList<>();
+            List<String> names = new ArrayList<>();
             for (InternetAddress address : addresses) {
                 if (address != null && !isBlank(address.getAddress())) {
                     normalizedAddresses.add(address.getAddress().trim().toLowerCase());
+                    names.add(normalizePersonalName(address.getPersonal()));
                 }
             }
-            return List.copyOf(normalizedAddresses);
+            return ParsedMailAddresses.of(normalizedAddresses, names);
         } catch (AddressException e) {
             if ("From".equalsIgnoreCase(headerName)) {
                 throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
             }
-            return Collections.emptyList();
+            return ParsedMailAddresses.empty();
         }
     }
 
@@ -252,9 +260,32 @@ public class GoogleMailMessageQueryService {
         return value == null || value.isBlank();
     }
 
+    private String normalizePersonalName(String personalName) {
+        if (personalName == null || personalName.isBlank()) {
+            return null;
+        }
+        return personalName.trim();
+    }
+
     private record MimeBodyContent(
             String text,
             String html
     ) {
+    }
+
+    private record ParsedMailAddresses(
+            List<String> addresses,
+            List<String> names
+    ) {
+        private static ParsedMailAddresses empty() {
+            return new ParsedMailAddresses(List.of(), List.of());
+        }
+
+        private static ParsedMailAddresses of(List<String> addresses, List<String> names) {
+            return new ParsedMailAddresses(
+                    Collections.unmodifiableList(new ArrayList<>(addresses)),
+                    Collections.unmodifiableList(new ArrayList<>(names))
+            );
+        }
     }
 }
