@@ -76,7 +76,7 @@ public class MailFacade {
 
     private void validateRequest(MailSendRequest request) {
         if (request == null) {
-            throw new MailSendException(MailSendErrorCode.INVALID_SENDER_ADDRESS);
+            throw new MailSendException(MailSendErrorCode.INVALID_MAIL_REQUEST);
         }
     }
 
