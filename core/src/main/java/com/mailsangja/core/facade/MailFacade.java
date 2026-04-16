@@ -41,7 +41,7 @@ public class MailFacade {
     private final MailAttachmentQueryService mailAttachmentQueryService;
     private final GoogleMailAttachmentQueryService googleMailAttachmentQueryService;
 
-    public void sendMail(User user, MailSendRequest request, List<MultipartFile> attachments) {
+    public void sendMail(User user, MailSendRequest request) {
         validateRequest(request);
         validateSender(request.from());
         validateRecipients(request.to(), request.cc(), request.bcc());

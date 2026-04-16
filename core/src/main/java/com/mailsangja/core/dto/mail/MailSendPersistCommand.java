@@ -35,9 +35,15 @@ public record MailSendPersistCommand(
     }
 
     public String latestParticipantAddress() {
-        return messageResult.toAddresses() == null || messageResult.toAddresses().isEmpty()
-                ? null
-                : messageResult.toAddresses().getFirst();
+        if (messageResult.toAddresses() != null && !messageResult.toAddresses().isEmpty()) {
+            return messageResult.toAddresses().getFirst();
+        }
+
+        if (messageResult.ccAddresses() != null && !messageResult.ccAddresses().isEmpty()) {
+            return messageResult.ccAddresses().getFirst();
+        }
+
+        return null;
     }
 
     private String resolveFromName() {

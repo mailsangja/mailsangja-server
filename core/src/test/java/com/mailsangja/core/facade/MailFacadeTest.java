@@ -62,7 +62,7 @@ class MailFacadeTest {
                 List.of(new MockMultipartFile("attachments", "file.txt", "text/plain", "hello".getBytes()))
         );
 
-        assertDoesNotThrow(() -> mailFacade.sendMail(user, request, request.attachments()));
+        assertDoesNotThrow(() -> mailFacade.sendMail(user, request));
     }
 
     @Test
@@ -81,7 +81,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
     }
 
     @Test
@@ -100,7 +100,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
     }
 
     @Test
@@ -118,7 +118,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
     }
 
     @Test
@@ -136,7 +136,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, null));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
     }
 
     @Test
@@ -156,7 +156,7 @@ class MailFacadeTest {
                 null
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(anotherUser, request, null));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(anotherUser, request));
     }
 
     @Test
@@ -178,7 +178,7 @@ class MailFacadeTest {
                 )
         );
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request, request.attachments()));
+        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
     }
 
     @Test

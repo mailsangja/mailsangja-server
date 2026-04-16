@@ -33,7 +33,7 @@ public class MailController implements MailControllerDocs {
             @AuthUser User user,
             @ModelAttribute MailSendRequest request
     ) {
-        mailFacade.sendMail(user, request, request.attachments());
+        mailFacade.sendMail(user, request);
         return ResponseEntity.ok().build();
     }
 
