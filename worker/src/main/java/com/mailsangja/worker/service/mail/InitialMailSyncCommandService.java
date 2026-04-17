@@ -332,10 +332,22 @@ public class InitialMailSyncCommandService {
                 if (toNames == null || toNames.isEmpty()) {
                     return participantAddress;
                 }
-                String firstName = toNames.getFirst();
-                return isBlank(firstName) ? participantAddress : firstName;
+                return normalizeName(toNames.getFirst(), participantAddress);
             }
-            return isBlank(fromName) ? participantAddress : fromName;
+            return normalizeName(fromName, participantAddress);
+        }
+
+        private String normalizeName(String name, String fallbackAddress) {
+            if (name == null) {
+                return fallbackAddress;
+            }
+
+            String trimmedName = name.trim();
+            if (trimmedName.isBlank()) {
+                return fallbackAddress;
+            }
+
+            return trimmedName;
         }
 
         private boolean isBlank(String value) {

@@ -239,8 +239,11 @@ public class Message extends BaseEntity {
     }
 
     private static String normalizeSingleName(String name, String address) {
-        if (name != null && !name.isBlank()) {
-            return name;
+        if (name != null) {
+            String trimmedName = name.trim();
+            if (!trimmedName.isBlank()) {
+                return trimmedName;
+            }
         }
         return address;
     }

@@ -193,6 +193,48 @@ class InitialMailSyncCommandServiceTest {
         assertEquals("first@example.com", savedThread.getLatestParticipantName());
     }
 
+    @Test
+    void saveThreadBatch_trimsNamesBeforeSaving() {
+        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
+        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
+        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .build();
+
+        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        Direction.OUTBOUND,
+                        "subject",
+                        "sender@example.com",
+                        "  Sender Name  ",
+                        List.of("first@example.com"),
+                        List.of("  First Receiver  "),
+                        List.of("cc@example.com"),
+                        List.of("  "),
+                        "snippet",
+                        true,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "body",
+                        null,
+                        List.of()
+                ))
+        )));
+
+        Message savedMessage = messageRepository.savedMessages.getFirst();
+        Thread savedThread = threadRepository.savedThreads.getFirst();
+
+        assertEquals("Sender Name", savedMessage.getFromName());
+        assertEquals(List.of("First Receiver"), savedMessage.getToNames());
+        assertEquals(List.of("cc@example.com"), savedMessage.getCcNames());
+        assertEquals("First Receiver", savedThread.getLatestParticipantName());
+    }
+
     private static final class InMemoryThreadRepository implements ThreadRepositoryPort {
         private final List<Thread> savedThreads = new ArrayList<>();
 
