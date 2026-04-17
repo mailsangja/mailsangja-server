@@ -101,6 +101,8 @@ public interface InboxControllerDocs {
             @ApiResponse(responseCode = "403", description = "스레드 접근 권한 없음",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "스레드를 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "502", description = "Gmail 읽음 처리 동기화 실패",
                     content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<Void> markThreadAsRead(
@@ -121,6 +123,8 @@ public interface InboxControllerDocs {
             @ApiResponse(responseCode = "403", description = "메시지 접근 권한 없음",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "메시지를 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "502", description = "Gmail 메시지 읽음 처리 동기화 실패",
                     content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<Void> markMessageAsRead(
@@ -141,6 +145,8 @@ public interface InboxControllerDocs {
             @ApiResponse(responseCode = "403", description = "메시지 접근 권한 없음",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "메시지를 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "502", description = "Gmail 메시지 안읽음 처리 동기화 실패",
                     content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<Void> markMessageAsUnread(
@@ -161,6 +167,8 @@ public interface InboxControllerDocs {
             @ApiResponse(responseCode = "403", description = "스레드 접근 권한 없음",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "스레드를 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "502", description = "Gmail 안읽음 처리 동기화 실패",
                     content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<Void> markThreadAsUnread(
