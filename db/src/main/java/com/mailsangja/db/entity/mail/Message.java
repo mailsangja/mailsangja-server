@@ -98,22 +98,23 @@ public class Message extends BaseEntity {
     private List<Label> labels = new ArrayList<>();
 
     public static Message from(Thread thread, CreateValues values) {
+        CreateValues normalizedValues = values.normalizeNames();
         return Message.builder()
                 .thread(thread)
-                .gmailMessageId(values.gmailMessageId())
-                .direction(values.direction())
-                .subject(values.subject())
-                .fromAddress(values.fromAddress())
-                .fromName(values.fromName())
-                .toAddresses(copyList(values.toAddresses()))
-                .toNames(copyList(values.toNames()))
-                .ccAddresses(copyList(values.ccAddresses()))
-                .ccNames(copyList(values.ccNames()))
-                .snippet(values.snippet())
-                .read(values.read())
-                .sentAt(values.sentAt())
-                .bodyText(values.bodyText())
-                .bodyHtml(values.bodyHtml())
+                .gmailMessageId(normalizedValues.gmailMessageId())
+                .direction(normalizedValues.direction())
+                .subject(normalizedValues.subject())
+                .fromAddress(normalizedValues.fromAddress())
+                .fromName(normalizedValues.fromName())
+                .toAddresses(copyList(normalizedValues.toAddresses()))
+                .toNames(copyList(normalizedValues.toNames()))
+                .ccAddresses(copyList(normalizedValues.ccAddresses()))
+                .ccNames(copyList(normalizedValues.ccNames()))
+                .snippet(normalizedValues.snippet())
+                .read(normalizedValues.read())
+                .sentAt(normalizedValues.sentAt())
+                .bodyText(normalizedValues.bodyText())
+                .bodyHtml(normalizedValues.bodyHtml())
                 .attachments(new ArrayList<>())
                 .labels(Collections.emptyList())
                 .build();
@@ -135,6 +136,24 @@ public class Message extends BaseEntity {
             String bodyText,
             String bodyHtml
     ) {
+        public CreateValues normalizeNames() {
+            return new CreateValues(
+                    gmailMessageId,
+                    direction,
+                    subject,
+                    fromAddress,
+                    normalizeSingleName(fromName, fromAddress),
+                    copyList(toAddresses),
+                    normalizeAddressNames(toNames, toAddresses),
+                    copyList(ccAddresses),
+                    normalizeAddressNames(ccNames, ccAddresses),
+                    snippet,
+                    read,
+                    sentAt,
+                    bodyText,
+                    bodyHtml
+            );
+        }
     }
 
     public void markAsRead() {
@@ -146,19 +165,20 @@ public class Message extends BaseEntity {
     }
 
     public void updateFrom(CreateValues values) {
+        CreateValues normalizedValues = values.normalizeNames();
         updateBasicContent(
-                values.subject(),
-                values.fromAddress(),
-                values.fromName(),
-                values.toAddresses(),
-                values.toNames(),
-                values.ccAddresses(),
-                values.ccNames(),
-                values.snippet(),
-                values.read(),
-                values.sentAt()
+                normalizedValues.subject(),
+                normalizedValues.fromAddress(),
+                normalizedValues.fromName(),
+                normalizedValues.toAddresses(),
+                normalizedValues.toNames(),
+                normalizedValues.ccAddresses(),
+                normalizedValues.ccNames(),
+                normalizedValues.snippet(),
+                normalizedValues.read(),
+                normalizedValues.sentAt()
         );
-        updateBodyContent(values.bodyText(), values.bodyHtml());
+        updateBodyContent(normalizedValues.bodyText(), normalizedValues.bodyHtml());
     }
 
     public void updateBasicContent(
@@ -202,5 +222,29 @@ public class Message extends BaseEntity {
             return List.of();
         }
         return Collections.unmodifiableList(new ArrayList<>(values));
+    }
+
+    private static List<String> normalizeAddressNames(List<String> names, List<String> addresses) {
+        if (addresses == null || addresses.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> normalizedNames = new ArrayList<>(addresses.size());
+        for (int index = 0; index < addresses.size(); index++) {
+            String address = addresses.get(index);
+            String name = names != null && index < names.size() ? names.get(index) : null;
+            normalizedNames.add(normalizeSingleName(name, address));
+        }
+        return Collections.unmodifiableList(normalizedNames);
+    }
+
+    private static String normalizeSingleName(String name, String address) {
+        if (name != null) {
+            String trimmedName = name.trim();
+            if (!trimmedName.isBlank()) {
+                return trimmedName;
+            }
+        }
+        return address;
     }
 }

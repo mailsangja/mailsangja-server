@@ -53,6 +53,9 @@ public class Thread extends BaseEntity {
     @Column(name = "latest_participant_address", length = 255)
     private String latestParticipantAddress;
 
+    @Column(name = "latest_participant_name", length = 255)
+    private String latestParticipantName;
+
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
 
@@ -79,11 +82,13 @@ public class Thread extends BaseEntity {
             String subject,
             String snippet,
             String participantAddress,
+            String participantName,
             LocalDateTime lastMessageAt
     ) {
         this.latestSubject = subject;
         this.latestSnippet = snippet;
         this.latestParticipantAddress = participantAddress;
+        this.latestParticipantName = participantName;
         this.lastMessageAt = lastMessageAt;
     }
 
@@ -91,6 +96,7 @@ public class Thread extends BaseEntity {
             String subject,
             String snippet,
             String participantAddress,
+            String participantName,
             LocalDateTime lastMessageAt,
             boolean read
     ) {
@@ -102,7 +108,7 @@ public class Thread extends BaseEntity {
             return;
         }
 
-        updateLatestMessageInfo(subject, snippet, participantAddress, lastMessageAt);
+        updateLatestMessageInfo(subject, snippet, participantAddress, participantName, lastMessageAt);
         this.read = read;
     }
 
