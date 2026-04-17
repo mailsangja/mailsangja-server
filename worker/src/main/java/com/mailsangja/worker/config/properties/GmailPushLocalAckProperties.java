@@ -20,10 +20,16 @@ public class GmailPushLocalAckProperties {
 
     private boolean enabled = false;
     private List<String> whitelistedErrorCodes = List.of();
+    private Set<MailPushErrorCode> resolvedWhitelistedErrorCodes = Set.of();
 
     @PostConstruct
     public void validate() {
-        resolveWhitelistedErrorCodes();
+        if (!enabled) {
+            resolvedWhitelistedErrorCodes = Set.of();
+            return;
+        }
+
+        resolvedWhitelistedErrorCodes = resolveWhitelistedErrorCodes();
     }
 
     public boolean isWhitelisted(MailPushErrorCode errorCode) {
@@ -31,7 +37,7 @@ public class GmailPushLocalAckProperties {
             return false;
         }
 
-        return resolveWhitelistedErrorCodes().contains(errorCode);
+        return resolvedWhitelistedErrorCodes.contains(errorCode);
     }
 
     private Set<MailPushErrorCode> resolveWhitelistedErrorCodes() {

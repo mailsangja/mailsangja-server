@@ -31,4 +31,15 @@ class GmailPushLocalAckPropertiesTest {
 
         assertThrows(IllegalStateException.class, properties::validate);
     }
+
+    @Test
+    void validate_enabled가false면잘못된에러코드가있어도예외가발생하지않는다() {
+        GmailPushLocalAckProperties properties = new GmailPushLocalAckProperties();
+        properties.setEnabled(false);
+        properties.setWhitelistedErrorCodes(List.of("NOT_EXISTS"));
+
+        properties.validate();
+
+        assertFalse(properties.isWhitelisted(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+    }
 }
