@@ -235,6 +235,45 @@ class InitialMailSyncCommandServiceTest {
         assertEquals("First Receiver", savedThread.getLatestParticipantName());
     }
 
+    @Test
+    void saveThreadBatch_usesCcAsLatestParticipantWhenToIsEmpty() {
+        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
+        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
+        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .build();
+
+        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        Direction.OUTBOUND,
+                        "subject",
+                        "sender@example.com",
+                        "Sender",
+                        List.of(),
+                        List.of(),
+                        List.of("cc@example.com"),
+                        List.of("CC Receiver"),
+                        "snippet",
+                        true,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "body",
+                        null,
+                        List.of()
+                ))
+        )));
+
+        Thread savedThread = threadRepository.savedThreads.getFirst();
+
+        assertEquals("cc@example.com", savedThread.getLatestParticipantAddress());
+        assertEquals("CC Receiver", savedThread.getLatestParticipantName());
+    }
+
     private static final class InMemoryThreadRepository implements ThreadRepositoryPort {
         private final List<Thread> savedThreads = new ArrayList<>();
 

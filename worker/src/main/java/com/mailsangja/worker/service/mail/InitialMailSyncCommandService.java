@@ -253,12 +253,14 @@ public class InitialMailSyncCommandService {
                 latestParticipantAddress = resolveLatestParticipantAddress(
                         messageCommand.direction(),
                         messageCommand.fromAddress(),
-                        messageCommand.toAddresses()
+                        messageCommand.toAddresses(),
+                        messageCommand.ccAddresses()
                 );
                 latestParticipantName = resolveLatestParticipantName(
                         messageCommand.direction(),
                         messageCommand.fromName(),
                         messageCommand.toNames(),
+                        messageCommand.ccNames(),
                         latestParticipantAddress
                 );
                 lastMessageAt = candidateSentAt;
@@ -315,9 +317,17 @@ public class InitialMailSyncCommandService {
             return null;
         }
 
-        private String resolveLatestParticipantAddress(Direction direction, String fromAddress, List<String> toAddresses) {
+        private String resolveLatestParticipantAddress(
+                Direction direction,
+                String fromAddress,
+                List<String> toAddresses,
+                List<String> ccAddresses
+        ) {
             if (direction == Direction.OUTBOUND) {
-                return toAddresses == null || toAddresses.isEmpty() ? null : toAddresses.getFirst();
+                if (toAddresses != null && !toAddresses.isEmpty()) {
+                    return toAddresses.getFirst();
+                }
+                return ccAddresses == null || ccAddresses.isEmpty() ? null : ccAddresses.getFirst();
             }
             return fromAddress;
         }
@@ -326,11 +336,15 @@ public class InitialMailSyncCommandService {
                 Direction direction,
                 String fromName,
                 List<String> toNames,
+                List<String> ccNames,
                 String participantAddress
         ) {
             if (direction == Direction.OUTBOUND) {
                 if (toNames == null || toNames.isEmpty()) {
-                    return participantAddress;
+                    if (ccNames == null || ccNames.isEmpty()) {
+                        return participantAddress;
+                    }
+                    return normalizeName(ccNames.getFirst(), participantAddress);
                 }
                 return normalizeName(toNames.getFirst(), participantAddress);
             }
