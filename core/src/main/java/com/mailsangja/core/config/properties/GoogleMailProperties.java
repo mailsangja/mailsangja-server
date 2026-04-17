@@ -20,6 +20,7 @@ public class GoogleMailProperties {
     private String topicName;
     private String watchUri;
     private String threadModifyUri;
+    private String messageModifyUri;
     private String sendUri;
     private String messagesUri;
     private String attachmentsUri;

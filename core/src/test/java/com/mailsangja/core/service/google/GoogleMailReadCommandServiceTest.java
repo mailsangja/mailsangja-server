@@ -4,6 +4,7 @@ import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,22 @@ class GoogleMailReadCommandServiceTest {
     }
 
     @Test
+    void markMessageAsRead_UNREAD라벨을제거한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        properties.setMessageModifyUri("https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmailMessageId}/modify");
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+
+        GoogleMailReadCommandService service = new GoogleMailReadCommandService(
+                properties,
+                RestClient.builder().requestFactory(requestFactory).build()
+        );
+
+        service.markMessageAsRead(createMailAccount(), createMessage());
+
+        assertTrue(requestFactory.requestBody().contains("\"removeLabelIds\":[\"UNREAD\"]"));
+    }
+
+    @Test
     void markThreadAsUnread_유효하지않은입력이면예외가발생한다() {
         GoogleMailProperties properties = new GoogleMailProperties();
         GoogleMailReadCommandService service = new GoogleMailReadCommandService(
@@ -73,6 +90,22 @@ class GoogleMailReadCommandServiceTest {
         );
 
         assertEquals(MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED, exception.getErrorCode());
+    }
+
+    @Test
+    void markMessageAsRead_유효하지않은입력이면예외가발생한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        GoogleMailReadCommandService service = new GoogleMailReadCommandService(
+                properties,
+                RestClient.builder().build()
+        );
+
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.markMessageAsRead(createMailAccount(), createMessage())
+        );
+
+        assertEquals(MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED, exception.getErrorCode());
     }
 
     private MailAccount createMailAccount() {
@@ -92,6 +125,18 @@ class GoogleMailReadCommandServiceTest {
                 .id(UUID.randomUUID())
                 .mailAccount(createMailAccount())
                 .gmailThreadId("gmail-thread-id")
+                .build();
+    }
+
+    private Message createMessage() {
+        Thread thread = createThread();
+        return Message.builder()
+                .id(UUID.randomUUID())
+                .thread(thread)
+                .gmailMessageId("gmail-message-id")
+                .direction(com.mailsangja.db.entity.mail.Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(false)
                 .build();
     }
 

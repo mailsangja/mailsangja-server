@@ -60,6 +60,16 @@ public class InboxController implements InboxControllerDocs {
     }
 
     @Override
+    @PostMapping("/api/v1/messages/{messageId}/read")
+    public ResponseEntity<Void> markMessageAsRead(
+            @AuthUser User user,
+            @PathVariable UUID messageId
+    ) {
+        inboxFacade.markMessageAsRead(user, messageId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
     @PostMapping("/api/v1/threads/{threadId}/unread")
     public ResponseEntity<Void> markThreadAsUnread(
             @AuthUser User user,

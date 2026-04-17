@@ -12,6 +12,7 @@ import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
@@ -57,6 +58,15 @@ public class InboxFacade {
             googleMailReadCommandService.markThreadAsRead(thread.getMailAccount(), thread);
         }
         inboxCommandService.markThreadAsRead(thread);
+    }
+
+    public void markMessageAsRead(User user, UUID messageId) {
+        Message message = inboxQueryService.findActiveMessageById(messageId);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), message.getThread());
+        if (message.getThread().getMailAccount().getProvider() == MailProvider.GMAIL) {
+            googleMailReadCommandService.markMessageAsRead(message.getThread().getMailAccount(), message);
+        }
+        inboxCommandService.markMessageAsRead(message);
     }
 
     public void markThreadAsUnread(User user, UUID threadId) {

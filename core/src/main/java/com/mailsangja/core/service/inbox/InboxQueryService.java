@@ -36,6 +36,15 @@ public class InboxQueryService {
                 .orElseThrow(() -> new InboxException(InboxErrorCode.THREAD_NOT_FOUND));
     }
 
+    public Message findActiveMessageById(UUID messageId) {
+        Message message = messageRepositoryPort.findByIdIncludingDeleted(messageId)
+                .orElseThrow(() -> new InboxException(InboxErrorCode.MESSAGE_NOT_FOUND));
+        if (message.isDeleted()) {
+            throw new InboxException(InboxErrorCode.MESSAGE_NOT_FOUND);
+        }
+        return message;
+    }
+
     public ThreadListResult findInboxThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
         Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
         return buildThreadListResult(threads);

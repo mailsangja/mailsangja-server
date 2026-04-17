@@ -5,6 +5,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import org.junit.jupiter.api.Test;
@@ -16,11 +17,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class InboxCommandServiceTest {
+
+    @Mock
+    private GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
 
     @Mock
     private MessageRepositoryPort messageRepositoryPort;
@@ -81,6 +87,7 @@ class InboxCommandServiceTest {
 
         inboxCommandService.markThreadAsRead(inboundThread);
 
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         assertTrue(inboundThread.isRead());
         assertTrue(outboundThread.isRead());
         assertTrue(inboundMessage.isRead());
@@ -123,6 +130,7 @@ class InboxCommandServiceTest {
 
         inboxCommandService.markThreadAsRead(thread);
 
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         assertTrue(thread.isRead());
         assertTrue(readMessage.isRead());
     }
@@ -177,6 +185,7 @@ class InboxCommandServiceTest {
 
         inboxCommandService.markThreadAsUnread(inboundThread);
 
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         org.junit.jupiter.api.Assertions.assertFalse(inboundThread.isRead());
         org.junit.jupiter.api.Assertions.assertFalse(outboundThread.isRead());
         org.junit.jupiter.api.Assertions.assertFalse(inboundMessage.isRead());
@@ -219,7 +228,112 @@ class InboxCommandServiceTest {
 
         inboxCommandService.markThreadAsUnread(thread);
 
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         org.junit.jupiter.api.Assertions.assertFalse(thread.isRead());
         org.junit.jupiter.api.Assertions.assertFalse(unreadMessage.isRead());
+    }
+
+    @Test
+    void markMessageAsRead_모든메시지가읽음이면스레드도읽음처리한다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-5";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+
+        Thread inboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .read(false)
+                .build();
+        Thread outboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.OUTBOUND)
+                .read(false)
+                .build();
+        Message targetMessage = Message.builder()
+                .thread(inboundThread)
+                .gmailMessageId("gmail-message-7")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(false)
+                .build();
+        Message alreadyReadMessage = Message.builder()
+                .thread(outboundThread)
+                .gmailMessageId("gmail-message-8")
+                .direction(Direction.OUTBOUND)
+                .fromAddress("sender@example.com")
+                .read(true)
+                .build();
+
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(targetMessage, alreadyReadMessage));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread, outboundThread));
+
+        inboxCommandService.markMessageAsRead(targetMessage);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertTrue(targetMessage.isRead());
+        assertTrue(inboundThread.isRead());
+        assertTrue(outboundThread.isRead());
+    }
+
+    @Test
+    void markMessageAsRead_안읽은메시지가남아있으면스레드는안읽음으로유지한다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-6";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .read(false)
+                .build();
+        Message targetMessage = Message.builder()
+                .thread(thread)
+                .gmailMessageId("gmail-message-9")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(false)
+                .build();
+        Message unreadSiblingMessage = Message.builder()
+                .thread(thread)
+                .gmailMessageId("gmail-message-10")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(false)
+                .build();
+
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(targetMessage, unreadSiblingMessage));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(thread));
+
+        inboxCommandService.markMessageAsRead(targetMessage);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertTrue(targetMessage.isRead());
+        assertFalse(thread.isRead());
     }
 }

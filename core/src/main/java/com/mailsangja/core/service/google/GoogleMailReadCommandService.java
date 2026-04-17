@@ -6,6 +6,7 @@ import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailReadModifyRequest;
 import com.mailsangja.core.dto.mail.GoogleMailUnreadModifyRequest;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -58,6 +59,29 @@ public class GoogleMailReadCommandService {
         }
     }
 
+    public void markMessageAsRead(MailAccount mailAccount, Message message) {
+        validateInput(mailAccount, message, MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED);
+
+        GoogleMailReadModifyRequest request = new GoogleMailReadModifyRequest(REMOVE_UNREAD_LABEL_IDS);
+
+        try {
+            googleMailRestClient
+                    .post()
+                    .uri(
+                            googleMailProperties.getMessageModifyUri(),
+                            Map.of("gmailMessageId", message.getGmailMessageId())
+                    )
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED);
+        }
+    }
+
     public void markThreadAsUnread(MailAccount mailAccount, Thread thread) {
         validateInput(mailAccount, thread, MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED);
 
@@ -88,6 +112,17 @@ public class GoogleMailReadCommandService {
                 || isBlank(mailAccount.getAccessToken())
                 || isBlank(thread.getGmailThreadId())
                 || isBlank(googleMailProperties.getThreadModifyUri())) {
+            throw new MailAccountException(errorCode);
+        }
+    }
+
+    private void validateInput(MailAccount mailAccount, Message message, MailAccountErrorCode errorCode) {
+        if (mailAccount == null
+                || message == null
+                || mailAccount.getProvider() != MailProvider.GMAIL
+                || isBlank(mailAccount.getAccessToken())
+                || isBlank(message.getGmailMessageId())
+                || isBlank(googleMailProperties.getMessageModifyUri())) {
             throw new MailAccountException(errorCode);
         }
     }
