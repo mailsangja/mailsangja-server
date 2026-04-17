@@ -126,4 +126,100 @@ class InboxCommandServiceTest {
         assertTrue(thread.isRead());
         assertTrue(readMessage.isRead());
     }
+
+    @Test
+    void markThreadAsUnread_같은지메일스레드의양방향스레드와메시지를모두안읽음처리한다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-3";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+
+        Thread inboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .read(true)
+                .build();
+        Thread outboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.OUTBOUND)
+                .read(true)
+                .build();
+        Message inboundMessage = Message.builder()
+                .thread(inboundThread)
+                .gmailMessageId("gmail-message-4")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(true)
+                .build();
+        Message outboundMessage = Message.builder()
+                .thread(outboundThread)
+                .gmailMessageId("gmail-message-5")
+                .direction(Direction.OUTBOUND)
+                .fromAddress("sender@example.com")
+                .read(true)
+                .build();
+
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread, outboundThread));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundMessage, outboundMessage));
+
+        inboxCommandService.markThreadAsUnread(inboundThread);
+
+        org.junit.jupiter.api.Assertions.assertFalse(inboundThread.isRead());
+        org.junit.jupiter.api.Assertions.assertFalse(outboundThread.isRead());
+        org.junit.jupiter.api.Assertions.assertFalse(inboundMessage.isRead());
+        org.junit.jupiter.api.Assertions.assertFalse(outboundMessage.isRead());
+    }
+
+    @Test
+    void markThreadAsUnread_이미안읽은메시지에도안전하게동작한다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-4";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.OUTBOUND)
+                .read(false)
+                .build();
+        Message unreadMessage = Message.builder()
+                .thread(thread)
+                .gmailMessageId("gmail-message-6")
+                .direction(Direction.OUTBOUND)
+                .fromAddress("sender@example.com")
+                .read(false)
+                .build();
+
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(thread));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(unreadMessage));
+
+        inboxCommandService.markThreadAsUnread(thread);
+
+        org.junit.jupiter.api.Assertions.assertFalse(thread.isRead());
+        org.junit.jupiter.api.Assertions.assertFalse(unreadMessage.isRead());
+    }
 }

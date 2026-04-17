@@ -22,6 +22,7 @@ public enum MailAccountErrorCode implements ErrorCode {
     GOOGLE_USER_INFO_FETCH_FAILED(502, "MS-MAIL-GOOGLE-USER-INFO-FETCH-FAILED", "Google 사용자 정보 조회에 실패했습니다."),
     GOOGLE_MAIL_WATCH_FAILED(502, "MS-MAIL-GOOGLE-MAIL-WATCH-FAILED", "Google Gmail watch 등록에 실패했습니다."),
     GOOGLE_MAIL_READ_MODIFY_FAILED(502, "MS-MAIL-GOOGLE-MAIL-READ-MODIFY-FAILED", "Google Gmail 읽음 처리 동기화에 실패했습니다."),
+    GOOGLE_MAIL_UNREAD_MODIFY_FAILED(502, "MS-MAIL-GOOGLE-MAIL-UNREAD-MODIFY-FAILED", "Google Gmail 안읽음 처리 동기화에 실패했습니다."),
     GOOGLE_MAIL_WATCH_RESULT_INVALID(502, "MS-MAIL-GOOGLE-MAIL-WATCH-RESULT-INVALID", "Google Gmail watch 응답값이 올바르지 않습니다."),
     GOOGLE_EMAIL_NOT_VERIFIED(400, "MS-MAIL-GOOGLE-EMAIL-NOT-VERIFIED", "Google 계정의 이메일 인증이 확인되지 않았습니다. 인증된 계정으로 다시 시도해주세요."),
     GOOGLE_REFRESH_TOKEN_MISSING(400, "MS-MAIL-GOOGLE-REFRESH-TOKEN-MISSING", "Google 계정 재연동이 필요합니다. 다시 동의하고 계정을 연결해주세요."),

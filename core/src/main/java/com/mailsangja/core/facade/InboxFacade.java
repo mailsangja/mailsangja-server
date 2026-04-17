@@ -59,6 +59,15 @@ public class InboxFacade {
         inboxCommandService.markThreadAsRead(thread);
     }
 
+    public void markThreadAsUnread(User user, UUID threadId) {
+        Thread thread = inboxQueryService.findThreadById(threadId);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
+        if (thread.getMailAccount().getProvider() == MailProvider.GMAIL) {
+            googleMailReadCommandService.markThreadAsUnread(thread.getMailAccount(), thread);
+        }
+        inboxCommandService.markThreadAsUnread(thread);
+    }
+
     public long getUnreadCount(User user) {
         return inboxQueryService.countUnreadInbox(user.getId());
     }

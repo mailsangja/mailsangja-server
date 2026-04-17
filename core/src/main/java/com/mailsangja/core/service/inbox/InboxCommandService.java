@@ -31,4 +31,19 @@ public class InboxCommandService {
         );
         messages.forEach(Message::markAsRead);
     }
+
+    @Transactional
+    public void markThreadAsUnread(Thread thread) {
+        List<Thread> threads = threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                thread.getMailAccount().getId(),
+                thread.getGmailThreadId()
+        );
+        threads.forEach(targetThread -> targetThread.updateReadStatus(false));
+
+        List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                thread.getMailAccount().getId(),
+                thread.getGmailThreadId()
+        );
+        messages.forEach(Message::markAsUnread);
+    }
 }

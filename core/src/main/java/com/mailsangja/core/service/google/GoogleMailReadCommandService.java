@@ -4,6 +4,7 @@ import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailReadModifyRequest;
+import com.mailsangja.core.dto.mail.GoogleMailUnreadModifyRequest;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class GoogleMailReadCommandService {
 
     private static final List<String> REMOVE_UNREAD_LABEL_IDS = List.of("UNREAD");
+    private static final List<String> ADD_UNREAD_LABEL_IDS = List.of("UNREAD");
 
     private final GoogleMailProperties googleMailProperties;
     private final RestClient googleMailRestClient;
@@ -34,7 +36,7 @@ public class GoogleMailReadCommandService {
     }
 
     public void markThreadAsRead(MailAccount mailAccount, Thread thread) {
-        validateInput(mailAccount, thread);
+        validateInput(mailAccount, thread, MailAccountErrorCode.GOOGLE_MAIL_READ_MODIFY_FAILED);
 
         GoogleMailReadModifyRequest request = new GoogleMailReadModifyRequest(REMOVE_UNREAD_LABEL_IDS);
 
@@ -56,14 +58,37 @@ public class GoogleMailReadCommandService {
         }
     }
 
-    private void validateInput(MailAccount mailAccount, Thread thread) {
+    public void markThreadAsUnread(MailAccount mailAccount, Thread thread) {
+        validateInput(mailAccount, thread, MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED);
+
+        GoogleMailUnreadModifyRequest request = new GoogleMailUnreadModifyRequest(ADD_UNREAD_LABEL_IDS);
+
+        try {
+            googleMailRestClient
+                    .post()
+                    .uri(
+                            googleMailProperties.getThreadModifyUri(),
+                            Map.of("gmailThreadId", thread.getGmailThreadId())
+                    )
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED);
+        }
+    }
+
+    private void validateInput(MailAccount mailAccount, Thread thread, MailAccountErrorCode errorCode) {
         if (mailAccount == null
                 || thread == null
                 || mailAccount.getProvider() != MailProvider.GMAIL
                 || isBlank(mailAccount.getAccessToken())
                 || isBlank(thread.getGmailThreadId())
                 || isBlank(googleMailProperties.getThreadModifyUri())) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_READ_MODIFY_FAILED);
+            throw new MailAccountException(errorCode);
         }
     }
 
