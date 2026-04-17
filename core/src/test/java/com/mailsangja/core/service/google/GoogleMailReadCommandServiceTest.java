@@ -17,6 +17,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.ResourceAccessException;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -140,6 +141,24 @@ class GoogleMailReadCommandServiceTest {
         assertEquals(MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED, exception.getErrorCode());
     }
 
+    @Test
+    void markMessageAsUnread_호출실패시동일한에러코드로예외를반환한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        properties.setMessageModifyUri("https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmailMessageId}/modify");
+
+        GoogleMailReadCommandService service = new GoogleMailReadCommandService(
+                properties,
+                RestClient.builder().requestFactory(new FailingClientHttpRequestFactory()).build()
+        );
+
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.markMessageAsUnread(createMailAccount(), createMessage())
+        );
+
+        assertEquals(MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED, exception.getErrorCode());
+    }
+
     private MailAccount createMailAccount() {
         return MailAccount.builder()
                 .id(UUID.randomUUID())
@@ -193,6 +212,18 @@ class GoogleMailReadCommandServiceTest {
 
         private String requestBody() {
             return requestBody;
+        }
+    }
+
+    private static final class FailingClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
+        @Override
+        public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            return new MockClientHttpRequest(httpMethod, uri) {
+                @Override
+                protected ClientHttpResponse executeInternal() {
+                    throw new ResourceAccessException("failed");
+                }
+            };
         }
     }
 }

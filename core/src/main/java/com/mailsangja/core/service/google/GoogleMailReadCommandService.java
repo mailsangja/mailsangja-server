@@ -37,94 +37,80 @@ public class GoogleMailReadCommandService {
     }
 
     public void markThreadAsRead(MailAccount mailAccount, Thread thread) {
-        validateInput(mailAccount, thread, MailAccountErrorCode.GOOGLE_MAIL_READ_MODIFY_FAILED);
+        MailAccountErrorCode errorCode = MailAccountErrorCode.GOOGLE_MAIL_READ_MODIFY_FAILED;
+        validateInput(mailAccount, thread, errorCode);
 
         GoogleMailReadModifyRequest request = new GoogleMailReadModifyRequest(REMOVE_UNREAD_LABEL_IDS);
-
-        try {
-            googleMailRestClient
-                    .post()
-                    .uri(
-                            googleMailProperties.getThreadModifyUri(),
-                            Map.of("gmailThreadId", thread.getGmailThreadId())
-                    )
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(request)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientException e) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_READ_MODIFY_FAILED);
-        }
+        executeModifyRequest(
+                googleMailProperties.getThreadModifyUri(),
+                Map.of("gmailThreadId", thread.getGmailThreadId()),
+                mailAccount.getAccessToken(),
+                request,
+                errorCode
+        );
     }
 
     public void markMessageAsRead(MailAccount mailAccount, Message message) {
-        validateInput(mailAccount, message, MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED);
+        MailAccountErrorCode errorCode = MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED;
+        validateInput(mailAccount, message, errorCode);
 
         GoogleMailReadModifyRequest request = new GoogleMailReadModifyRequest(REMOVE_UNREAD_LABEL_IDS);
-
-        try {
-            googleMailRestClient
-                    .post()
-                    .uri(
-                            googleMailProperties.getMessageModifyUri(),
-                            Map.of("gmailMessageId", message.getGmailMessageId())
-                    )
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(request)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientException e) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED);
-        }
+        executeModifyRequest(
+                googleMailProperties.getMessageModifyUri(),
+                Map.of("gmailMessageId", message.getGmailMessageId()),
+                mailAccount.getAccessToken(),
+                request,
+                errorCode
+        );
     }
 
     public void markMessageAsUnread(MailAccount mailAccount, Message message) {
-        validateInput(mailAccount, message, MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED);
+        MailAccountErrorCode errorCode = MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED;
+        validateInput(mailAccount, message, errorCode);
 
         GoogleMailUnreadModifyRequest request = new GoogleMailUnreadModifyRequest(ADD_UNREAD_LABEL_IDS);
-
-        try {
-            googleMailRestClient
-                    .post()
-                    .uri(
-                            googleMailProperties.getMessageModifyUri(),
-                            Map.of("gmailMessageId", message.getGmailMessageId())
-                    )
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(request)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientException e) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED);
-        }
+        executeModifyRequest(
+                googleMailProperties.getMessageModifyUri(),
+                Map.of("gmailMessageId", message.getGmailMessageId()),
+                mailAccount.getAccessToken(),
+                request,
+                errorCode
+        );
     }
 
     public void markThreadAsUnread(MailAccount mailAccount, Thread thread) {
-        validateInput(mailAccount, thread, MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED);
+        MailAccountErrorCode errorCode = MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED;
+        validateInput(mailAccount, thread, errorCode);
 
         GoogleMailUnreadModifyRequest request = new GoogleMailUnreadModifyRequest(ADD_UNREAD_LABEL_IDS);
+        executeModifyRequest(
+                googleMailProperties.getThreadModifyUri(),
+                Map.of("gmailThreadId", thread.getGmailThreadId()),
+                mailAccount.getAccessToken(),
+                request,
+                errorCode
+        );
+    }
 
+    private void executeModifyRequest(
+            String uri,
+            Map<String, String> uriVariables,
+            String accessToken,
+            Object request,
+            MailAccountErrorCode errorCode
+    ) {
         try {
             googleMailRestClient
                     .post()
-                    .uri(
-                            googleMailProperties.getThreadModifyUri(),
-                            Map.of("gmailThreadId", thread.getGmailThreadId())
-                    )
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
+                    .uri(uri, uriVariables)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientException e) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED);
+            throw new MailAccountException(errorCode);
         }
     }
 
