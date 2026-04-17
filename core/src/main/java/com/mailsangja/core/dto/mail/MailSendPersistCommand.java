@@ -46,6 +46,24 @@ public record MailSendPersistCommand(
         return null;
     }
 
+    public String latestParticipantName() {
+        if (messageResult.toAddresses() != null && !messageResult.toAddresses().isEmpty()) {
+            return resolveFirstName(
+                    messageResult.toAddresses(),
+                    resolveNames(messageResult.toAddresses(), sendCommand.to(), messageResult.toNames())
+            );
+        }
+
+        if (messageResult.ccAddresses() != null && !messageResult.ccAddresses().isEmpty()) {
+            return resolveFirstName(
+                    messageResult.ccAddresses(),
+                    resolveNames(messageResult.ccAddresses(), sendCommand.cc(), messageResult.ccNames())
+            );
+        }
+
+        return null;
+    }
+
     private String resolveFromName() {
         if (sendCommand.from() != null
                 && sendCommand.from().address() != null
@@ -92,5 +110,18 @@ public record MailSendPersistCommand(
 
         String fallbackName = fallbackNames.get(index);
         return fallbackName == null || fallbackName.isBlank() ? address : fallbackName;
+    }
+
+    private String resolveFirstName(List<String> addresses, List<String> names) {
+        if (addresses == null || addresses.isEmpty()) {
+            return null;
+        }
+
+        if (names == null || names.isEmpty()) {
+            return addresses.getFirst();
+        }
+
+        String firstName = names.getFirst();
+        return firstName == null || firstName.isBlank() ? addresses.getFirst() : firstName;
     }
 }

@@ -483,6 +483,7 @@ class MailFacadeTest {
                     .latestSubject(thread.getLatestSubject())
                     .latestSnippet(thread.getLatestSnippet())
                     .latestParticipantAddress(thread.getLatestParticipantAddress())
+                    .latestParticipantName(thread.getLatestParticipantName())
                     .lastMessageAt(thread.getLastMessageAt())
                     .read(thread.isRead())
                     .messageCount(thread.getMessageCount())

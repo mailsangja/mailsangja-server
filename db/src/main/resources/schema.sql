@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS threads (
     latest_subject             VARCHAR(500) NULL,
     latest_snippet             VARCHAR(500) NULL,
     latest_participant_address VARCHAR(255) NULL,
+    latest_participant_name    VARCHAR(255) NULL,
     last_message_at            TIMESTAMP    NULL,
     is_read                    BOOLEAN      NOT NULL DEFAULT FALSE,
     message_count              INT          NOT NULL DEFAULT 0,

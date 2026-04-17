@@ -143,8 +143,9 @@ public class GoogleMailMessageQueryService {
             List<String> names = new ArrayList<>();
             for (InternetAddress address : addresses) {
                 if (address != null && !isBlank(address.getAddress())) {
-                    normalizedAddresses.add(address.getAddress().trim().toLowerCase());
-                    names.add(normalizePersonalName(address.getPersonal()));
+                    String normalizedAddress = address.getAddress().trim().toLowerCase();
+                    normalizedAddresses.add(normalizedAddress);
+                    names.add(normalizePersonalName(address.getPersonal(), normalizedAddress));
                 }
             }
             return ParsedMailAddresses.of(normalizedAddresses, names);
@@ -260,9 +261,9 @@ public class GoogleMailMessageQueryService {
         return value == null || value.isBlank();
     }
 
-    private String normalizePersonalName(String personalName) {
+    private String normalizePersonalName(String personalName, String address) {
         if (personalName == null || personalName.isBlank()) {
-            return null;
+            return address;
         }
         return personalName.trim();
     }

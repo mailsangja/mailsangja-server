@@ -89,6 +89,7 @@ public class InitialMailSyncCommandService {
                 aggregate.latestSubject(),
                 aggregate.latestSnippet(),
                 aggregate.latestParticipantAddress(),
+                aggregate.latestParticipantName(),
                 aggregate.lastMessageAt(),
                 aggregate.read()
         );
@@ -217,6 +218,7 @@ public class InitialMailSyncCommandService {
         private String latestSubject;
         private String latestSnippet;
         private String latestParticipantAddress;
+        private String latestParticipantName;
         private LocalDateTime lastMessageAt;
         private boolean read;
         private int messageCount;
@@ -227,6 +229,7 @@ public class InitialMailSyncCommandService {
             aggregate.latestSubject = thread.getLatestSubject();
             aggregate.latestSnippet = thread.getLatestSnippet();
             aggregate.latestParticipantAddress = thread.getLatestParticipantAddress();
+            aggregate.latestParticipantName = thread.getLatestParticipantName();
             aggregate.lastMessageAt = thread.getLastMessageAt();
             aggregate.read = thread.isRead();
             aggregate.messageCount = thread.getMessageCount();
@@ -251,6 +254,12 @@ public class InitialMailSyncCommandService {
                         messageCommand.direction(),
                         messageCommand.fromAddress(),
                         messageCommand.toAddresses()
+                );
+                latestParticipantName = resolveLatestParticipantName(
+                        messageCommand.direction(),
+                        messageCommand.fromName(),
+                        messageCommand.toNames(),
+                        latestParticipantAddress
                 );
                 lastMessageAt = candidateSentAt;
                 read = messageCommand.read();
@@ -281,6 +290,10 @@ public class InitialMailSyncCommandService {
             return latestParticipantAddress;
         }
 
+        private String latestParticipantName() {
+            return latestParticipantName;
+        }
+
         private LocalDateTime lastMessageAt() {
             return lastMessageAt;
         }
@@ -307,6 +320,22 @@ public class InitialMailSyncCommandService {
                 return toAddresses == null || toAddresses.isEmpty() ? null : toAddresses.getFirst();
             }
             return fromAddress;
+        }
+
+        private String resolveLatestParticipantName(
+                Direction direction,
+                String fromName,
+                List<String> toNames,
+                String participantAddress
+        ) {
+            if (direction == Direction.OUTBOUND) {
+                if (toNames == null || toNames.isEmpty()) {
+                    return participantAddress;
+                }
+                String firstName = toNames.getFirst();
+                return isBlank(firstName) ? participantAddress : firstName;
+            }
+            return isBlank(fromName) ? participantAddress : fromName;
         }
 
         private boolean isBlank(String value) {

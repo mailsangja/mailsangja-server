@@ -97,4 +97,40 @@ class MailSendPersistCommandTest {
 
         assertEquals("cc@example.com", command.latestParticipantAddress());
     }
+
+    @Test
+    void latestParticipantName_to가없으면cc의이름을대표참여자로사용한다() {
+        MailSendPersistCommand command = new MailSendPersistCommand(
+                MailAccount.builder().id(UUID.randomUUID()).build(),
+                new GoogleMailMessageResult(
+                        "gmail-message-id",
+                        "gmail-thread-id",
+                        "history-id",
+                        "제목",
+                        "sender@example.com",
+                        "sender@example.com",
+                        List.of(),
+                        List.of(),
+                        List.of("cc@example.com"),
+                        List.of("참조사람"),
+                        "snippet",
+                        LocalDateTime.of(2026, 4, 16, 18, 0),
+                        "본문",
+                        null,
+                        List.of()
+                ),
+                new MailSendCommand(
+                        UUID.randomUUID(),
+                        new MailAddressCommand("sender@example.com", "sender@example.com"),
+                        List.of(),
+                        List.of(new MailAddressCommand("참조사람", "cc@example.com")),
+                        List.of(),
+                        "제목",
+                        "본문",
+                        List.of()
+                )
+        );
+
+        assertEquals("참조사람", command.latestParticipantName());
+    }
 }

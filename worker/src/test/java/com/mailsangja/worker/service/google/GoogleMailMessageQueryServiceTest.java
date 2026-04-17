@@ -72,7 +72,7 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals("alice@example.com", results.getFirst().messages().getFirst().fromAddress());
         assertEquals("Alice Kim", results.getFirst().messages().getFirst().fromName());
         assertEquals(List.of("bob@example.com", "carol@example.com"), results.getFirst().messages().getFirst().toAddresses());
-        assertEquals(Arrays.asList("Bob", null), results.getFirst().messages().getFirst().toNames());
+        assertEquals(Arrays.asList("Bob", "carol@example.com"), results.getFirst().messages().getFirst().toNames());
         assertEquals(List.of("dave@example.com"), results.getFirst().messages().getFirst().ccAddresses());
         assertEquals(List.of("Dave, Jr."), results.getFirst().messages().getFirst().ccNames());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());

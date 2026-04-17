@@ -72,6 +72,7 @@ public class MailCommandService {
                 command.messageResult().subject(),
                 command.messageResult().snippet(),
                 command.latestParticipantAddress(),
+                command.latestParticipantName(),
                 command.messageResult().sentAt(),
                 true
         );
