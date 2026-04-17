@@ -130,6 +130,26 @@ public interface InboxControllerDocs {
     );
 
     @Operation(
+            summary = "메일 메시지 안읽음 처리",
+            description = "특정 메시지를 안읽음 처리합니다. 대상 메시지가 속한 스레드도 안읽음 처리합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "메시지 안읽음 처리 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "메시지 접근 권한 없음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "메시지를 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<Void> markMessageAsUnread(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "메시지 내부 ID", required = true)
+            @PathVariable UUID messageId
+    );
+
+    @Operation(
             summary = "메일 스레드 안읽음 처리",
             description = "특정 스레드를 안읽음 처리합니다. 대상 스레드는 INBOUND, OUTBOUND 모두 가능합니다.",
             security = @SecurityRequirement(name = "cookieAuth")

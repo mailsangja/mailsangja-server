@@ -56,6 +56,19 @@ public class InboxCommandService {
     }
 
     @Transactional
+    public void markMessageAsUnread(Message message) {
+        gmailThreadLockRepositoryPort.acquireThreadLock(message.getThread().getMailAccount(), message.getThread().getGmailThreadId());
+
+        message.markAsUnread();
+
+        List<Thread> threads = threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                message.getThread().getMailAccount().getId(),
+                message.getThread().getGmailThreadId()
+        );
+        threads.forEach(thread -> thread.updateReadStatus(false));
+    }
+
+    @Transactional
     public void markThreadAsUnread(Thread thread) {
         gmailThreadLockRepositoryPort.acquireThreadLock(thread.getMailAccount(), thread.getGmailThreadId());
 

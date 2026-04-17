@@ -82,6 +82,29 @@ public class GoogleMailReadCommandService {
         }
     }
 
+    public void markMessageAsUnread(MailAccount mailAccount, Message message) {
+        validateInput(mailAccount, message, MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED);
+
+        GoogleMailUnreadModifyRequest request = new GoogleMailUnreadModifyRequest(ADD_UNREAD_LABEL_IDS);
+
+        try {
+            googleMailRestClient
+                    .post()
+                    .uri(
+                            googleMailProperties.getMessageModifyUri(),
+                            Map.of("gmailMessageId", message.getGmailMessageId())
+                    )
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED);
+        }
+    }
+
     public void markThreadAsUnread(MailAccount mailAccount, Thread thread) {
         validateInput(mailAccount, thread, MailAccountErrorCode.GOOGLE_MAIL_UNREAD_MODIFY_FAILED);
 

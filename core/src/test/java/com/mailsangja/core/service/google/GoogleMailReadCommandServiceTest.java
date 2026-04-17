@@ -77,6 +77,22 @@ class GoogleMailReadCommandServiceTest {
     }
 
     @Test
+    void markMessageAsUnread_UNREAD라벨을추가한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        properties.setMessageModifyUri("https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmailMessageId}/modify");
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+
+        GoogleMailReadCommandService service = new GoogleMailReadCommandService(
+                properties,
+                RestClient.builder().requestFactory(requestFactory).build()
+        );
+
+        service.markMessageAsUnread(createMailAccount(), createMessage());
+
+        assertTrue(requestFactory.requestBody().contains("\"addLabelIds\":[\"UNREAD\"]"));
+    }
+
+    @Test
     void markThreadAsUnread_유효하지않은입력이면예외가발생한다() {
         GoogleMailProperties properties = new GoogleMailProperties();
         GoogleMailReadCommandService service = new GoogleMailReadCommandService(
@@ -106,6 +122,22 @@ class GoogleMailReadCommandServiceTest {
         );
 
         assertEquals(MailAccountErrorCode.GOOGLE_MESSAGE_READ_MODIFY_FAILED, exception.getErrorCode());
+    }
+
+    @Test
+    void markMessageAsUnread_유효하지않은입력이면예외가발생한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        GoogleMailReadCommandService service = new GoogleMailReadCommandService(
+                properties,
+                RestClient.builder().build()
+        );
+
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.markMessageAsUnread(createMailAccount(), createMessage())
+        );
+
+        assertEquals(MailAccountErrorCode.GOOGLE_MESSAGE_UNREAD_MODIFY_FAILED, exception.getErrorCode());
     }
 
     private MailAccount createMailAccount() {

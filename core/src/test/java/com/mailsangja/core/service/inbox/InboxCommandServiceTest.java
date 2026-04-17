@@ -336,4 +336,98 @@ class InboxCommandServiceTest {
         assertTrue(targetMessage.isRead());
         assertFalse(thread.isRead());
     }
+
+    @Test
+    void markMessageAsUnread_대상메시지를안읽음처리하고스레드도안읽음처리한다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-7";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+
+        Thread inboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .read(true)
+                .build();
+        Thread outboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.OUTBOUND)
+                .read(true)
+                .build();
+        Message targetMessage = Message.builder()
+                .thread(inboundThread)
+                .gmailMessageId("gmail-message-11")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(true)
+                .build();
+        Message alreadyReadMessage = Message.builder()
+                .thread(outboundThread)
+                .gmailMessageId("gmail-message-12")
+                .direction(Direction.OUTBOUND)
+                .fromAddress("sender@example.com")
+                .read(true)
+                .build();
+
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread, outboundThread));
+
+        inboxCommandService.markMessageAsUnread(targetMessage);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertFalse(targetMessage.isRead());
+        assertTrue(alreadyReadMessage.isRead());
+        assertFalse(inboundThread.isRead());
+        assertFalse(outboundThread.isRead());
+    }
+
+    @Test
+    void markMessageAsUnread_이미안읽은메시지에도안전하게동작한다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-8";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .read(false)
+                .build();
+        Message unreadMessage = Message.builder()
+                .thread(thread)
+                .gmailMessageId("gmail-message-13")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .read(false)
+                .build();
+
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(thread));
+
+        inboxCommandService.markMessageAsUnread(unreadMessage);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertFalse(unreadMessage.isRead());
+        assertFalse(thread.isRead());
+    }
 }
