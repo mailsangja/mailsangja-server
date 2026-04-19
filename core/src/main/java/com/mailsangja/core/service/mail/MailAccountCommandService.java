@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -89,7 +88,7 @@ public class MailAccountCommandService {
         validateRefreshableGoogleMailAccount(mailAccount);
 
         mailAccount.updateAccessToken(tokenResult.accessToken());
-        mailAccount.updateAccessTokenExpiresAt(LocalDateTime.now().plusSeconds(tokenResult.expiresIn()));
+        mailAccount.updateAccessTokenExpiresAt(mailAccountQueryService.getKstNow().plusSeconds(tokenResult.expiresIn()));
         if (!isBlank(tokenResult.refreshToken())) {
             mailAccount.updateRefreshToken(tokenResult.refreshToken());
         }

@@ -30,26 +30,24 @@ public class GoogleAccessTokenEnsureService {
 
     public MailAccount ensureValidGoogleAccessToken(MailAccount mailAccount) {
         validateMailAccountInput(mailAccount);
+        validateGoogleMailAccount(mailAccount);
 
-        MailAccount latestMailAccount = mailAccountQueryService.findActiveById(mailAccount.getId());
-        validateGoogleMailAccount(latestMailAccount);
-
-        if (!needsRefresh(latestMailAccount)) {
-            return latestMailAccount;
+        if (!needsRefresh(mailAccount)) {
+            return mailAccount;
         }
 
-        if (isBlank(latestMailAccount.getRefreshToken())) {
+        if (isBlank(mailAccount.getRefreshToken())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
 
         return mailAccountCommandService.refreshGoogleAccessToken(
-                latestMailAccount.getId(),
-                googleOAuthQueryService.refreshAccessToken(latestMailAccount.getRefreshToken())
+                mailAccount.getId(),
+                googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken())
         );
     }
 
     private boolean needsRefresh(MailAccount mailAccount) {
-        LocalDateTime refreshThreshold = LocalDateTime.now().plusMinutes(REFRESH_WINDOW_MINUTES);
+        LocalDateTime refreshThreshold = mailAccountQueryService.getKstNow().plusMinutes(REFRESH_WINDOW_MINUTES);
         return !mailAccount.getAccessTokenExpiresAt().isAfter(refreshThreshold);
     }
 

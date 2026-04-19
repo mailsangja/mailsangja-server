@@ -50,7 +50,10 @@ class GoogleAccessTokenEnsureServiceTest {
             FakeGoogleOAuthQueryService googleOAuthQueryService
     ) {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(repository);
-        MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(repository, mailAccountQueryService);
+        MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(
+                repository,
+                mailAccountQueryService
+        );
         return new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
                 mailAccountCommandService,

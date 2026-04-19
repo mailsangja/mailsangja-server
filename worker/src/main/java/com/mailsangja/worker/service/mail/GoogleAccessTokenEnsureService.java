@@ -14,37 +14,35 @@ public class GoogleAccessTokenEnsureService {
 
     private static final long REFRESH_WINDOW_MINUTES = 10L;
 
-    private final MailAccountQueryService mailAccountQueryService;
     private final MailAccountCommandService mailAccountCommandService;
     private final GoogleOAuthQueryService googleOAuthQueryService;
+    private final MailAccountQueryService mailAccountQueryService;
 
     public GoogleAccessTokenEnsureService(
-            MailAccountQueryService mailAccountQueryService,
             MailAccountCommandService mailAccountCommandService,
-            GoogleOAuthQueryService googleOAuthQueryService
+            GoogleOAuthQueryService googleOAuthQueryService,
+            MailAccountQueryService mailAccountQueryService
     ) {
-        this.mailAccountQueryService = mailAccountQueryService;
         this.mailAccountCommandService = mailAccountCommandService;
         this.googleOAuthQueryService = googleOAuthQueryService;
+        this.mailAccountQueryService = mailAccountQueryService;
     }
 
     public MailAccount ensureValidGoogleAccessToken(MailAccount mailAccount) {
         validateMailAccountInput(mailAccount);
+        validateGoogleMailAccount(mailAccount);
 
-        MailAccount latestMailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccount.getId());
-        validateGoogleMailAccount(latestMailAccount);
-
-        if (!needsRefresh(latestMailAccount)) {
-            return latestMailAccount;
+        if (!needsRefresh(mailAccount)) {
+            return mailAccount;
         }
 
-        if (isBlank(latestMailAccount.getRefreshToken())) {
+        if (isBlank(mailAccount.getRefreshToken())) {
             throw new MailPushException(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
 
         return mailAccountCommandService.refreshGoogleAccessToken(
-                latestMailAccount.getId(),
-                googleOAuthQueryService.refreshAccessToken(latestMailAccount.getRefreshToken())
+                mailAccount.getId(),
+                googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken())
         );
     }
 

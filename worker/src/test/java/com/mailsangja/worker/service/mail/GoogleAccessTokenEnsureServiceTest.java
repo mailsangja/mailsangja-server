@@ -52,9 +52,9 @@ class GoogleAccessTokenEnsureServiceTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(repository);
         MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(mailAccountQueryService);
         return new GoogleAccessTokenEnsureService(
-                mailAccountQueryService,
                 mailAccountCommandService,
-                googleOAuthQueryService
+                googleOAuthQueryService,
+                mailAccountQueryService
         );
     }
 

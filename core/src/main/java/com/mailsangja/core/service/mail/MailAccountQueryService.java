@@ -8,6 +8,8 @@ import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +17,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class MailAccountQueryService {
+
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
@@ -42,5 +46,9 @@ public class MailAccountQueryService {
 
     public List<MailAccount> findAllActiveByUserId(UUID userId) {
         return mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(userId, true);
+    }
+
+    public LocalDateTime getKstNow() {
+        return LocalDateTime.now(KST_ZONE_ID);
     }
 }
