@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -35,6 +36,46 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
 
     @EntityGraph(attributePaths = {"user"})
     List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE MailAccount ma
+            SET ma.accessToken = :newAccessToken,
+                ma.accessTokenExpiresAt = :newAccessTokenExpiresAt,
+                ma.refreshToken = :newRefreshToken
+            WHERE ma.id = :id
+              AND ma.deletedAt IS NULL
+              AND ma.accessToken = :expectedAccessToken
+            """)
+    int updateGoogleTokenIfAccessTokenMatches(
+            @Param("id") UUID id,
+            @Param("expectedAccessToken") String expectedAccessToken,
+            @Param("newAccessToken") String newAccessToken,
+            @Param("newAccessTokenExpiresAt") LocalDateTime newAccessTokenExpiresAt,
+            @Param("newRefreshToken") String newRefreshToken
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE MailAccount ma
+            SET ma.accessToken = :newAccessToken,
+                ma.accessTokenExpiresAt = :newAccessTokenExpiresAt,
+                ma.refreshToken = :newRefreshToken,
+                ma.syncHistoryId = :newSyncHistoryId,
+                ma.watchExpiresAt = :newWatchExpiresAt
+            WHERE ma.id = :id
+              AND ma.deletedAt IS NULL
+              AND ma.accessToken = :expectedAccessToken
+            """)
+    int renewGoogleWatchIfAccessTokenMatches(
+            @Param("id") UUID id,
+            @Param("expectedAccessToken") String expectedAccessToken,
+            @Param("newAccessToken") String newAccessToken,
+            @Param("newAccessTokenExpiresAt") LocalDateTime newAccessTokenExpiresAt,
+            @Param("newRefreshToken") String newRefreshToken,
+            @Param("newSyncHistoryId") String newSyncHistoryId,
+            @Param("newWatchExpiresAt") LocalDateTime newWatchExpiresAt
+    );
 
     @EntityGraph(attributePaths = {"user"})
     List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active);

@@ -18,6 +18,22 @@ public interface MailAccountRepositoryPort {
     Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active);
     Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId);
+    int updateGoogleTokenIfAccessTokenMatches(
+            UUID id,
+            String expectedAccessToken,
+            String newAccessToken,
+            LocalDateTime newAccessTokenExpiresAt,
+            String newRefreshToken
+    );
+    int renewGoogleWatchIfAccessTokenMatches(
+            UUID id,
+            String expectedAccessToken,
+            String newAccessToken,
+            LocalDateTime newAccessTokenExpiresAt,
+            String newRefreshToken,
+            String newSyncHistoryId,
+            LocalDateTime newWatchExpiresAt
+    );
     List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit);
     List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active);
 }

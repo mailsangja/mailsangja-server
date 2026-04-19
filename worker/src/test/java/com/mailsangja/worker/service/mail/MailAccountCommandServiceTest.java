@@ -3,11 +3,10 @@ package com.mailsangja.worker.service.mail;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
-import com.mailsangja.worker.config.properties.GoogleOAuthProperties;
 import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
-import com.mailsangja.worker.service.google.GoogleOAuthQueryService;
+import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchResult;
+import com.mailsangja.worker.dto.mail.watch.RenewGoogleWatchCommand;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,52 +15,50 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class GoogleAccessTokenEnsureServiceTest {
+class MailAccountCommandServiceTest {
 
     @Test
-    void ensureValidGoogleAccessToken_만료가충분히남아있으면기존토큰을사용한다() {
-        MailAccount mailAccount = createMailAccount(LocalDateTime.now().plusMinutes(30), "access-token", "refresh-token");
+    void renewGoogleWatch_액세스토큰이일치하면토큰과워치정보를함께갱신한다() {
+        MailAccount mailAccount = createMailAccount("old-access-token", "old-refresh-token");
         InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
-        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
-        GoogleAccessTokenEnsureService service = createService(repository, googleOAuthQueryService);
-
-        MailAccount ensuredMailAccount = service.ensureValidGoogleAccessToken(mailAccount);
-
-        assertEquals("access-token", ensuredMailAccount.getAccessToken());
-        assertEquals(0, googleOAuthQueryService.refreshCallCount);
-    }
-
-    @Test
-    void ensureValidGoogleAccessToken_만료가임박하면토큰을재발급한다() {
-        MailAccount mailAccount = createMailAccount(LocalDateTime.now().plusMinutes(5), "old-token", "refresh-token");
-        InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
-        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
-        GoogleAccessTokenEnsureService service = createService(repository, googleOAuthQueryService);
-
-        MailAccount ensuredMailAccount = service.ensureValidGoogleAccessToken(mailAccount);
-
-        assertEquals("refreshed-token", ensuredMailAccount.getAccessToken());
-        assertEquals("new-refresh-token", ensuredMailAccount.getRefreshToken());
-        assertEquals(1, googleOAuthQueryService.refreshCallCount);
-    }
-
-    private GoogleAccessTokenEnsureService createService(
-            InMemoryMailAccountRepository repository,
-            FakeGoogleOAuthQueryService googleOAuthQueryService
-    ) {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(repository);
-        MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(
-                repository,
-                mailAccountQueryService
+        MailAccountCommandService service = new MailAccountCommandService(repository, mailAccountQueryService);
+
+        service.renewGoogleWatch(
+                RenewGoogleWatchCommand.of(
+                        mailAccount.getId(),
+                        new GoogleOAuthTokenResult("new-access-token", "new-refresh-token", 3600L, null, "Bearer"),
+                        new GoogleMailWatchResult("history-123", LocalDateTime.now().plusDays(7))
+                )
         );
-        return new GoogleAccessTokenEnsureService(
-                mailAccountCommandService,
-                googleOAuthQueryService,
-                mailAccountQueryService
-        );
+
+        assertEquals("new-access-token", mailAccount.getAccessToken());
+        assertEquals("new-refresh-token", mailAccount.getRefreshToken());
+        assertEquals("history-123", mailAccount.getSyncHistoryId());
     }
 
-    private MailAccount createMailAccount(LocalDateTime expiresAt, String accessToken, String refreshToken) {
+    @Test
+    void renewGoogleWatch_경쟁상황으로조건부업데이트에실패하면기존값을유지한다() {
+        MailAccount mailAccount = createMailAccount("latest-access-token", "latest-refresh-token");
+        InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(repository);
+        MailAccountCommandService service = new MailAccountCommandService(repository, mailAccountQueryService);
+        repository.expectedAccessTokenOverride = "different-access-token";
+
+        service.renewGoogleWatch(
+                RenewGoogleWatchCommand.of(
+                        mailAccount.getId(),
+                        new GoogleOAuthTokenResult("stale-new-access-token", "stale-new-refresh-token", 3600L, null, "Bearer"),
+                        new GoogleMailWatchResult("stale-history", LocalDateTime.now().plusDays(1))
+                )
+        );
+
+        assertEquals("latest-access-token", mailAccount.getAccessToken());
+        assertEquals("latest-refresh-token", mailAccount.getRefreshToken());
+        assertEquals("sync-history-id", mailAccount.getSyncHistoryId());
+    }
+
+    private MailAccount createMailAccount(String accessToken, String refreshToken) {
         return MailAccount.builder()
                 .id(UUID.randomUUID())
                 .provider(MailProvider.GMAIL)
@@ -70,28 +67,17 @@ class GoogleAccessTokenEnsureServiceTest {
                 .icon("icon")
                 .color("#4285F4")
                 .accessToken(accessToken)
-                .accessTokenExpiresAt(expiresAt)
+                .accessTokenExpiresAt(LocalDateTime.now().plusMinutes(30))
                 .refreshToken(refreshToken)
+                .syncHistoryId("sync-history-id")
+                .watchExpiresAt(LocalDateTime.now().plusDays(3))
                 .active(true)
                 .build();
     }
 
-    private static final class FakeGoogleOAuthQueryService extends GoogleOAuthQueryService {
-        private int refreshCallCount;
-
-        private FakeGoogleOAuthQueryService() {
-            super(new GoogleOAuthProperties(), RestClient.builder().build());
-        }
-
-        @Override
-        public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
-            refreshCallCount++;
-            return new GoogleOAuthTokenResult("refreshed-token", "new-refresh-token", 3600L, null, "Bearer");
-        }
-    }
-
     private static final class InMemoryMailAccountRepository implements MailAccountRepositoryPort {
         private final MailAccount mailAccount;
+        private String expectedAccessTokenOverride;
 
         private InMemoryMailAccountRepository(MailAccount mailAccount) {
             this.mailAccount = mailAccount;
@@ -152,14 +138,7 @@ class GoogleAccessTokenEnsureServiceTest {
                 LocalDateTime newAccessTokenExpiresAt,
                 String newRefreshToken
         ) {
-            if (!id.equals(mailAccount.getId()) || !expectedAccessToken.equals(mailAccount.getAccessToken())) {
-                return 0;
-            }
-
-            mailAccount.updateAccessToken(newAccessToken);
-            mailAccount.updateAccessTokenExpiresAt(newAccessTokenExpiresAt);
-            mailAccount.updateRefreshToken(newRefreshToken);
-            return 1;
+            return 0;
         }
 
         @Override
@@ -172,7 +151,20 @@ class GoogleAccessTokenEnsureServiceTest {
                 String newSyncHistoryId,
                 LocalDateTime newWatchExpiresAt
         ) {
-            return 0;
+            String matchedAccessToken = expectedAccessTokenOverride == null
+                    ? mailAccount.getAccessToken()
+                    : expectedAccessTokenOverride;
+
+            if (!id.equals(mailAccount.getId()) || !expectedAccessToken.equals(matchedAccessToken)) {
+                return 0;
+            }
+
+            mailAccount.updateAccessToken(newAccessToken);
+            mailAccount.updateAccessTokenExpiresAt(newAccessTokenExpiresAt);
+            mailAccount.updateRefreshToken(newRefreshToken);
+            mailAccount.updateSyncHistoryId(newSyncHistoryId);
+            mailAccount.updateWatchExpiresAt(newWatchExpiresAt);
+            return 1;
         }
 
         @Override

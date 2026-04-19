@@ -387,6 +387,40 @@ class MailFacadeTest {
         }
 
         @Override
+        public int updateGoogleTokenIfAccessTokenMatches(
+                UUID id,
+                String expectedAccessToken,
+                String newAccessToken,
+                LocalDateTime newAccessTokenExpiresAt,
+                String newRefreshToken
+        ) {
+            return mailAccounts.stream()
+                    .filter(mailAccount -> id.equals(mailAccount.getId()))
+                    .filter(mailAccount -> expectedAccessToken.equals(mailAccount.getAccessToken()))
+                    .findFirst()
+                    .map(mailAccount -> {
+                        mailAccount.updateAccessToken(newAccessToken);
+                        mailAccount.updateAccessTokenExpiresAt(newAccessTokenExpiresAt);
+                        mailAccount.updateRefreshToken(newRefreshToken);
+                        return 1;
+                    })
+                    .orElse(0);
+        }
+
+        @Override
+        public int renewGoogleWatchIfAccessTokenMatches(
+                UUID id,
+                String expectedAccessToken,
+                String newAccessToken,
+                LocalDateTime newAccessTokenExpiresAt,
+                String newRefreshToken,
+                String newSyncHistoryId,
+                LocalDateTime newWatchExpiresAt
+        ) {
+            return 0;
+        }
+
+        @Override
         public List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit) {
             return List.of();
         }

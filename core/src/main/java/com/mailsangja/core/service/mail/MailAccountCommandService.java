@@ -86,14 +86,19 @@ public class MailAccountCommandService {
 
         MailAccount mailAccount = mailAccountQueryService.findActiveById(mailAccountId);
         validateRefreshableGoogleMailAccount(mailAccount);
+        String updatedRefreshToken = isBlank(tokenResult.refreshToken())
+                ? mailAccount.getRefreshToken()
+                : tokenResult.refreshToken();
 
-        mailAccount.updateAccessToken(tokenResult.accessToken());
-        mailAccount.updateAccessTokenExpiresAt(mailAccountQueryService.getKstNow().plusSeconds(tokenResult.expiresIn()));
-        if (!isBlank(tokenResult.refreshToken())) {
-            mailAccount.updateRefreshToken(tokenResult.refreshToken());
-        }
+        mailAccountRepositoryPort.updateGoogleTokenIfAccessTokenMatches(
+                mailAccountId,
+                mailAccount.getAccessToken(),
+                tokenResult.accessToken(),
+                mailAccountQueryService.getKstNow().plusSeconds(tokenResult.expiresIn()),
+                updatedRefreshToken
+        );
 
-        return mailAccount;
+        return mailAccountQueryService.findActiveById(mailAccountId);
     }
 
     private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
