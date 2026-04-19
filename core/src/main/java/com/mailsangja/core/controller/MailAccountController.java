@@ -1,6 +1,8 @@
 package com.mailsangja.core.controller;
 
 import com.mailsangja.core.common.auth.AuthUser;
+import com.mailsangja.core.common.exception.ErrorCode;
+import com.mailsangja.core.common.exception.common.CommonErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.config.properties.GoogleOAuthProperties;
@@ -17,8 +19,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -72,6 +76,26 @@ public class MailAccountController implements MailAccountControllerDocs {
         String savedIcon = (String) session.getAttribute(GOOGLE_OAUTH_ICON);
         String savedColor = (String) session.getAttribute(GOOGLE_OAUTH_COLOR);
 
+        try {
+            validateGoogleOAuthSession(user, state, savedState, savedUserId);
+            mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
+            return ResponseEntity.status(302)
+                    .location(buildCallbackRedirectUri())
+                    .build();
+        } catch (MailAccountException e) {
+            return ResponseEntity.status(302)
+                    .location(buildCallbackRedirectUri(e.getErrorCode()))
+                    .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(302)
+                    .location(buildCallbackRedirectUri(CommonErrorCode.INTERNAL_FAILURE))
+                    .build();
+        } finally {
+            clearGoogleOAuthSession(session);
+        }
+    }
+
+    private void validateGoogleOAuthSession(User user, String state, String savedState, String savedUserId) {
         if (savedState == null) {
             throw new MailAccountException(MailAccountErrorCode.OAUTH_SESSION_NOT_FOUND);
         }
@@ -83,17 +107,27 @@ public class MailAccountController implements MailAccountControllerDocs {
         if (!savedState.equals(state)) {
             throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_STATE);
         }
+    }
 
+    private void clearGoogleOAuthSession(HttpSession session) {
         session.removeAttribute(GOOGLE_OAUTH_STATE);
         session.removeAttribute(GOOGLE_OAUTH_USER_ID);
         session.removeAttribute(GOOGLE_OAUTH_ALIAS);
         session.removeAttribute(GOOGLE_OAUTH_ICON);
         session.removeAttribute(GOOGLE_OAUTH_COLOR);
+    }
 
-        mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
+    private URI buildCallbackRedirectUri() {
+        return URI.create(googleOAuthProperties.getCallbackRedirectUri());
+    }
 
-        return ResponseEntity.status(302)
-                .location(URI.create(googleOAuthProperties.getCallbackRedirectUri()))
-                .build();
+    private URI buildCallbackRedirectUri(ErrorCode errorCode) {
+        return UriComponentsBuilder.fromUriString(googleOAuthProperties.getCallbackRedirectUri())
+                .queryParam("status", errorCode.getStatus())
+                .queryParam("errorCode", errorCode.getCode())
+                .queryParam("errorMessage", errorCode.getMessage())
+                .build()
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
     }
 }
