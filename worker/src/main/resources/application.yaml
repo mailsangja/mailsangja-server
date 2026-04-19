@@ -69,6 +69,9 @@ mailsangja:
       read-timeout: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:5s}
       label-filter-behavior: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:}
     push:
+      local-ack:
+        enabled: ${GOOGLE_GMAIL_PUSH_LOCAL_ACK_ENABLED:false}
+        whitelisted-error-codes: ${GOOGLE_GMAIL_PUSH_LOCAL_ACK_WHITELIST:}
       oidc:
         jwk-set-uri: ${GOOGLE_PUBSUB_PUSH_OIDC_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
         allowed-issuers:

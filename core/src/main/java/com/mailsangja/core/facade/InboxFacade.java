@@ -12,6 +12,7 @@ import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
@@ -57,6 +58,33 @@ public class InboxFacade {
             googleMailReadCommandService.markThreadAsRead(thread.getMailAccount(), thread);
         }
         inboxCommandService.markThreadAsRead(thread);
+    }
+
+    public void markMessageAsRead(User user, UUID messageId) {
+        Message message = inboxQueryService.findActiveMessageById(messageId);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), message.getThread());
+        if (message.getThread().getMailAccount().getProvider() == MailProvider.GMAIL) {
+            googleMailReadCommandService.markMessageAsRead(message.getThread().getMailAccount(), message);
+        }
+        inboxCommandService.markMessageAsRead(message);
+    }
+
+    public void markMessageAsUnread(User user, UUID messageId) {
+        Message message = inboxQueryService.findActiveMessageById(messageId);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), message.getThread());
+        if (message.getThread().getMailAccount().getProvider() == MailProvider.GMAIL) {
+            googleMailReadCommandService.markMessageAsUnread(message.getThread().getMailAccount(), message);
+        }
+        inboxCommandService.markMessageAsUnread(message);
+    }
+
+    public void markThreadAsUnread(User user, UUID threadId) {
+        Thread thread = inboxQueryService.findThreadById(threadId);
+        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
+        if (thread.getMailAccount().getProvider() == MailProvider.GMAIL) {
+            googleMailReadCommandService.markThreadAsUnread(thread.getMailAccount(), thread);
+        }
+        inboxCommandService.markThreadAsUnread(thread);
     }
 
     public long getUnreadCount(User user) {
