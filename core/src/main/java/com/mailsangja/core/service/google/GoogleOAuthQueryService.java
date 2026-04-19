@@ -17,10 +17,13 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.StringJoiner;
 
 @Service
 public class GoogleOAuthQueryService {
+
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final GoogleOAuthProperties googleOAuthProperties;
     private final RestClient googleOAuthRestClient;
@@ -126,9 +129,13 @@ public class GoogleOAuthQueryService {
         return new GoogleMailAccountResult(
                 userInfoResult.email(),
                 tokenResult.accessToken(),
-                LocalDateTime.now().plusSeconds(tokenResult.expiresIn()),
+                getKstNow().plusSeconds(tokenResult.expiresIn()),
                 tokenResult.refreshToken()
         );
+    }
+
+    private LocalDateTime getKstNow() {
+        return LocalDateTime.now(KST_ZONE_ID);
     }
 
     private void validateTokenExchangeInput(String code) {
