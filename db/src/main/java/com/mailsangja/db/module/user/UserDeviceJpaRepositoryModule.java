@@ -17,7 +17,7 @@ public interface UserDeviceJpaRepositoryModule extends JpaRepository<UserDevice,
             SELECT ud FROM UserDevice ud
             WHERE ud.user.id = (
                 SELECT ma.user.id FROM MailAccount ma
-                WHERE ma.id = :mailAccountId AND ma.deletedAt IS NULL
+                WHERE ma.id = :mailAccountId AND ma.active = true AND ma.deletedAt IS NULL
             )
             AND ud.deletedAt IS NULL
             """)
