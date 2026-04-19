@@ -14,6 +14,22 @@ CREATE TABLE IF NOT EXISTS users (
     PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS user_devices (
+    id          CHAR(36) NOT NULL,
+    user_id     CHAR(36) NOT NULL,
+    fcm_token   TEXT     NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT fk_user_devices_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_devices_fcm_token_active
+    ON user_devices (fcm_token)
+    WHERE deleted_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS mail_accounts (
     id                      CHAR(36)     NOT NULL,
     user_id                 CHAR(36)     NOT NULL,
