@@ -23,7 +23,6 @@ public interface MessageRepositoryPort {
             String gmailThreadId,
             String gmailMessageId
     );
-    Optional<Message> findByGmailMessageIdAndDeletedAtIsNull(String gmailMessageId);
     boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
             UUID mailAccountId,
             String gmailThreadId,

@@ -43,7 +43,7 @@ public class FcmPushCommandService {
                 .setNotification(notificationBuilder.build())
                 .putData("mailAccountId", context.mailAccountId().toString())
                 .putData("alias", context.alias())
-                .putData("gmailThreadId", context.gmailThreadId())
+                .putData("threadId", context.threadId() != null ? context.threadId().toString() : "")
                 .putData("messageId", context.messageId() != null ? context.messageId().toString() : "")
                 .putData("threadDetailUrl", threadDetailUrl)
                 .addAllTokens(tokens)
@@ -69,12 +69,13 @@ public class FcmPushCommandService {
 
     private String buildThreadDetailUrl(NewMailPushContext context) {
         String template = fcmProperties.getThreadDetailUrlTemplate();
-        if (!StringUtils.hasText(template)) {
+        if (!StringUtils.hasText(template) || context.threadId() == null) {
             return "";
         }
         return template
                 .replace("{mailAccountId}", context.mailAccountId().toString())
-                .replace("{gmailThreadId}", context.gmailThreadId());
+                .replace("{threadId}", context.threadId().toString())
+                .replace("{messageId}", context.messageId() != null ? context.messageId().toString() : "");
     }
 
     private void expireUnregisteredTokens(List<String> tokens, BatchResponse response) {
@@ -88,16 +89,24 @@ public class FcmPushCommandService {
             FirebaseMessagingException exception = sendResponse.getException();
             MessagingErrorCode errorCode = exception != null ? exception.getMessagingErrorCode() : null;
             String token = tokens.get(i);
+            String maskedToken = maskToken(token);
 
             if (errorCode == MessagingErrorCode.UNREGISTERED) {
                 userDeviceCommandService.expireFcmToken(token);
-                log.info("Expired FCM token soft-deleted: token={}...{}", token.substring(0, 8), token.substring(token.length() - 4));
+                log.info("Expired FCM token soft-deleted: token={}", maskedToken);
             } else {
-                log.warn("FCM token send failed: token={}...{} errorCode={} message={}",
-                        token.substring(0, 8), token.substring(token.length() - 4),
+                log.warn("FCM token send failed: token={} errorCode={} message={}",
+                        maskedToken,
                         errorCode,
                         exception != null ? exception.getMessage() : "unknown");
             }
         }
+    }
+
+    private String maskToken(String token) {
+        if (token == null || token.length() < 12) {
+            return "***";
+        }
+        return token.substring(0, 8) + "..." + token.substring(token.length() - 4);
     }
 }

@@ -7,7 +7,7 @@ public record NewMailPushContext(
         String alias,
         String subject,
         String snippet,
-        String gmailThreadId,
+        UUID threadId,
         UUID messageId
 ) {
 }

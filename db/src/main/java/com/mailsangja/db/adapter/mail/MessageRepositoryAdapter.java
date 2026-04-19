@@ -66,11 +66,6 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
-    public Optional<Message> findByGmailMessageIdAndDeletedAtIsNull(String gmailMessageId) {
-        return messageJpaRepositoryModule.findByGmailMessageIdAndDeletedAtIsNull(gmailMessageId);
-    }
-
-    @Override
     public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
             UUID mailAccountId,
             String gmailThreadId,

@@ -47,9 +47,6 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailMessageId") String gmailMessageId
     );
 
-    @Query("SELECT m FROM Message m WHERE m.gmailMessageId = :gmailMessageId AND m.deletedAt IS NULL")
-    Optional<Message> findByGmailMessageIdAndDeletedAtIsNull(@Param("gmailMessageId") String gmailMessageId);
-
     @Query("""
             SELECT COUNT(m) > 0
             FROM Message m
