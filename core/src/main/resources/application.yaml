@@ -83,6 +83,9 @@ mailsangja:
       topic-name: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME:projects/local/topics/mailbox-gmail-watch}
       watch-uri: ${GOOGLE_GMAIL_WATCH_URI:https://gmail.googleapis.com/gmail/v1/users/me/watch}
       thread-modify-uri: ${GOOGLE_GMAIL_THREAD_MODIFY_URI:https://gmail.googleapis.com/gmail/v1/users/me/threads/{gmailThreadId}/modify}
+      send-uri: ${GOOGLE_GMAIL_SEND_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages/send}
+      messages-uri: ${GOOGLE_GMAIL_MESSAGES_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages}
+      attachments-uri: ${GOOGLE_GMAIL_ATTACHMENTS_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages}
       connect-timeout: ${GOOGLE_GMAIL_WATCH_CONNECT_TIMEOUT:3s}
       read-timeout: ${GOOGLE_GMAIL_WATCH_READ_TIMEOUT:5s}
       label-filter-behavior: ${GOOGLE_GMAIL_WATCH_LABEL_FILTER_BEHAVIOR:}

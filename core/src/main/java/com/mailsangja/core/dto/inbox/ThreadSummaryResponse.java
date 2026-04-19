@@ -40,7 +40,7 @@ public record ThreadSummaryResponse(
                 thread.getGmailThreadId(),
                 thread.getMailAccount().getId(),
                 thread.getLatestSubject(),
-                MailAddressResponse.of(thread.getLatestParticipantAddress(), contactNameByEmail),
+                MailAddressResponse.of(thread.getLatestParticipantName(), thread.getLatestParticipantAddress(), contactNameByEmail),
                 thread.getLatestSnippet(),
                 thread.isRead(),
                 thread.getLastMessageAt(),

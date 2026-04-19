@@ -15,6 +15,7 @@ public interface MailAccountRepositoryPort {
     Optional<MailAccount> findByEmailAddressAndDeletedAtIsNull(String emailAddress);
     Optional<MailAccount> findByUserIdAndProviderAndDeletedAtIsNull(UUID userId, MailProvider provider);
     Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(UUID userId, MailProvider provider, String emailAddress);
+    Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active);
     Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId);
     List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit);

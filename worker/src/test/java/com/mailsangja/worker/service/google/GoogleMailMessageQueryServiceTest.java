@@ -7,6 +7,7 @@ import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestClient;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,8 +70,11 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals(1, results.size());
         assertEquals(1, results.getFirst().messages().size());
         assertEquals("alice@example.com", results.getFirst().messages().getFirst().fromAddress());
+        assertEquals("Alice Kim", results.getFirst().messages().getFirst().fromName());
         assertEquals(List.of("bob@example.com", "carol@example.com"), results.getFirst().messages().getFirst().toAddresses());
+        assertEquals(Arrays.asList("Bob", "carol@example.com"), results.getFirst().messages().getFirst().toNames());
         assertEquals(List.of("dave@example.com"), results.getFirst().messages().getFirst().ccAddresses());
+        assertEquals(List.of("Dave, Jr."), results.getFirst().messages().getFirst().ccNames());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());
         assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
     }
@@ -86,10 +91,12 @@ class GoogleMailMessageQueryServiceTest {
             return new MockClientHttpRequest(httpMethod, uri) {
                 @Override
                 protected ClientHttpResponse executeInternal() {
-                    return new MockClientHttpResponse(
+                    MockClientHttpResponse response = new MockClientHttpResponse(
                             responseBody.getBytes(StandardCharsets.UTF_8),
                             HttpStatus.OK
                     );
+                    response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+                    return response;
                 }
             };
         }

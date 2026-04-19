@@ -15,6 +15,7 @@ import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,7 +44,10 @@ class InitialMailSyncCommandServiceTest {
                         Direction.INBOUND,
                         "subject",
                         "alice@example.com",
+                        "Alice",
                         List.of("bob@example.com"),
+                        List.of("Bob"),
+                        List.of(),
                         List.of(),
                         "snippet",
                         false,
@@ -63,7 +67,10 @@ class InitialMailSyncCommandServiceTest {
                         Direction.INBOUND,
                         "updated subject",
                         "alice@example.com",
+                        "Alice",
                         List.of("bob@example.com"),
+                        List.of("Bob"),
+                        List.of(),
                         List.of(),
                         "updated snippet",
                         true,
@@ -99,6 +106,9 @@ class InitialMailSyncCommandServiceTest {
                         Direction.INBOUND,
                         "subject-1",
                         "alice@example.com",
+                        "Alice",
+                        List.of(),
+                        List.of(),
                         List.of(),
                         List.of(),
                         "snippet-1",
@@ -119,6 +129,9 @@ class InitialMailSyncCommandServiceTest {
                         Direction.INBOUND,
                         "subject-2",
                         "carol@example.com",
+                        "Carol",
+                        List.of(),
+                        List.of(),
                         List.of(),
                         List.of(),
                         "snippet-2",
@@ -135,6 +148,130 @@ class InitialMailSyncCommandServiceTest {
         assertEquals("snippet-1", savedThread.getLatestSnippet());
         assertEquals(LocalDateTime.of(2026, 4, 11, 10, 0), savedThread.getLastMessageAt());
         assertEquals(2, savedThread.getMessageCount());
+    }
+
+    @Test
+    void saveThreadBatch_fillsMessageNamesAndLatestParticipantNameWithAddressFallback() {
+        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
+        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
+        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .build();
+
+        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        Direction.OUTBOUND,
+                        "subject",
+                        "sender@example.com",
+                        null,
+                        List.of("first@example.com", "second@example.com"),
+                        Arrays.asList((String) null),
+                        List.of("cc@example.com"),
+                        List.of(""),
+                        "snippet",
+                        true,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "body",
+                        null,
+                        List.of()
+                ))
+        )));
+
+        Message savedMessage = messageRepository.savedMessages.getFirst();
+        Thread savedThread = threadRepository.savedThreads.getFirst();
+
+        assertEquals("sender@example.com", savedMessage.getFromName());
+        assertEquals(List.of("first@example.com", "second@example.com"), savedMessage.getToNames());
+        assertEquals(List.of("cc@example.com"), savedMessage.getCcNames());
+        assertEquals("first@example.com", savedThread.getLatestParticipantAddress());
+        assertEquals("first@example.com", savedThread.getLatestParticipantName());
+    }
+
+    @Test
+    void saveThreadBatch_trimsNamesBeforeSaving() {
+        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
+        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
+        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .build();
+
+        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        Direction.OUTBOUND,
+                        "subject",
+                        "sender@example.com",
+                        "  Sender Name  ",
+                        List.of("first@example.com"),
+                        List.of("  First Receiver  "),
+                        List.of("cc@example.com"),
+                        List.of("  "),
+                        "snippet",
+                        true,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "body",
+                        null,
+                        List.of()
+                ))
+        )));
+
+        Message savedMessage = messageRepository.savedMessages.getFirst();
+        Thread savedThread = threadRepository.savedThreads.getFirst();
+
+        assertEquals("Sender Name", savedMessage.getFromName());
+        assertEquals(List.of("First Receiver"), savedMessage.getToNames());
+        assertEquals(List.of("cc@example.com"), savedMessage.getCcNames());
+        assertEquals("First Receiver", savedThread.getLatestParticipantName());
+    }
+
+    @Test
+    void saveThreadBatch_usesCcAsLatestParticipantWhenToIsEmpty() {
+        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
+        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
+        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .build();
+
+        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        Direction.OUTBOUND,
+                        "subject",
+                        "sender@example.com",
+                        "Sender",
+                        List.of(),
+                        List.of(),
+                        List.of("cc@example.com"),
+                        List.of("CC Receiver"),
+                        "snippet",
+                        true,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "body",
+                        null,
+                        List.of()
+                ))
+        )));
+
+        Thread savedThread = threadRepository.savedThreads.getFirst();
+
+        assertEquals("cc@example.com", savedThread.getLatestParticipantAddress());
+        assertEquals("CC Receiver", savedThread.getLatestParticipantName());
     }
 
     private static final class InMemoryThreadRepository implements ThreadRepositoryPort {

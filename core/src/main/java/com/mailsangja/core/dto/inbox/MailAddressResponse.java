@@ -14,4 +14,11 @@ public record MailAddressResponse(
     public static MailAddressResponse of(String email, Map<String, String> contactNameByEmail) {
         return new MailAddressResponse(contactNameByEmail.get(email), email);
     }
+
+    public static MailAddressResponse of(String storedName, String email, Map<String, String> contactNameByEmail) {
+        if (storedName != null && !storedName.isBlank()) {
+            return new MailAddressResponse(storedName, email);
+        }
+        return new MailAddressResponse(contactNameByEmail.get(email), email);
+    }
 }

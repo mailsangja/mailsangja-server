@@ -21,6 +21,9 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
     Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(UUID userId, MailProvider provider, String emailAddress);
 
     @EntityGraph(attributePaths = {"user"})
+    Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active);
+
+    @EntityGraph(attributePaths = {"user"})
     Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
 
     @EntityGraph(attributePaths = {"user"})

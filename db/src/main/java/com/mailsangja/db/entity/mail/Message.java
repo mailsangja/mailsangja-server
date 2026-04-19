@@ -46,15 +46,26 @@ public class Message extends BaseEntity {
     @Column(name = "from_address", nullable = false, length = 255)
     private String fromAddress;
 
+    @Column(name = "from_name", length = 255)
+    private String fromName;
+
     // To 수신자 목록
     @Column(name = "to_addresses", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> toAddresses;
 
+    @Column(name = "to_names", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> toNames;
+
     // CC 수신자 목록
     @Column(name = "cc_addresses", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> ccAddresses;
+
+    @Column(name = "cc_names", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> ccNames;
 
     // Gmail 메시지 snippet (180자 이내 미리보기)
     @Column(name = "snippet", length = 500)
@@ -87,19 +98,23 @@ public class Message extends BaseEntity {
     private List<Label> labels = new ArrayList<>();
 
     public static Message from(Thread thread, CreateValues values) {
+        CreateValues normalizedValues = values.normalizeNames();
         return Message.builder()
                 .thread(thread)
-                .gmailMessageId(values.gmailMessageId())
-                .direction(values.direction())
-                .subject(values.subject())
-                .fromAddress(values.fromAddress())
-                .toAddresses(values.toAddresses())
-                .ccAddresses(values.ccAddresses())
-                .snippet(values.snippet())
-                .read(values.read())
-                .sentAt(values.sentAt())
-                .bodyText(values.bodyText())
-                .bodyHtml(values.bodyHtml())
+                .gmailMessageId(normalizedValues.gmailMessageId())
+                .direction(normalizedValues.direction())
+                .subject(normalizedValues.subject())
+                .fromAddress(normalizedValues.fromAddress())
+                .fromName(normalizedValues.fromName())
+                .toAddresses(copyList(normalizedValues.toAddresses()))
+                .toNames(copyList(normalizedValues.toNames()))
+                .ccAddresses(copyList(normalizedValues.ccAddresses()))
+                .ccNames(copyList(normalizedValues.ccNames()))
+                .snippet(normalizedValues.snippet())
+                .read(normalizedValues.read())
+                .sentAt(normalizedValues.sentAt())
+                .bodyText(normalizedValues.bodyText())
+                .bodyHtml(normalizedValues.bodyHtml())
                 .attachments(new ArrayList<>())
                 .labels(Collections.emptyList())
                 .build();
@@ -110,14 +125,35 @@ public class Message extends BaseEntity {
             Direction direction,
             String subject,
             String fromAddress,
+            String fromName,
             List<String> toAddresses,
+            List<String> toNames,
             List<String> ccAddresses,
+            List<String> ccNames,
             String snippet,
             boolean read,
             LocalDateTime sentAt,
             String bodyText,
             String bodyHtml
     ) {
+        public CreateValues normalizeNames() {
+            return new CreateValues(
+                    gmailMessageId,
+                    direction,
+                    subject,
+                    fromAddress,
+                    normalizeSingleName(fromName, fromAddress),
+                    copyList(toAddresses),
+                    normalizeAddressNames(toNames, toAddresses),
+                    copyList(ccAddresses),
+                    normalizeAddressNames(ccNames, ccAddresses),
+                    snippet,
+                    read,
+                    sentAt,
+                    bodyText,
+                    bodyHtml
+            );
+        }
     }
 
     public void markAsRead() {
@@ -129,31 +165,41 @@ public class Message extends BaseEntity {
     }
 
     public void updateFrom(CreateValues values) {
+        CreateValues normalizedValues = values.normalizeNames();
         updateBasicContent(
-                values.subject(),
-                values.fromAddress(),
-                values.toAddresses(),
-                values.ccAddresses(),
-                values.snippet(),
-                values.read(),
-                values.sentAt()
+                normalizedValues.subject(),
+                normalizedValues.fromAddress(),
+                normalizedValues.fromName(),
+                normalizedValues.toAddresses(),
+                normalizedValues.toNames(),
+                normalizedValues.ccAddresses(),
+                normalizedValues.ccNames(),
+                normalizedValues.snippet(),
+                normalizedValues.read(),
+                normalizedValues.sentAt()
         );
-        updateBodyContent(values.bodyText(), values.bodyHtml());
+        updateBodyContent(normalizedValues.bodyText(), normalizedValues.bodyHtml());
     }
 
     public void updateBasicContent(
             String subject,
             String fromAddress,
+            String fromName,
             List<String> toAddresses,
+            List<String> toNames,
             List<String> ccAddresses,
+            List<String> ccNames,
             String snippet,
             boolean read,
             LocalDateTime sentAt
     ) {
         this.subject = subject;
         this.fromAddress = fromAddress;
-        this.toAddresses = toAddresses == null ? List.of() : List.copyOf(toAddresses);
-        this.ccAddresses = ccAddresses == null ? List.of() : List.copyOf(ccAddresses);
+        this.fromName = fromName;
+        this.toAddresses = copyList(toAddresses);
+        this.toNames = copyList(toNames);
+        this.ccAddresses = copyList(ccAddresses);
+        this.ccNames = copyList(ccNames);
         this.snippet = snippet;
         this.read = read;
         this.sentAt = sentAt;
@@ -169,5 +215,36 @@ public class Message extends BaseEntity {
         if (attachments != null) {
             this.attachments.addAll(attachments);
         }
+    }
+
+    private static List<String> copyList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(values));
+    }
+
+    private static List<String> normalizeAddressNames(List<String> names, List<String> addresses) {
+        if (addresses == null || addresses.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> normalizedNames = new ArrayList<>(addresses.size());
+        for (int index = 0; index < addresses.size(); index++) {
+            String address = addresses.get(index);
+            String name = names != null && index < names.size() ? names.get(index) : null;
+            normalizedNames.add(normalizeSingleName(name, address));
+        }
+        return Collections.unmodifiableList(normalizedNames);
+    }
+
+    private static String normalizeSingleName(String name, String address) {
+        if (name != null) {
+            String trimmedName = name.trim();
+            if (!trimmedName.isBlank()) {
+                return trimmedName;
+            }
+        }
+        return address;
     }
 }

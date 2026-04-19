@@ -89,6 +89,7 @@ public class InitialMailSyncCommandService {
                 aggregate.latestSubject(),
                 aggregate.latestSnippet(),
                 aggregate.latestParticipantAddress(),
+                aggregate.latestParticipantName(),
                 aggregate.lastMessageAt(),
                 aggregate.read()
         );
@@ -217,6 +218,7 @@ public class InitialMailSyncCommandService {
         private String latestSubject;
         private String latestSnippet;
         private String latestParticipantAddress;
+        private String latestParticipantName;
         private LocalDateTime lastMessageAt;
         private boolean read;
         private int messageCount;
@@ -227,6 +229,7 @@ public class InitialMailSyncCommandService {
             aggregate.latestSubject = thread.getLatestSubject();
             aggregate.latestSnippet = thread.getLatestSnippet();
             aggregate.latestParticipantAddress = thread.getLatestParticipantAddress();
+            aggregate.latestParticipantName = thread.getLatestParticipantName();
             aggregate.lastMessageAt = thread.getLastMessageAt();
             aggregate.read = thread.isRead();
             aggregate.messageCount = thread.getMessageCount();
@@ -250,7 +253,15 @@ public class InitialMailSyncCommandService {
                 latestParticipantAddress = resolveLatestParticipantAddress(
                         messageCommand.direction(),
                         messageCommand.fromAddress(),
-                        messageCommand.toAddresses()
+                        messageCommand.toAddresses(),
+                        messageCommand.ccAddresses()
+                );
+                latestParticipantName = resolveLatestParticipantName(
+                        messageCommand.direction(),
+                        messageCommand.fromName(),
+                        messageCommand.toNames(),
+                        messageCommand.ccNames(),
+                        latestParticipantAddress
                 );
                 lastMessageAt = candidateSentAt;
                 read = messageCommand.read();
@@ -281,6 +292,10 @@ public class InitialMailSyncCommandService {
             return latestParticipantAddress;
         }
 
+        private String latestParticipantName() {
+            return latestParticipantName;
+        }
+
         private LocalDateTime lastMessageAt() {
             return lastMessageAt;
         }
@@ -302,11 +317,51 @@ public class InitialMailSyncCommandService {
             return null;
         }
 
-        private String resolveLatestParticipantAddress(Direction direction, String fromAddress, List<String> toAddresses) {
+        private String resolveLatestParticipantAddress(
+                Direction direction,
+                String fromAddress,
+                List<String> toAddresses,
+                List<String> ccAddresses
+        ) {
             if (direction == Direction.OUTBOUND) {
-                return toAddresses == null || toAddresses.isEmpty() ? null : toAddresses.getFirst();
+                if (toAddresses != null && !toAddresses.isEmpty()) {
+                    return toAddresses.getFirst();
+                }
+                return ccAddresses == null || ccAddresses.isEmpty() ? null : ccAddresses.getFirst();
             }
             return fromAddress;
+        }
+
+        private String resolveLatestParticipantName(
+                Direction direction,
+                String fromName,
+                List<String> toNames,
+                List<String> ccNames,
+                String participantAddress
+        ) {
+            if (direction == Direction.OUTBOUND) {
+                if (toNames == null || toNames.isEmpty()) {
+                    if (ccNames == null || ccNames.isEmpty()) {
+                        return participantAddress;
+                    }
+                    return normalizeName(ccNames.getFirst(), participantAddress);
+                }
+                return normalizeName(toNames.getFirst(), participantAddress);
+            }
+            return normalizeName(fromName, participantAddress);
+        }
+
+        private String normalizeName(String name, String fallbackAddress) {
+            if (name == null) {
+                return fallbackAddress;
+            }
+
+            String trimmedName = name.trim();
+            if (trimmedName.isBlank()) {
+                return fallbackAddress;
+            }
+
+            return trimmedName;
         }
 
         private boolean isBlank(String value) {
