@@ -28,7 +28,9 @@ public record ThreadSummaryResponse(
         @Schema(description = "최신 메시지 시각")
         LocalDateTime lastMessageAt,
         @Schema(description = "스레드 내 첨부파일 목록")
-        List<AttachmentResponse> attachments
+        List<AttachmentResponse> attachments,
+        @Schema(description = "스레드 내 메시지 수", example = "3")
+        int messageCount
 ) {
     public static ThreadSummaryResponse from(Thread thread, List<Attachment> attachments, Map<String, String> contactNameByEmail) {
         List<AttachmentResponse> attachmentResponses = attachments.stream()
@@ -44,7 +46,8 @@ public record ThreadSummaryResponse(
                 thread.getLatestSnippet(),
                 thread.isRead(),
                 thread.getLastMessageAt(),
-                attachmentResponses
+                attachmentResponses,
+                thread.getMessageCount()
         );
     }
 }
