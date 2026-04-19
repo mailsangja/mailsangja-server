@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "mailsangja.fcm")
 public class FcmProperties {
 
+    private String serviceAccountKeyJson;
     private String serviceAccountKeyPath;
     private String logoImageUrl;
     private String threadDetailUrlTemplate;
