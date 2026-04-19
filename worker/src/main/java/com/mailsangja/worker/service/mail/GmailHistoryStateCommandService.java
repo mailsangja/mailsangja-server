@@ -17,6 +17,7 @@ import java.util.List;
 public class GmailHistoryStateCommandService {
 
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final GmailHistoryStateQueryService gmailHistoryStateQueryService;
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final GmailHistoryStateApplyCommandService gmailHistoryStateApplyCommandService;
@@ -32,7 +33,9 @@ public class GmailHistoryStateCommandService {
     private void processMessageReadState(GmailHistoryEvent event, boolean read) {
         validateEvent(event);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
+        );
         InitialMailSyncThreadSaveCommand syncCommand = prepareSyncCommandIfNeeded(mailAccount, event);
 
         gmailHistoryStateApplyCommandService.applyMessageReadState(mailAccount, event, read, syncCommand);

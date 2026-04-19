@@ -20,6 +20,7 @@ public enum MailPushErrorCode implements ErrorCode {
     INVALID_GMAIL_WATCH_RENEWAL_COMMAND(400, "MS-MAIL-INVALID-GMAIL-WATCH-RENEWAL-COMMAND", "Gmail watch 갱신 메시지 값이 올바르지 않습니다."),
     MAIL_ACCOUNT_NOT_FOUND(404, "MS-MAIL-ACCOUNT-NOT-FOUND", "메일 계정을 찾을 수 없습니다."),
     INVALID_MAIL_ACCOUNT_STATE(400, "MS-MAIL-INVALID-MAIL-ACCOUNT-STATE", "이벤트를 처리할 수 없는 메일 계정 상태입니다."),
+    GOOGLE_REFRESH_TOKEN_MISSING(400, "MS-MAIL-GOOGLE-REFRESH-TOKEN-MISSING", "Google 계정 재연동이 필요합니다. 다시 동의하고 계정을 연결해주세요."),
     GOOGLE_TOKEN_REFRESH_FAILED(502, "MS-MAIL-GOOGLE-TOKEN-REFRESH-FAILED", "Google access token 재발급에 실패했습니다."),
     GOOGLE_MAIL_WATCH_FAILED(502, "MS-MAIL-GOOGLE-MAIL-WATCH-FAILED", "Google Gmail watch 등록에 실패했습니다."),
     GOOGLE_MAIL_WATCH_RESULT_INVALID(502, "MS-MAIL-GOOGLE-MAIL-WATCH-RESULT-INVALID", "Google Gmail watch 응답값이 올바르지 않습니다."),

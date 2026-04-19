@@ -11,6 +11,7 @@ import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import com.mailsangja.worker.service.google.GoogleMailMessageQueryService;
+import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import com.mailsangja.worker.service.messaging.MailTaskPublisherService;
@@ -28,6 +29,7 @@ import java.util.List;
 public class InitialMailSyncFacade {
 
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final MailTaskPublisherService mailTaskPublisherService;
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
@@ -36,7 +38,9 @@ public class InitialMailSyncFacade {
     public void handleInitialMailSync(InitialMailSyncMessage message) {
         validateMessage(message);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(message.mailAccountId());
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
+        );
         GoogleMailMessageListResult result = googleMailMessageQueryService.getLatestMessages(mailAccount.getAccessToken());
         List<String> threadIds = extractThreadIds(result);
         List<List<String>> threadBatches = partitionThreadIds(threadIds);
@@ -66,7 +70,9 @@ public class InitialMailSyncFacade {
     public void handleInitialMailSyncThreadBatch(InitialMailSyncThreadBatchMessage message) {
         validateThreadBatchMessage(message);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(message.mailAccountId());
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
+        );
         List<InitialMailSyncThreadResult> threadResults = googleMailMessageQueryService.getThreads(
                 mailAccount.getAccessToken(),
                 message.threadIds()

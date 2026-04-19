@@ -9,6 +9,7 @@ import com.mailsangja.core.dto.mail.MailAddressCommand;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.service.google.GoogleMailAttachmentQueryService;
+import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.MailAttachmentQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.mail.MailCommandService;
@@ -37,6 +38,7 @@ public class MailFacade {
     private static final long MAX_TOTAL_ATTACHMENT_SIZE = 20L * 1024 * 1024;
 
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final MailCommandService mailCommandService;
     private final MailAttachmentQueryService mailAttachmentQueryService;
     private final GoogleMailAttachmentQueryService googleMailAttachmentQueryService;
@@ -61,8 +63,11 @@ public class MailFacade {
         validateAttachmentAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), attachment);
         validateAttachmentProvider(attachment);
 
+        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                attachment.getMessage().getThread().getMailAccount()
+        );
         byte[] attachmentBytes = googleMailAttachmentQueryService.download(
-                attachment.getMessage().getThread().getMailAccount(),
+                ensuredMailAccount,
                 attachment.getMessage(),
                 attachment
         );

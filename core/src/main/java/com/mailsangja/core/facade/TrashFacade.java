@@ -3,10 +3,10 @@ package com.mailsangja.core.facade;
 import com.mailsangja.core.common.exception.trash.TrashErrorCode;
 import com.mailsangja.core.common.exception.trash.TrashException;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
-import com.mailsangja.core.dto.trash.TrashMessageItemResponse;
 import com.mailsangja.core.dto.trash.TrashThreadDetailResponse;
 import com.mailsangja.core.dto.trash.TrashThreadSummaryResponse;
 import com.mailsangja.core.service.google.GoogleGmailApiService;
+import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.trash.TrashCommandService;
 import com.mailsangja.core.service.trash.TrashQueryService;
@@ -34,19 +34,22 @@ public class TrashFacade {
     private final TrashQueryService trashQueryService;
     private final GoogleGmailApiService googleGmailApiService;
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
 
     public void deleteThread(User user, UUID threadId) {
         Thread thread = trashQueryService.findActiveThreadById(threadId);
         validateThreadAccess(user, thread);
         trashCommandService.softDeleteThread(thread);
-        googleGmailApiService.trashThread(thread.getMailAccount().getAccessToken(), thread.getGmailThreadId());
+        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(thread.getMailAccount());
+        googleGmailApiService.trashThread(ensuredMailAccount.getAccessToken(), thread.getGmailThreadId());
     }
 
     public void deleteMessage(User user, UUID messageId) {
         Message message = trashQueryService.findActiveMessageById(messageId);
         validateThreadAccess(user, message.getThread());
         trashCommandService.softDeleteMessage(message);
-        googleGmailApiService.trashMessage(message.getThread().getMailAccount().getAccessToken(), message.getGmailMessageId());
+        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(message.getThread().getMailAccount());
+        googleGmailApiService.trashMessage(ensuredMailAccount.getAccessToken(), message.getGmailMessageId());
     }
 
     public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(User user, UUID marker, int size) {
@@ -88,14 +91,16 @@ public class TrashFacade {
         Thread thread = trashQueryService.findDeletedThreadById(threadId);
         validateThreadAccess(user, thread);
         trashCommandService.restoreThread(thread);
-        googleGmailApiService.untrashThread(thread.getMailAccount().getAccessToken(), thread.getGmailThreadId());
+        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(thread.getMailAccount());
+        googleGmailApiService.untrashThread(ensuredMailAccount.getAccessToken(), thread.getGmailThreadId());
     }
 
     public void restoreMessage(User user, UUID messageId) {
         Message message = trashQueryService.findDeletedMessageById(messageId);
         validateThreadAccess(user, message.getThread());
         trashCommandService.restoreMessage(message);
-        googleGmailApiService.untrashMessage(message.getThread().getMailAccount().getAccessToken(), message.getGmailMessageId());
+        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(message.getThread().getMailAccount());
+        googleGmailApiService.untrashMessage(ensuredMailAccount.getAccessToken(), message.getGmailMessageId());
     }
 
     private void validateThreadAccess(User user, Thread thread) {

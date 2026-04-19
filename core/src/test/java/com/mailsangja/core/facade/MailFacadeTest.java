@@ -5,13 +5,20 @@ import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
+import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
 import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
+import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
+import com.mailsangja.core.config.properties.GoogleMailProperties;
+import com.mailsangja.core.config.properties.GoogleOAuthProperties;
 import com.mailsangja.core.service.google.GoogleMailAttachmentQueryService;
 import com.mailsangja.core.service.google.GoogleMailMessageQueryService;
+import com.mailsangja.core.service.google.GoogleOAuthQueryService;
 import com.mailsangja.core.service.google.GoogleMailSendCommandService;
+import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.MailAttachmentQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.core.service.mail.MailAccountCommandService;
 import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.core.service.mail.MailQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
@@ -220,10 +227,17 @@ class MailFacadeTest {
     }
 
     private MailFacade createMailFacade(List<MailAccount> mailAccounts, List<Attachment> attachments) {
-        MailQueryService mailQueryService = new MailQueryService(new FakeMailAccountRepositoryPort(mailAccounts));
-        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(new FakeMailAccountRepositoryPort(mailAccounts));
+        FakeMailAccountRepositoryPort mailAccountRepositoryPort = new FakeMailAccountRepositoryPort(mailAccounts);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
         MailCommandService mailCommandService = new MailCommandService(
                 mailQueryService,
+                googleAccessTokenEnsureService,
                 new FakeGoogleMailSendCommandService(),
                 new FakeGoogleMailMessageQueryService(),
                 new FakeThreadRepositoryPort(),
@@ -235,6 +249,7 @@ class MailFacadeTest {
         );
         return new MailFacade(
                 mailAccountQueryService,
+                googleAccessTokenEnsureService,
                 mailCommandService,
                 mailAttachmentQueryService,
                 new FakeGoogleMailAttachmentQueryService()
@@ -315,12 +330,17 @@ class MailFacadeTest {
 
         @Override
         public Optional<MailAccount> findByIdAndDeletedAtIsNull(UUID id) {
-            return Optional.empty();
+            return mailAccounts.stream()
+                    .filter(mailAccount -> id.equals(mailAccount.getId()))
+                    .findFirst();
         }
 
         @Override
         public Optional<MailAccount> findByIdAndActiveAndDeletedAtIsNull(UUID id, boolean active) {
-            return Optional.empty();
+            return mailAccounts.stream()
+                    .filter(mailAccount -> id.equals(mailAccount.getId()))
+                    .filter(mailAccount -> mailAccount.isActive() == active)
+                    .findFirst();
         }
 
         @Override
@@ -410,11 +430,11 @@ class MailFacadeTest {
     private static class FakeGoogleMailSendCommandService extends GoogleMailSendCommandService {
 
         private FakeGoogleMailSendCommandService() {
-            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+            super(new GoogleMailProperties(), RestClient.builder().build());
         }
 
         @Override
-        public GoogleMailSendResult send(MailAccount mailAccount, com.mailsangja.core.dto.mail.MailSendCommand command) {
+        public GoogleMailSendResult send(MailAccount mailAccount, MailSendCommand command) {
             return new GoogleMailSendResult(
                     "gmail-message-id",
                     "gmail-thread-id"
@@ -422,10 +442,28 @@ class MailFacadeTest {
         }
     }
 
+    private static class FakeGoogleOAuthQueryService extends GoogleOAuthQueryService {
+
+        private FakeGoogleOAuthQueryService() {
+            super(new GoogleOAuthProperties(), RestClient.builder().build());
+        }
+
+        @Override
+        public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
+            return new GoogleOAuthTokenResult(
+                    "refreshed-token",
+                    refreshToken,
+                    3600L,
+                    null,
+                    "Bearer"
+            );
+        }
+    }
+
     private static class FakeGoogleMailMessageQueryService extends GoogleMailMessageQueryService {
 
         private FakeGoogleMailMessageQueryService() {
-            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+            super(new GoogleMailProperties(), RestClient.builder().build());
         }
 
         @Override
@@ -458,7 +496,7 @@ class MailFacadeTest {
     private static class FakeGoogleMailAttachmentQueryService extends GoogleMailAttachmentQueryService {
 
         private FakeGoogleMailAttachmentQueryService() {
-            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+            super(new GoogleMailProperties(), RestClient.builder().build());
         }
 
         @Override

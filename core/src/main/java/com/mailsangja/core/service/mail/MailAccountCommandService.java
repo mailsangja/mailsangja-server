@@ -3,6 +3,7 @@ package com.mailsangja.core.service.mail;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
+import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
 import com.mailsangja.core.dto.mail.MailAccountCreateCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
@@ -13,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -78,6 +81,22 @@ public class MailAccountCommandService {
         return savedMailAccount;
     }
 
+    @Transactional
+    public MailAccount refreshGoogleAccessToken(UUID mailAccountId, GoogleOAuthTokenResult tokenResult) {
+        validateRefreshGoogleAccessTokenInput(mailAccountId, tokenResult);
+
+        MailAccount mailAccount = mailAccountQueryService.findActiveById(mailAccountId);
+        validateRefreshableGoogleMailAccount(mailAccount);
+
+        mailAccount.updateAccessToken(tokenResult.accessToken());
+        mailAccount.updateAccessTokenExpiresAt(LocalDateTime.now().plusSeconds(tokenResult.expiresIn()));
+        if (!isBlank(tokenResult.refreshToken())) {
+            mailAccount.updateRefreshToken(tokenResult.refreshToken());
+        }
+
+        return mailAccount;
+    }
+
     private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
         if (result == null
                 || isBlank(result.emailAddress())
@@ -108,6 +127,26 @@ public class MailAccountCommandService {
         }
 
         if (isBlank(command.refreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+        }
+    }
+
+    private void validateRefreshGoogleAccessTokenInput(UUID mailAccountId, GoogleOAuthTokenResult tokenResult) {
+        if (mailAccountId == null
+                || tokenResult == null
+                || isBlank(tokenResult.accessToken())
+                || tokenResult.expiresIn() == null
+                || tokenResult.expiresIn() <= 0) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED);
+        }
+    }
+
+    private void validateRefreshableGoogleMailAccount(MailAccount mailAccount) {
+        if (mailAccount.getProvider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (isBlank(mailAccount.getRefreshToken())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
     }
