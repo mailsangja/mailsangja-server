@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,9 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GoogleAccessTokenEnsureServiceTest {
 
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
+
     @Test
     void ensureValidGoogleAccessToken_만료가충분히남아있으면기존토큰을사용한다() {
-        MailAccount mailAccount = createMailAccount(LocalDateTime.now().plusMinutes(30), "access-token", "refresh-token");
+        MailAccount mailAccount = createMailAccount(LocalDateTime.now(KST_ZONE_ID).plusMinutes(30), "access-token", "refresh-token");
         InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
         FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
         GoogleAccessTokenEnsureService service = createService(repository, googleOAuthQueryService);
@@ -33,7 +36,7 @@ class GoogleAccessTokenEnsureServiceTest {
 
     @Test
     void ensureValidGoogleAccessToken_만료가임박하면토큰을재발급한다() {
-        MailAccount mailAccount = createMailAccount(LocalDateTime.now().plusMinutes(5), "old-token", "refresh-token");
+        MailAccount mailAccount = createMailAccount(LocalDateTime.now(KST_ZONE_ID).plusMinutes(5), "old-token", "refresh-token");
         InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
         FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
         GoogleAccessTokenEnsureService service = createService(repository, googleOAuthQueryService);
