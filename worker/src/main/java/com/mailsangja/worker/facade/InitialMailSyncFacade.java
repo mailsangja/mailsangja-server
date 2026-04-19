@@ -38,9 +38,7 @@ public class InitialMailSyncFacade {
     public void handleInitialMailSync(InitialMailSyncMessage message) {
         validateMessage(message);
 
-        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
-        );
+        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(message.mailAccountId());
         GoogleMailMessageListResult result = googleMailMessageQueryService.getLatestMessages(mailAccount.getAccessToken());
         List<String> threadIds = extractThreadIds(result);
         List<List<String>> threadBatches = partitionThreadIds(threadIds);
@@ -70,9 +68,7 @@ public class InitialMailSyncFacade {
     public void handleInitialMailSyncThreadBatch(InitialMailSyncThreadBatchMessage message) {
         validateThreadBatchMessage(message);
 
-        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
-        );
+        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(message.mailAccountId());
         List<InitialMailSyncThreadResult> threadResults = googleMailMessageQueryService.getThreads(
                 mailAccount.getAccessToken(),
                 message.threadIds()
