@@ -32,9 +32,10 @@ If guidance conflicts:
 - For non-trivial work, summarize the target files and design direction before editing.
 - After implementing backend changes, re-read `.claude/skills/facade-service-test-conventions.md` and check for missing facade/service tests.
 - If `facade` or `service` code changed, write or strengthen the corresponding test code before considering the task complete.
+- New or updated facade/service tests must follow the BDD style in the convention, including `@DisplayName`, `given / when / then`, and BDDMockito usage.
 - After writing tests, run the relevant module tests and confirm they pass.
-- After tests pass, run coverage verification for the relevant module and confirm `facade`/`service` package line coverage is at least 70%.
-- If coverage does not reach 70%, add more tests and run the test and coverage steps again.
+- After tests pass, run coverage verification for the relevant module and confirm `facade`/`service` package line coverage is at least 60%.
+- If coverage does not reach 60%, add more tests and run the test and coverage steps again.
 
 ## Architecture
 

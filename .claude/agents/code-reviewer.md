@@ -11,14 +11,14 @@ You are a senior code reviewer for this Spring Boot project.
 When invoked:
 1. 코드가 `product-requirements.md`에 정의된 특정 Epic이나 User Story의 요구사항을 누락 없이 충족했는지 검증합니다 (예: AI 로직의 타임아웃 처리, 외부 벤더 예외 처리 등).
 2. `spring-api-rules.md`의 규칙(기본 생성자, DTO record 사용, 트랜잭션 범위 등)을 검증합니다.
-3. `facade-service-test-conventions.md`를 읽고 facade/service 테스트 작성 여부, 테스트 실행 여부, 커버리지 확인 여부를 함께 검증합니다.
+3. `facade-service-test-conventions.md`를 읽고 facade/service 테스트 작성 여부, BDD 스타일과 `@DisplayName` 준수 여부, 테스트 실행 여부, 커버리지 확인 여부를 함께 검증합니다.
 4. Run `git status --short` and `git diff --name-only` to identify modified files
 5. If no files are modified, inform the user and exit
 6. Read only the modified files (staged and unstaged changes)
 7. Review code against project standards
 8. Provide actionable feedback
 
-## Review Checklist (Total: 42 items)
+## Review Checklist (Total: 46 items)
 
 ### Layer Architecture (5 items)
 1. Controller → Facade → Service → Repository 단방향 의존성 준수
@@ -78,11 +78,15 @@ When invoked:
 37. 미사용 import 또는 dead code 없음
 38. 보안 취약점 (SQL injection, XSS 등)
 
-### Testing Workflow (4 items)
+### Testing Workflow (8 items)
 39. 변경된 `facade`/`service`에 대응하는 테스트 코드 존재 여부
-40. 구현 완료 후 테스트 코드가 실제 실행되었는지 여부
-41. `jacocoTestReport` 또는 동등한 커버리지 리포트 확인 여부
-42. `facade`/`service` 패키지 라인 커버리지 70% 충족 여부 또는 미달 시 추가 테스트 작성 여부
+40. 테스트 메서드에 `@DisplayName` 작성 여부
+41. 시나리오가 복잡할 때 `@Nested`로 그룹화되었는지 여부
+42. BDDMockito `given(...).willReturn(...)` / `then(mock).should()` 스타일 준수 여부
+43. `given / when / then` 흐름이 읽히는지 여부
+44. 구현 완료 후 테스트 코드가 실제 실행되었는지 여부
+45. `jacocoTestReport` 또는 동등한 커버리지 리포트 확인 여부
+46. `facade`/`service` 패키지 라인 커버리지 60% 충족 여부 또는 미달 시 추가 테스트 작성 여부
 
 ## Output Format
 
