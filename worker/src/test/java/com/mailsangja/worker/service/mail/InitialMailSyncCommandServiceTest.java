@@ -8,489 +8,326 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.SliceImpl;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class InitialMailSyncCommandServiceTest {
+
+    @Mock
+    private ThreadRepositoryPort threadRepositoryPort;
+
+    @Mock
+    private MessageRepositoryPort messageRepositoryPort;
+
+    private InitialMailSyncCommandService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new InitialMailSyncCommandService(threadRepositoryPort, messageRepositoryPort);
+    }
 
     @Test
     void saveThreadBatch_doesNotIncreaseMessageCountForUpdatedMessages() {
-        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
-        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
-        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        AtomicReference<Message> storedMessage = new AtomicReference<>();
 
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenAnswer(invocation -> Optional.ofNullable(storedMessage.get()));
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            storedMessage.set(message);
+            return message;
+        });
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-1",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
                         Direction.INBOUND,
                         "subject",
                         "alice@example.com",
                         "Alice",
-                        List.of("bob@example.com"),
-                        List.of("Bob"),
-                        List.of(),
-                        List.of(),
+                        java.util.List.of("bob@example.com"),
+                        java.util.List.of("Bob"),
+                        java.util.List.of(),
+                        java.util.List.of(),
                         "snippet",
                         false,
                         LocalDateTime.of(2026, 4, 11, 10, 0),
                         "body",
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-2",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-2",
                         Direction.INBOUND,
                         "updated subject",
                         "alice@example.com",
                         "Alice",
-                        List.of("bob@example.com"),
-                        List.of("Bob"),
-                        List.of(),
-                        List.of(),
+                        java.util.List.of("bob@example.com"),
+                        java.util.List.of("Bob"),
+                        java.util.List.of(),
+                        java.util.List.of(),
                         "updated snippet",
                         true,
                         LocalDateTime.of(2026, 4, 11, 11, 0),
                         "updated body",
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        Thread savedThread = threadRepository.savedThreads.getFirst();
-        assertEquals(1, savedThread.getMessageCount());
-        assertEquals("updated subject", savedThread.getLatestSubject());
-        assertEquals("updated snippet", savedThread.getLatestSnippet());
+        assertEquals(1, thread.getMessageCount());
+        assertEquals("updated subject", thread.getLatestSubject());
+        assertEquals("updated snippet", thread.getLatestSnippet());
+        verify(messageRepositoryPort, times(1)).save(any(Message.class));
     }
 
     @Test
     void saveThreadBatch_doesNotReplaceLatestMessageWhenSentAtIsNull() {
-        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
-        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
-        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        AtomicReference<Message> firstMessage = new AtomicReference<>();
 
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenAnswer(invocation -> Optional.ofNullable(firstMessage.get()));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-2"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            if ("message-1".equals(message.getGmailMessageId())) {
+                firstMessage.set(message);
+            }
+            return message;
+        });
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-1",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
                         Direction.INBOUND,
                         "subject-1",
                         "alice@example.com",
                         "Alice",
-                        List.of(),
-                        List.of(),
-                        List.of(),
-                        List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
                         "snippet-1",
                         false,
                         LocalDateTime.of(2026, 4, 11, 10, 0),
                         null,
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-2",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-2",
                         "history-2",
                         Direction.INBOUND,
                         "subject-2",
                         "carol@example.com",
                         "Carol",
-                        List.of(),
-                        List.of(),
-                        List.of(),
-                        List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        java.util.List.of(),
                         "snippet-2",
                         true,
                         null,
                         null,
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        Thread savedThread = threadRepository.savedThreads.getFirst();
-        assertEquals("subject-1", savedThread.getLatestSubject());
-        assertEquals("snippet-1", savedThread.getLatestSnippet());
-        assertEquals(LocalDateTime.of(2026, 4, 11, 10, 0), savedThread.getLastMessageAt());
-        assertEquals(2, savedThread.getMessageCount());
+        assertEquals("subject-1", thread.getLatestSubject());
+        assertEquals("snippet-1", thread.getLatestSnippet());
+        assertEquals(LocalDateTime.of(2026, 4, 11, 10, 0), thread.getLastMessageAt());
+        assertEquals(2, thread.getMessageCount());
     }
 
     @Test
     void saveThreadBatch_fillsMessageNamesAndLatestParticipantNameWithAddressFallback() {
-        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
-        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
-        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.OUTBOUND);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
 
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.OUTBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-1",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
                         Direction.OUTBOUND,
                         "subject",
                         "sender@example.com",
                         null,
-                        List.of("first@example.com", "second@example.com"),
+                        java.util.List.of("first@example.com", "second@example.com"),
                         Arrays.asList((String) null),
-                        List.of("cc@example.com"),
-                        List.of(""),
+                        java.util.List.of("cc@example.com"),
+                        java.util.List.of(""),
                         "snippet",
                         true,
                         LocalDateTime.of(2026, 4, 11, 10, 0),
                         "body",
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        Message savedMessage = messageRepository.savedMessages.getFirst();
-        Thread savedThread = threadRepository.savedThreads.getFirst();
-
+        verify(messageRepositoryPort).save(messageCaptor.capture());
+        Message savedMessage = messageCaptor.getValue();
         assertEquals("sender@example.com", savedMessage.getFromName());
-        assertEquals(List.of("first@example.com", "second@example.com"), savedMessage.getToNames());
-        assertEquals(List.of("cc@example.com"), savedMessage.getCcNames());
-        assertEquals("first@example.com", savedThread.getLatestParticipantAddress());
-        assertEquals("first@example.com", savedThread.getLatestParticipantName());
+        assertEquals(java.util.List.of("first@example.com", "second@example.com"), savedMessage.getToNames());
+        assertEquals(java.util.List.of("cc@example.com"), savedMessage.getCcNames());
+        assertEquals("first@example.com", thread.getLatestParticipantAddress());
+        assertEquals("first@example.com", thread.getLatestParticipantName());
     }
 
     @Test
     void saveThreadBatch_trimsNamesBeforeSaving() {
-        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
-        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
-        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.OUTBOUND);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
 
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.OUTBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-1",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
                         Direction.OUTBOUND,
                         "subject",
                         "sender@example.com",
                         "  Sender Name  ",
-                        List.of("first@example.com"),
-                        List.of("  First Receiver  "),
-                        List.of("cc@example.com"),
-                        List.of("  "),
+                        java.util.List.of("first@example.com"),
+                        java.util.List.of("  First Receiver  "),
+                        java.util.List.of("cc@example.com"),
+                        java.util.List.of("  "),
                         "snippet",
                         true,
                         LocalDateTime.of(2026, 4, 11, 10, 0),
                         "body",
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        Message savedMessage = messageRepository.savedMessages.getFirst();
-        Thread savedThread = threadRepository.savedThreads.getFirst();
-
+        verify(messageRepositoryPort).save(messageCaptor.capture());
+        Message savedMessage = messageCaptor.getValue();
         assertEquals("Sender Name", savedMessage.getFromName());
-        assertEquals(List.of("First Receiver"), savedMessage.getToNames());
-        assertEquals(List.of("cc@example.com"), savedMessage.getCcNames());
-        assertEquals("First Receiver", savedThread.getLatestParticipantName());
+        assertEquals(java.util.List.of("First Receiver"), savedMessage.getToNames());
+        assertEquals(java.util.List.of("cc@example.com"), savedMessage.getCcNames());
+        assertEquals("First Receiver", thread.getLatestParticipantName());
     }
 
     @Test
     void saveThreadBatch_usesCcAsLatestParticipantWhenToIsEmpty() {
-        InMemoryThreadRepository threadRepository = new InMemoryThreadRepository();
-        InMemoryMessageRepository messageRepository = new InMemoryMessageRepository();
-        InitialMailSyncCommandService service = new InitialMailSyncCommandService(threadRepository, messageRepository);
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.OUTBOUND);
 
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.OUTBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+        service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
                 "history-1",
-                List.of(new InitialMailSyncMessageSaveCommand(
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
                         Direction.OUTBOUND,
                         "subject",
                         "sender@example.com",
                         "Sender",
-                        List.of(),
-                        List.of(),
-                        List.of("cc@example.com"),
-                        List.of("CC Receiver"),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        java.util.List.of("cc@example.com"),
+                        java.util.List.of("CC Receiver"),
                         "snippet",
                         true,
                         LocalDateTime.of(2026, 4, 11, 10, 0),
                         "body",
                         null,
-                        List.of()
+                        java.util.List.of()
                 ))
         )));
 
-        Thread savedThread = threadRepository.savedThreads.getFirst();
-
-        assertEquals("cc@example.com", savedThread.getLatestParticipantAddress());
-        assertEquals("CC Receiver", savedThread.getLatestParticipantName());
+        assertEquals("cc@example.com", thread.getLatestParticipantAddress());
+        assertEquals("CC Receiver", thread.getLatestParticipantName());
     }
 
-    private static final class InMemoryThreadRepository implements ThreadRepositoryPort {
-        private final List<Thread> savedThreads = new ArrayList<>();
-
-        @Override
-        public Thread save(Thread thread) {
-            if (!savedThreads.contains(thread)) {
-                savedThreads.add(thread);
-            }
-            return thread;
-        }
-
-        @Override
-        public Optional<Thread> findByIdAndDeletedAtIsNull(UUID id) {
-            return savedThreads.stream().filter(thread -> id.equals(thread.getId())).findFirst();
-        }
-
-        @Override
-        public Optional<Thread> findByIdIncludingDeleted(UUID id) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<Thread> findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId, Direction direction) {
-            return savedThreads.stream()
-                    .filter(thread -> thread.getMailAccount() != null
-                            && mailAccountId.equals(thread.getMailAccount().getId())
-                            && gmailThreadId.equals(thread.getGmailThreadId())
-                            && direction == thread.getDirection())
-                    .findFirst();
-        }
-
-        @Override
-        public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-            return savedThreads.stream()
-                    .filter(thread -> thread.getMailAccount() != null)
-                    .filter(thread -> mailAccountId.equals(thread.getMailAccount().getId()))
-                    .filter(thread -> gmailThreadId.equals(thread.getGmailThreadId()))
-                    .toList();
-        }
-
-        @Override
-        public List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        @Override
-        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt) {
-            return 0;
-        }
-
-        @Override
-        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return 0;
-        }
-
-        @Override
-        public int bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return 0;
-        }
-
-        @Override
-        public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-        }
-
-        @Override
-        public Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public long countUnreadInboxByUserId(UUID userId) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
-            return null;
-        }
+    private MailAccount createMailAccount() {
+        return MailAccount.builder()
+                .id(UUID.randomUUID())
+                .build();
     }
 
-    private static final class InMemoryMessageRepository implements MessageRepositoryPort {
-        private final List<Message> savedMessages = new ArrayList<>();
-
-        @Override
-        public Message save(Message message) {
-            if (!savedMessages.contains(message)) {
-                savedMessages.add(message);
-            }
-            return message;
-        }
-
-        @Override
-        public Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId) {
-            return savedMessages.stream()
-                    .filter(message -> message.getThread() != null
-                            && gmailMessageId.equals(message.getGmailMessageId())
-                            && (threadId == null || threadId.equals(message.getThread().getId()))
-                            && !message.isDeleted())
-                    .findFirst();
-        }
-
-        @Override
-        public Optional<Message> findByThreadIdAndGmailMessageId(UUID threadId, String gmailMessageId) {
-            return savedMessages.stream()
-                    .filter(message -> message.getThread() != null
-                            && gmailMessageId.equals(message.getGmailMessageId())
-                            && (threadId == null || threadId.equals(message.getThread().getId())))
-                    .findFirst();
-        }
-
-        @Override
-        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            return savedMessages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> message.getThread().getMailAccount() != null)
-                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
-                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
-                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
-                    .findFirst();
-        }
-
-        @Override
-        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            return savedMessages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> message.getThread().getMailAccount() != null)
-                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
-                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
-                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
-                    .findFirst();
-        }
-
-        @Override
-        public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            return savedMessages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> message.getThread().getMailAccount() != null)
-                    .filter(message -> mailAccountId.equals(message.getThread().getMailAccount().getId()))
-                    .filter(message -> gmailThreadId.equals(message.getThread().getGmailThreadId()))
-                    .filter(message -> !gmailMessageId.equals(message.getGmailMessageId()))
-                    .anyMatch(message -> !message.isDeleted());
-        }
-
-        @Override
-        public Optional<Message> findByIdIncludingDeleted(UUID messageId) {
-            return Optional.empty();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdIncludingDeleted(UUID threadId) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdInAndDeletedAtIsNull(List<UUID> threadIds) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        @Override
-        public Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable) {
-            return new SliceImpl<>(List.of());
-        }
-
-        @Override
-        public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        @Override
-        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt) {
-            return 0;
-        }
-
-        @Override
-        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return 0;
-        }
-
-        @Override
-        public void hardDelete(Message message) {
-        }
-
-        @Override
-        public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return false;
-        }
+    private Thread createThread(MailAccount mailAccount, String gmailThreadId, Direction direction) {
+        return Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(direction)
+                .read(true)
+                .messageCount(0)
+                .build();
     }
 }

@@ -1,60 +1,102 @@
 package com.mailsangja.core.service.mail;
 
-import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
 import com.mailsangja.core.config.properties.GoogleOAuthProperties;
+import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class GoogleAccessTokenEnsureServiceTest {
 
     private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
+    @Mock
+    private MailAccountRepositoryPort mailAccountRepositoryPort;
+
     @Test
     void ensureValidGoogleAccessToken_만료가충분히남아있으면기존토큰을사용한다() {
-        MailAccount mailAccount = createMailAccount(LocalDateTime.now(KST_ZONE_ID).plusMinutes(30), "access-token", "refresh-token");
-        InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(30),
+                "access-token",
+                "refresh-token"
+        );
         FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
-        GoogleAccessTokenEnsureService service = createService(repository, googleOAuthQueryService);
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
 
         MailAccount ensuredMailAccount = service.ensureValidGoogleAccessToken(mailAccount);
 
-        assertEquals("access-token", ensuredMailAccount.getAccessToken());
+        assertSame(mailAccount, ensuredMailAccount);
         assertEquals(0, googleOAuthQueryService.refreshCallCount);
+        verify(mailAccountRepositoryPort, never()).findByIdAndActiveAndDeletedAtIsNull(any(), eq(true));
+        verify(mailAccountRepositoryPort, never()).updateGoogleTokenIfAccessTokenMatches(any(), any(), any(), any(), any());
     }
 
     @Test
     void ensureValidGoogleAccessToken_만료가임박하면토큰을재발급한다() {
-        MailAccount mailAccount = createMailAccount(LocalDateTime.now(KST_ZONE_ID).plusMinutes(5), "old-token", "refresh-token");
-        InMemoryMailAccountRepository repository = new InMemoryMailAccountRepository(mailAccount);
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
+                "old-token",
+                "refresh-token"
+        );
+        when(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(mailAccount.getId(), true))
+                .thenReturn(Optional.of(mailAccount));
+        when(mailAccountRepositoryPort.updateGoogleTokenIfAccessTokenMatches(
+                eq(mailAccount.getId()),
+                eq("old-token"),
+                eq("refreshed-token"),
+                any(LocalDateTime.class),
+                eq("new-refresh-token")
+        )).thenAnswer(invocation -> {
+            mailAccount.updateAccessToken(invocation.getArgument(2));
+            mailAccount.updateAccessTokenExpiresAt(invocation.getArgument(3));
+            mailAccount.updateRefreshToken(invocation.getArgument(4));
+            return 1;
+        });
+
         FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
-        GoogleAccessTokenEnsureService service = createService(repository, googleOAuthQueryService);
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
 
         MailAccount ensuredMailAccount = service.ensureValidGoogleAccessToken(mailAccount);
 
+        ArgumentCaptor<LocalDateTime> expiresAtCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(mailAccountRepositoryPort).updateGoogleTokenIfAccessTokenMatches(
+                eq(mailAccount.getId()),
+                eq("old-token"),
+                eq("refreshed-token"),
+                expiresAtCaptor.capture(),
+                eq("new-refresh-token")
+        );
         assertEquals("refreshed-token", ensuredMailAccount.getAccessToken());
         assertEquals("new-refresh-token", ensuredMailAccount.getRefreshToken());
         assertEquals(1, googleOAuthQueryService.refreshCallCount);
+        assertSame(mailAccount, ensuredMailAccount);
     }
 
-    private GoogleAccessTokenEnsureService createService(
-            InMemoryMailAccountRepository repository,
-            FakeGoogleOAuthQueryService googleOAuthQueryService
-    ) {
-        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(repository);
+    private GoogleAccessTokenEnsureService createService(FakeGoogleOAuthQueryService googleOAuthQueryService) {
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(
-                repository,
+                mailAccountRepositoryPort,
                 mailAccountQueryService
         );
         return new GoogleAccessTokenEnsureService(
@@ -90,102 +132,6 @@ class GoogleAccessTokenEnsureServiceTest {
         public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
             refreshCallCount++;
             return new GoogleOAuthTokenResult("refreshed-token", "new-refresh-token", 3600L, null, "Bearer");
-        }
-    }
-
-    private static final class InMemoryMailAccountRepository implements MailAccountRepositoryPort {
-        private final MailAccount mailAccount;
-
-        private InMemoryMailAccountRepository(MailAccount mailAccount) {
-            this.mailAccount = mailAccount;
-        }
-
-        @Override
-        public MailAccount save(MailAccount mailAccount) {
-            return this.mailAccount;
-        }
-
-        @Override
-        public Optional<MailAccount> findByIdAndDeletedAtIsNull(UUID id) {
-            return Optional.of(mailAccount).filter(account -> id.equals(account.getId()));
-        }
-
-        @Override
-        public Optional<MailAccount> findByIdAndActiveAndDeletedAtIsNull(UUID id, boolean active) {
-            return Optional.of(mailAccount)
-                    .filter(account -> id.equals(account.getId()))
-                    .filter(account -> account.isActive() == active);
-        }
-
-        @Override
-        public Optional<MailAccount> findByEmailAddressAndDeletedAtIsNull(String emailAddress) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByUserIdAndProviderAndDeletedAtIsNull(UUID userId, MailProvider provider) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(UUID userId, MailProvider provider, String emailAddress) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress) {
-            return Optional.empty();
-        }
-
-        @Override
-        public List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId) {
-            return List.of();
-        }
-
-        @Override
-        public int updateGoogleTokenIfAccessTokenMatches(
-                UUID id,
-                String expectedAccessToken,
-                String newAccessToken,
-                LocalDateTime newAccessTokenExpiresAt,
-                String newRefreshToken
-        ) {
-            if (!id.equals(mailAccount.getId()) || !expectedAccessToken.equals(mailAccount.getAccessToken())) {
-                return 0;
-            }
-
-            mailAccount.updateAccessToken(newAccessToken);
-            mailAccount.updateAccessTokenExpiresAt(newAccessTokenExpiresAt);
-            mailAccount.updateRefreshToken(newRefreshToken);
-            return 1;
-        }
-
-        @Override
-        public int renewGoogleWatchIfAccessTokenMatches(
-                UUID id,
-                String expectedAccessToken,
-                String newAccessToken,
-                LocalDateTime newAccessTokenExpiresAt,
-                String newRefreshToken,
-                String newSyncHistoryId,
-                LocalDateTime newWatchExpiresAt
-        ) {
-            return 0;
-        }
-
-        @Override
-        public List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit) {
-            return List.of();
-        }
-
-        @Override
-        public List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active) {
-            return List.of();
         }
     }
 }
