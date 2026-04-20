@@ -28,7 +28,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 @Configuration
-@EnableRedisIndexedHttpSession(maxInactiveIntervalInSeconds = 1800)
+@EnableRedisIndexedHttpSession(maxInactiveIntervalInSeconds = 172800)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
