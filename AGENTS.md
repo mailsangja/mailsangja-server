@@ -34,7 +34,7 @@ If guidance conflicts:
 - If `facade` or `service` code changed, write or strengthen the corresponding test code before considering the task complete.
 - New or updated facade/service tests must follow the BDD style in the convention, including `@DisplayName`, `given / when / then`, and BDDMockito usage.
 - After writing tests, run the relevant module tests and confirm they pass.
-- After tests pass, run coverage verification for the relevant module and confirm `facade`/`service` package line coverage is at least 60%.
+- After tests pass, run coverage verification for the relevant module and confirm `facade`/`service` package branch coverage is at least 60%.
 - If coverage does not reach 60%, add more tests and run the test and coverage steps again.
 
 ## Architecture

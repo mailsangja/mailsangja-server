@@ -86,7 +86,7 @@ When invoked:
 43. `given / when / then` 흐름이 읽히는지 여부
 44. 구현 완료 후 테스트 코드가 실제 실행되었는지 여부
 45. `jacocoTestReport` 또는 동등한 커버리지 리포트 확인 여부
-46. `facade`/`service` 패키지 라인 커버리지 60% 충족 여부 또는 미달 시 추가 테스트 작성 여부
+46. `facade`/`service` 패키지 브랜치 커버리지 60% 충족 여부 또는 미달 시 추가 테스트 작성 여부
 
 ## Output Format
 

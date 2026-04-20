@@ -12,6 +12,8 @@ import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,12 +30,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("GmailNewMessageApplyCommandService 테스트")
 class GmailNewMessageApplyCommandServiceTest {
 
     @Mock
@@ -59,133 +61,146 @@ class GmailNewMessageApplyCommandServiceTest {
         );
     }
 
-    @Test
-    void applyNewMessageSync_whenThreadIsDeleted_restoresOnlyThreadAndInsertsNewMessage() {
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
-        Thread deletedThread = Thread.builder()
-                .id(UUID.randomUUID())
-                .mailAccount(mailAccount)
-                .gmailThreadId("thread-1")
-                .direction(Direction.INBOUND)
-                .read(false)
-                .messageCount(1)
-                .build();
-        deletedThread.delete();
+    @Nested
+    @DisplayName("applyNewMessageSync")
+    class ApplyNewMessageSync {
 
-        Message oldMessage = Message.from(deletedThread, new Message.CreateValues(
-                "message-old", Direction.INBOUND, "old subject", "sender@example.com", "Sender",
-                List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
-                LocalDateTime.of(2026, 4, 10, 9, 0), null, null
-        ));
-        oldMessage.delete();
-        AtomicReference<Message> savedMessageRef = new AtomicReference<>();
+        @Test
+        @DisplayName("삭제된 thread면 thread만 복원하고 새 메시지를 저장한다")
+        void applyNewMessageSync_삭제된Thread면Thread만복원하고새메시지를저장한다() {
+            // given
+            MailAccount mailAccount = MailAccount.builder()
+                    .id(UUID.randomUUID())
+                    .build();
+            Thread deletedThread = Thread.builder()
+                    .id(UUID.randomUUID())
+                    .mailAccount(mailAccount)
+                    .gmailThreadId("thread-1")
+                    .direction(Direction.INBOUND)
+                    .read(false)
+                    .messageCount(1)
+                    .build();
+            deletedThread.delete();
 
-        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1"))
-                .thenReturn(List.of(deletedThread));
-        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
-                mailAccount.getId(), "thread-1", Direction.INBOUND
-        )).thenAnswer(invocation -> deletedThread.isDeleted() ? Optional.empty() : Optional.of(deletedThread));
-        when(threadRepositoryPort.bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1"))
-                .thenAnswer(invocation -> {
-                    deletedThread.restore();
-                    deletedThread.updateMessageCount(0);
-                    return 1;
-                });
-        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(deletedThread.getId(), "message-old"))
-                .thenReturn(Optional.of(oldMessage));
-        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(deletedThread.getId(), "message-new"))
-                .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
-            Message savedMessage = invocation.getArgument(0);
-            savedMessageRef.set(savedMessage);
-            return savedMessage;
-        });
-        when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
-                mailAccount.getId(), "thread-1", "message-new"
-        )).thenAnswer(invocation -> Optional.ofNullable(savedMessageRef.get()));
+            Message oldMessage = Message.from(deletedThread, new Message.CreateValues(
+                    "message-old", Direction.INBOUND, "old subject", "sender@example.com", "Sender",
+                    List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
+                    LocalDateTime.of(2026, 4, 10, 9, 0), null, null
+            ));
+            oldMessage.delete();
+            AtomicReference<Message> savedMessageRef = new AtomicReference<>();
 
-        GmailHistoryEvent event = new GmailHistoryEvent(
-                GmailHistoryEventType.MESSAGE_ADDED,
-                mailAccount.getId(),
-                "message-new",
-                "thread-1",
-                "history-2"
-        );
-        InitialMailSyncThreadSaveCommand syncCommand = createSyncCommand("thread-1", "history-2", "message-new", "new subject", "new snippet");
+            given(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1"))
+                    .willReturn(List.of(deletedThread));
+            given(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                    mailAccount.getId(), "thread-1", Direction.INBOUND
+            )).willAnswer(invocation -> deletedThread.isDeleted() ? Optional.empty() : Optional.of(deletedThread));
+            given(threadRepositoryPort.bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1"))
+                    .willAnswer(invocation -> {
+                        deletedThread.restore();
+                        deletedThread.updateMessageCount(0);
+                        return 1;
+                    });
+            given(messageRepositoryPort.findByThreadIdAndGmailMessageId(deletedThread.getId(), "message-old"))
+                    .willReturn(Optional.of(oldMessage));
+            given(messageRepositoryPort.findByThreadIdAndGmailMessageId(deletedThread.getId(), "message-new"))
+                    .willReturn(Optional.empty());
+            given(messageRepositoryPort.save(any(Message.class))).willAnswer(invocation -> {
+                Message savedMessage = invocation.getArgument(0);
+                savedMessageRef.set(savedMessage);
+                return savedMessage;
+            });
+            given(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                    mailAccount.getId(), "thread-1", "message-new"
+            )).willAnswer(invocation -> Optional.ofNullable(savedMessageRef.get()));
 
-        service.applyNewMessageSync(mailAccount, event, syncCommand);
+            GmailHistoryEvent event = new GmailHistoryEvent(
+                    GmailHistoryEventType.MESSAGE_ADDED,
+                    mailAccount.getId(),
+                    "message-new",
+                    "thread-1",
+                    "history-2"
+            );
+            InitialMailSyncThreadSaveCommand syncCommand = createSyncCommand("thread-1", "history-2", "message-new", "new subject", "new snippet");
 
-        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(messageRepositoryPort).save(messageCaptor.capture());
-        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, "thread-1");
-        verify(threadRepositoryPort).bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1");
-        assertFalse(deletedThread.isDeleted());
-        assertTrue(oldMessage.isDeleted());
-        assertEquals("message-new", messageCaptor.getValue().getGmailMessageId());
-        assertEquals(1, deletedThread.getMessageCount());
-        assertEquals("new subject", deletedThread.getLatestSubject());
-        assertEquals("new snippet", deletedThread.getLatestSnippet());
-        assertEquals(LocalDateTime.of(2026, 4, 14, 10, 0), deletedThread.getLastMessageAt());
-    }
+            // when
+            service.applyNewMessageSync(mailAccount, event, syncCommand);
 
-    @Test
-    void applyNewMessageSync_whenThreadIsNotDeleted_insertsNewMessageAndUpdatesThreadInfo() {
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .build();
-        Thread activeThread = Thread.builder()
-                .id(UUID.randomUUID())
-                .mailAccount(mailAccount)
-                .gmailThreadId("thread-2")
-                .direction(Direction.INBOUND)
-                .read(false)
-                .messageCount(1)
-                .build();
+            // then
+            ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+            then(messageRepositoryPort).should().save(messageCaptor.capture());
+            then(gmailThreadLockRepositoryPort).should().acquireThreadLock(mailAccount, "thread-1");
+            then(threadRepositoryPort).should().bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1");
+            assertFalse(deletedThread.isDeleted());
+            assertTrue(oldMessage.isDeleted());
+            assertEquals("message-new", messageCaptor.getValue().getGmailMessageId());
+            assertEquals(1, deletedThread.getMessageCount());
+            assertEquals("new subject", deletedThread.getLatestSubject());
+            assertEquals("new snippet", deletedThread.getLatestSnippet());
+            assertEquals(LocalDateTime.of(2026, 4, 14, 10, 0), deletedThread.getLastMessageAt());
+        }
 
-        Message existingMessage = Message.from(activeThread, new Message.CreateValues(
-                "message-old", Direction.INBOUND, "old subject", "sender@example.com", "Sender",
-                List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
-                LocalDateTime.of(2026, 4, 10, 9, 0), null, null
-        ));
-        AtomicReference<Message> savedMessageRef = new AtomicReference<>();
+        @Test
+        @DisplayName("활성 thread면 복원 없이 새 메시지를 저장하고 thread 정보를 갱신한다")
+        void applyNewMessageSync_활성Thread면복원없이새메시지를저장하고Thread정보를갱신한다() {
+            // given
+            MailAccount mailAccount = MailAccount.builder()
+                    .id(UUID.randomUUID())
+                    .build();
+            Thread activeThread = Thread.builder()
+                    .id(UUID.randomUUID())
+                    .mailAccount(mailAccount)
+                    .gmailThreadId("thread-2")
+                    .direction(Direction.INBOUND)
+                    .read(false)
+                    .messageCount(1)
+                    .build();
 
-        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-2"))
-                .thenReturn(List.of(activeThread));
-        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
-                mailAccount.getId(), "thread-2", Direction.INBOUND
-        )).thenReturn(Optional.of(activeThread));
-        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(activeThread.getId(), "message-old"))
-                .thenReturn(Optional.of(existingMessage));
-        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(activeThread.getId(), "message-new"))
-                .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
-            Message savedMessage = invocation.getArgument(0);
-            savedMessageRef.set(savedMessage);
-            return savedMessage;
-        });
-        when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
-                mailAccount.getId(), "thread-2", "message-new"
-        )).thenAnswer(invocation -> Optional.ofNullable(savedMessageRef.get()));
+            Message existingMessage = Message.from(activeThread, new Message.CreateValues(
+                    "message-old", Direction.INBOUND, "old subject", "sender@example.com", "Sender",
+                    List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
+                    LocalDateTime.of(2026, 4, 10, 9, 0), null, null
+            ));
+            AtomicReference<Message> savedMessageRef = new AtomicReference<>();
 
-        GmailHistoryEvent event = new GmailHistoryEvent(
-                GmailHistoryEventType.MESSAGE_ADDED,
-                mailAccount.getId(),
-                "message-new",
-                "thread-2",
-                "history-2"
-        );
-        InitialMailSyncThreadSaveCommand syncCommand = createSyncCommand("thread-2", "history-2", "message-new", "new subject", "new snippet");
+            given(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-2"))
+                    .willReturn(List.of(activeThread));
+            given(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                    mailAccount.getId(), "thread-2", Direction.INBOUND
+            )).willReturn(Optional.of(activeThread));
+            given(messageRepositoryPort.findByThreadIdAndGmailMessageId(activeThread.getId(), "message-old"))
+                    .willReturn(Optional.of(existingMessage));
+            given(messageRepositoryPort.findByThreadIdAndGmailMessageId(activeThread.getId(), "message-new"))
+                    .willReturn(Optional.empty());
+            given(messageRepositoryPort.save(any(Message.class))).willAnswer(invocation -> {
+                Message savedMessage = invocation.getArgument(0);
+                savedMessageRef.set(savedMessage);
+                return savedMessage;
+            });
+            given(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                    mailAccount.getId(), "thread-2", "message-new"
+            )).willAnswer(invocation -> Optional.ofNullable(savedMessageRef.get()));
 
-        service.applyNewMessageSync(mailAccount, event, syncCommand);
+            GmailHistoryEvent event = new GmailHistoryEvent(
+                    GmailHistoryEventType.MESSAGE_ADDED,
+                    mailAccount.getId(),
+                    "message-new",
+                    "thread-2",
+                    "history-2"
+            );
+            InitialMailSyncThreadSaveCommand syncCommand = createSyncCommand("thread-2", "history-2", "message-new", "new subject", "new snippet");
 
-        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, "thread-2");
-        verify(threadRepositoryPort, never()).bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(any(), any());
-        assertFalse(activeThread.isDeleted());
-        assertEquals(2, activeThread.getMessageCount());
-        assertEquals("new subject", activeThread.getLatestSubject());
-        assertEquals(LocalDateTime.of(2026, 4, 14, 10, 0), activeThread.getLastMessageAt());
+            // when
+            service.applyNewMessageSync(mailAccount, event, syncCommand);
+
+            // then
+            then(gmailThreadLockRepositoryPort).should().acquireThreadLock(mailAccount, "thread-2");
+            then(threadRepositoryPort).should(never()).bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(any(), any());
+            assertFalse(activeThread.isDeleted());
+            assertEquals(2, activeThread.getMessageCount());
+            assertEquals("new subject", activeThread.getLatestSubject());
+            assertEquals(LocalDateTime.of(2026, 4, 14, 10, 0), activeThread.getLastMessageAt());
+        }
     }
 
     private InitialMailSyncThreadSaveCommand createSyncCommand(
