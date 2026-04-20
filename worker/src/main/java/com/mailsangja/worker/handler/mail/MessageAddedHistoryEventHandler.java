@@ -2,7 +2,9 @@ package com.mailsangja.worker.handler.mail;
 
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
+import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.service.mail.GmailNewMessageSyncCommandService;
+import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler {
 
     private final GmailNewMessageSyncCommandService gmailNewMessageSyncCommandService;
+    private final FcmPushCommandService fcmPushCommandService;
 
     @Override
     public GmailHistoryEventType supports() {
@@ -19,6 +22,7 @@ public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler
 
     @Override
     public void handle(GmailHistoryEvent event) {
-        gmailNewMessageSyncCommandService.syncNewMessage(event);
+        NewMailPushContext context = gmailNewMessageSyncCommandService.syncNewMessage(event);
+        fcmPushCommandService.sendNewMailPush(context);
     }
 }

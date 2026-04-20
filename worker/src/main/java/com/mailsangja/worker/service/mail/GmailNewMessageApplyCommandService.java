@@ -1,27 +1,35 @@
 package com.mailsangja.worker.service.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
+import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.NewMessageApplyResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailNewMessageApplyCommandService {
 
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
     private final ThreadRepositoryPort threadRepositoryPort;
+    private final MessageRepositoryPort messageRepositoryPort;
     private final InitialMailSyncCommandService initialMailSyncCommandService;
 
     @Transactional
-    public void applyNewMessageSync(
+    public NewMessageApplyResult applyNewMessageSync(
             MailAccount mailAccount,
             GmailHistoryEvent event,
             InitialMailSyncThreadSaveCommand syncCommand
@@ -31,6 +39,21 @@ public class GmailNewMessageApplyCommandService {
         restoreIfDeleted(mailAccount, event.gmailThreadId());
 
         initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand));
+
+        return findNewMessageApplyResult(mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId());
+    }
+
+    private NewMessageApplyResult findNewMessageApplyResult(UUID mailAccountId, String gmailThreadId, String gmailMessageId) {
+        Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                mailAccountId, gmailThreadId, gmailMessageId
+        );
+        if (messageOpt.isEmpty()) {
+            log.warn("저장된 메시지를 찾을 수 없습니다: mailAccountId={} gmailThreadId={} gmailMessageId={}",
+                    mailAccountId, gmailThreadId, gmailMessageId);
+            return new NewMessageApplyResult(null, null);
+        }
+        Message message = messageOpt.get();
+        return new NewMessageApplyResult(message.getId(), message.getThread().getId());
     }
 
     private void restoreIfDeleted(MailAccount mailAccount, String gmailThreadId) {

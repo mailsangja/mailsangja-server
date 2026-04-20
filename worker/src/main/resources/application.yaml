@@ -95,3 +95,8 @@ mailsangja:
       client-id: ${GOOGLE_CLIENT_ID}
       client-secret: ${GOOGLE_CLIENT_SECRET}
       token-uri: ${GOOGLE_TOKEN_URI:https://oauth2.googleapis.com/token}
+  fcm:
+    service-account-key-json: ${MAILSANGJA_FCM_SERVICE_ACCOUNT_KEY_JSON}
+    service-account-key-path: ${MAILSANGJA_FCM_SERVICE_ACCOUNT_KEY_PATH:firebase-key.json}
+    logo-image-url: ${MAILSANGJA_FCM_LOGO_IMAGE_URL:https://www.ajou.ac.kr/_res/ajou/kr/img/intro/img-symbol.png}
+    thread-detail-url-template: ${MAILSANGJA_FCM_THREAD_DETAIL_URL_TEMPLATE:https://mail.ajou.app/mail/inbox?thread={threadId}&message={messageId}}
