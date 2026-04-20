@@ -10,8 +10,9 @@ Before changing code, read these files in order:
 2. `.github/copilot-instructions.md`
 3. `.claude/skills/product-requirements.md`
 4. `.claude/skills/spring-api-rules.md`
-5. `.claude/agents/backend-developer.md`
-6. `.claude/agents/code-reviewer.md`
+5. `.claude/skills/facade-service-test-conventions.md`
+6. `.claude/agents/backend-developer.md`
+7. `.claude/agents/code-reviewer.md`
 
 These references are not automatic imports. Treat them as required source documents for implementation and review.
 
@@ -29,6 +30,11 @@ If guidance conflicts:
 - Never hardcode secrets, tokens, API keys, URLs, or environment-specific values.
 - Identify the relevant Epic and User Story before implementing backend changes.
 - For non-trivial work, summarize the target files and design direction before editing.
+- After implementing backend changes, re-read `.claude/skills/facade-service-test-conventions.md` and check for missing facade/service tests.
+- If `facade` or `service` code changed, write or strengthen the corresponding test code before considering the task complete.
+- After writing tests, run the relevant module tests and confirm they pass.
+- After tests pass, run coverage verification for the relevant module and confirm `facade`/`service` package line coverage is at least 70%.
+- If coverage does not reach 70%, add more tests and run the test and coverage steps again.
 
 ## Architecture
 

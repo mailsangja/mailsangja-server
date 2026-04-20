@@ -5,5 +5,6 @@ allowed-tools: Read, Glob, Grep, Bash
 
 ## Task
 code-reviewer 에이전트를 실행하여 수정된 파일들을 리뷰해.
+리뷰 시 `facade-service-test-conventions.md` 기준의 테스트 작성, 실행, 커버리지 확인 여부도 함께 검증해.
 
 @.claude/agents/code-reviewer.md

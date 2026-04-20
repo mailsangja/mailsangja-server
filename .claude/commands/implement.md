@@ -5,5 +5,6 @@ allowed-tools: Read, Glob, Grep
 
 ## Task
 backend-developer 에이전트를 실행하여 요청한 User Story를 기반으로 Spring Boot API 기능 구현을 시작해.
+구현 후에는 `facade-service-test-conventions.md`에 따라 테스트 작성, 테스트 실행, 커버리지 확인까지 완료해.
 
 @.claude/agents/backend-developer.md

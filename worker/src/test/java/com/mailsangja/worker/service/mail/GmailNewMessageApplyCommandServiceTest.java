@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,6 +54,7 @@ class GmailNewMessageApplyCommandServiceTest {
         service = new GmailNewMessageApplyCommandService(
                 gmailThreadLockRepositoryPort,
                 threadRepositoryPort,
+                messageRepositoryPort,
                 initialMailSyncCommandService
         );
     }
@@ -78,6 +80,7 @@ class GmailNewMessageApplyCommandServiceTest {
                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null
         ));
         oldMessage.delete();
+        AtomicReference<Message> savedMessageRef = new AtomicReference<>();
 
         when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-1"))
                 .thenReturn(List.of(deletedThread));
@@ -94,7 +97,14 @@ class GmailNewMessageApplyCommandServiceTest {
                 .thenReturn(Optional.of(oldMessage));
         when(messageRepositoryPort.findByThreadIdAndGmailMessageId(deletedThread.getId(), "message-new"))
                 .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message savedMessage = invocation.getArgument(0);
+            savedMessageRef.set(savedMessage);
+            return savedMessage;
+        });
+        when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", "message-new"
+        )).thenAnswer(invocation -> Optional.ofNullable(savedMessageRef.get()));
 
         GmailHistoryEvent event = new GmailHistoryEvent(
                 GmailHistoryEventType.MESSAGE_ADDED,
@@ -139,6 +149,7 @@ class GmailNewMessageApplyCommandServiceTest {
                 List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null
         ));
+        AtomicReference<Message> savedMessageRef = new AtomicReference<>();
 
         when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadId(mailAccount.getId(), "thread-2"))
                 .thenReturn(List.of(activeThread));
@@ -149,7 +160,14 @@ class GmailNewMessageApplyCommandServiceTest {
                 .thenReturn(Optional.of(existingMessage));
         when(messageRepositoryPort.findByThreadIdAndGmailMessageId(activeThread.getId(), "message-new"))
                 .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message savedMessage = invocation.getArgument(0);
+            savedMessageRef.set(savedMessage);
+            return savedMessage;
+        });
+        when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-2", "message-new"
+        )).thenAnswer(invocation -> Optional.ofNullable(savedMessageRef.get()));
 
         GmailHistoryEvent event = new GmailHistoryEvent(
                 GmailHistoryEventType.MESSAGE_ADDED,
