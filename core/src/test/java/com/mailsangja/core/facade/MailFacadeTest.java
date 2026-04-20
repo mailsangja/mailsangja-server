@@ -35,6 +35,8 @@ import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.RestClient;
@@ -44,184 +46,227 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+@DisplayName("MailFacade 테스트")
 class MailFacadeTest {
 
-    @Test
-    void sendMail_내활성메일계정이면검증을통과한다() {
-        User user = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+    @Nested
+    @DisplayName("sendMail")
+    class SendMail {
 
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of("\"To\" <to@example.com>"),
-                List.of("\"Cc\" <cc@example.com>"),
-                List.of("\"Bcc\" <bcc@example.com>"),
-                "",
-                "본문",
-                List.of(new MockMultipartFile("attachments", "file.txt", "text/plain", "hello".getBytes()))
-        );
+        @Test
+        @DisplayName("내 활성 메일 계정이면 검증을 통과한다")
+        void sendMail_내활성메일계정이면검증을통과한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount));
 
-        assertDoesNotThrow(() -> mailFacade.sendMail(user, request));
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of("\"To\" <to@example.com>"),
+                    List.of("\"Cc\" <cc@example.com>"),
+                    List.of("\"Bcc\" <bcc@example.com>"),
+                    "",
+                    "본문",
+                    List.of(new MockMultipartFile("attachments", "file.txt", "text/plain", "hello".getBytes()))
+            );
+
+            // when then
+            assertDoesNotThrow(() -> mailFacade.sendMail(user, request));
+        }
+
+        @Test
+        @DisplayName("subject와 content가 둘 다 비어 있으면 실패한다")
+        void sendMail_subject와Content가둘다비어있으면실패한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of("\"To\" <to@example.com>"),
+                    null,
+                    null,
+                    " ",
+                    " ",
+                    null
+            );
+
+            // when then
+            assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        }
+
+        @Test
+        @DisplayName("subject에 개행 문자가 있으면 실패한다")
+        void sendMail_subject에개행문자가있으면실패한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of("\"To\" <to@example.com>"),
+                    null,
+                    null,
+                    "제목\n추가",
+                    "본문",
+                    null
+            );
+
+            // when then
+            assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        }
+
+        @Test
+        @DisplayName("중복된 수신자가 있으면 실패한다")
+        void sendMail_중복된수신자가있으면실패한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailFacade mailFacade = createMailFacade(List.of());
+
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of("\"수신자A\" <dup@example.com>"),
+                    List.of("\"수신자B\" <dup@example.com>"),
+                    null,
+                    "제목",
+                    "",
+                    null
+            );
+
+            // when then
+            assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        }
+
+        @Test
+        @DisplayName("to가 비어 있고 cc만 있어도 실패한다")
+        void sendMail_to가비어있고Cc만있어도실패한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailFacade mailFacade = createMailFacade(List.of());
+
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of(),
+                    List.of("\"Cc\" <cc@example.com>"),
+                    null,
+                    "제목",
+                    "본문",
+                    null
+            );
+
+            // when then
+            assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        }
+
+        @Test
+        @DisplayName("내 메일 계정이 아니면 실패한다")
+        void sendMail_내메일계정이아니면실패한다() {
+            // given
+            User owner = createUser(UUID.randomUUID());
+            User anotherUser = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(owner, "sender@example.com", true);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of("\"To\" <to@example.com>"),
+                    null,
+                    null,
+                    "제목",
+                    "",
+                    null
+            );
+
+            // when then
+            assertThrows(MailSendException.class, () -> mailFacade.sendMail(anotherUser, request));
+        }
+
+        @Test
+        @DisplayName("첨부 총합이 20MB를 초과하면 실패한다")
+        void sendMail_첨부총합이20메가바이트를초과하면실패한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailFacade mailFacade = createMailFacade(List.of());
+
+            byte[] oversized = new byte[11 * 1024 * 1024];
+            MailSendRequest request = new MailSendRequest(
+                    "\"Sender\" <sender@example.com>",
+                    List.of("\"To\" <to@example.com>"),
+                    null,
+                    null,
+                    "제목",
+                    "",
+                    List.of(
+                            new MockMultipartFile("attachments", "a.bin", "application/octet-stream", oversized),
+                            new MockMultipartFile("attachments", "b.bin", "application/octet-stream", oversized)
+                    )
+            );
+
+            // when then
+            assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+        }
     }
 
-    @Test
-    void sendMail_subject와content가둘다비어있으면실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+    @Nested
+    @DisplayName("getAttachment")
+    class GetAttachment {
 
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of("\"To\" <to@example.com>"),
-                null,
-                null,
-                " ",
-                " ",
-                null
-        );
+        @Test
+        @DisplayName("내 활성 메일 계정의 지메일 첨부파일이면 다운로드한다")
+        void getAttachment_내활성메일계정의지메일첨부파일이면다운로드한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+            Attachment attachment = createAttachment(mailAccount, MailProvider.GMAIL);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
-    }
+            // when
+            MailAttachmentDownloadResult result = mailFacade.getAttachment(user, attachment.getId());
 
-    @Test
-    void sendMail_subject에개행문자가있으면실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount));
+            // then
+            assertArrayEquals("file-content".getBytes(), result.bytes());
+            assertEquals("text/plain", result.mimeType());
+        }
 
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of("\"To\" <to@example.com>"),
-                null,
-                null,
-                "제목\n추가",
-                "본문",
-                null
-        );
+        @Test
+        @DisplayName("다른 사용자 계정의 첨부파일이면 실패한다")
+        void getAttachment_다른사용자계정의첨부파일이면실패한다() {
+            // given
+            User owner = createUser(UUID.randomUUID());
+            User anotherUser = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(owner, "sender@example.com", true);
+            Attachment attachment = createAttachment(mailAccount, MailProvider.GMAIL);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
 
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
-    }
+            // when then
+            assertThrows(InboxException.class, () -> mailFacade.getAttachment(anotherUser, attachment.getId()));
+        }
 
-    @Test
-    void sendMail_중복된수신자가있으면실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailFacade mailFacade = createMailFacade(List.of());
+        @Test
+        @DisplayName("지메일이 아닌 첨부파일이면 실패한다")
+        void getAttachment_지메일이아닌첨부파일이면실패한다() {
+            // given
+            User user = createUser(UUID.randomUUID());
+            MailAccount mailAccount = createMailAccount(user, "sender@example.com", true, MailProvider.NAVER);
+            Attachment attachment = createAttachment(mailAccount, MailProvider.NAVER);
+            MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
 
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of("\"수신자A\" <dup@example.com>"),
-                List.of("\"수신자B\" <dup@example.com>"),
-                null,
-                "제목",
-                "",
-                null
-        );
-
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
-    }
-
-    @Test
-    void sendMail_to가비어있고cc만있어도실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailFacade mailFacade = createMailFacade(List.of());
-
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of(),
-                List.of("\"Cc\" <cc@example.com>"),
-                null,
-                "제목",
-                "본문",
-                null
-        );
-
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
-    }
-
-    @Test
-    void sendMail_내메일계정이아니면실패한다() {
-        User owner = createUser(UUID.randomUUID());
-        User anotherUser = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(owner, "sender@example.com", true);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount));
-
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of("\"To\" <to@example.com>"),
-                null,
-                null,
-                "제목",
-                "",
-                null
-        );
-
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(anotherUser, request));
-    }
-
-    @Test
-    void sendMail_첨부총합이20메가바이트를초과하면실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailFacade mailFacade = createMailFacade(List.of());
-
-        byte[] oversized = new byte[11 * 1024 * 1024];
-        MailSendRequest request = new MailSendRequest(
-                "\"Sender\" <sender@example.com>",
-                List.of("\"To\" <to@example.com>"),
-                null,
-                null,
-                "제목",
-                "",
-                List.of(
-                        new MockMultipartFile("attachments", "a.bin", "application/octet-stream", oversized),
-                        new MockMultipartFile("attachments", "b.bin", "application/octet-stream", oversized)
-                )
-        );
-
-        assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
-    }
-
-    @Test
-    void getAttachment_내활성메일계정의지메일첨부파일이면다운로드한다() {
-        User user = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
-        Attachment attachment = createAttachment(mailAccount, MailProvider.GMAIL);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
-
-        MailAttachmentDownloadResult result = mailFacade.getAttachment(user, attachment.getId());
-
-        org.junit.jupiter.api.Assertions.assertArrayEquals("file-content".getBytes(), result.bytes());
-        org.junit.jupiter.api.Assertions.assertEquals("text/plain", result.mimeType());
-    }
-
-    @Test
-    void getAttachment_다른사용자계정의첨부파일이면실패한다() {
-        User owner = createUser(UUID.randomUUID());
-        User anotherUser = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(owner, "sender@example.com", true);
-        Attachment attachment = createAttachment(mailAccount, MailProvider.GMAIL);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
-
-        assertThrows(InboxException.class, () -> mailFacade.getAttachment(anotherUser, attachment.getId()));
-    }
-
-    @Test
-    void getAttachment_지메일이아닌첨부파일이면실패한다() {
-        User user = createUser(UUID.randomUUID());
-        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true, MailProvider.NAVER);
-        Attachment attachment = createAttachment(mailAccount, MailProvider.NAVER);
-        MailFacade mailFacade = createMailFacade(List.of(mailAccount), List.of(attachment));
-
-        assertThrows(InboxException.class, () -> mailFacade.getAttachment(user, attachment.getId()));
+            // when then
+            assertThrows(InboxException.class, () -> mailFacade.getAttachment(user, attachment.getId()));
+        }
     }
 
     private MailFacade createMailFacade(List<MailAccount> mailAccounts) {
@@ -235,31 +280,31 @@ class MailFacadeTest {
         MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
         GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
 
-        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
-                .thenAnswer(invocation -> mailAccounts.stream()
+        given(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .willAnswer(invocation -> mailAccounts.stream()
                         .filter(mailAccount -> mailAccount.getUser() != null)
                         .filter(mailAccount -> invocation.getArgument(0).equals(mailAccount.getUser().getId()))
                         .filter(mailAccount -> invocation.getArgument(1).equals(mailAccount.getEmailAddress()))
                         .filter(MailAccount::isActive)
                         .findFirst());
-        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
-                .thenAnswer(invocation -> mailAccounts.stream()
+        given(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .willAnswer(invocation -> mailAccounts.stream()
                         .filter(mailAccount -> mailAccount.getUser() != null)
                         .filter(mailAccount -> invocation.getArgument(0).equals(mailAccount.getUser().getId()))
                         .filter(MailAccount::isActive)
                         .toList());
-        when(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
-                .thenAnswer(invocation -> mailAccounts.stream()
+        given(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .willAnswer(invocation -> mailAccounts.stream()
                         .filter(mailAccount -> invocation.getArgument(0).equals(mailAccount.getId()))
                         .filter(mailAccount -> mailAccount.isActive() == (boolean) invocation.getArgument(1))
                         .findFirst());
-        when(attachmentRepositoryPort.findByIdAndDeletedAtIsNull(any()))
-                .thenAnswer(invocation -> attachments.stream()
+        given(attachmentRepositoryPort.findByIdAndDeletedAtIsNull(any()))
+                .willAnswer(invocation -> attachments.stream()
                         .filter(attachment -> invocation.getArgument(0).equals(attachment.getId()))
                         .findFirst());
-        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(any(), anyString(), any()))
-                .thenReturn(Optional.empty());
-        when(threadRepositoryPort.save(any(Thread.class))).thenAnswer(invocation -> {
+        given(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(any(), anyString(), any()))
+                .willReturn(Optional.empty());
+        given(threadRepositoryPort.save(any(Thread.class))).willAnswer(invocation -> {
             Thread thread = invocation.getArgument(0);
             if (thread.getId() != null) {
                 return thread;
@@ -279,9 +324,9 @@ class MailFacadeTest {
                     .messageCount(thread.getMessageCount())
                     .build();
         });
-        when(messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(any(), anyString()))
-                .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        given(messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(any(), anyString()))
+                .willReturn(Optional.empty());
+        given(messageRepositoryPort.save(any(Message.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);

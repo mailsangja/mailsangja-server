@@ -8,6 +8,8 @@ import jakarta.mail.Address;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -31,48 +33,59 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@DisplayName("GoogleMailSendCommandService 테스트")
 class GoogleMailSendCommandServiceTest {
 
-    @Test
-    void send_이름이포함된발신자와수신자헤더를생성한다() throws Exception {
-        GoogleMailProperties properties = new GoogleMailProperties();
-        properties.setSendUri("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
-        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+    @Nested
+    @DisplayName("메일 전송")
+    class Send {
 
-        GoogleMailSendCommandService service = new GoogleMailSendCommandService(
-                properties,
-                RestClient.builder().requestFactory(requestFactory).build()
-        );
+        @Test
+        @DisplayName("이름이 포함된 발신자와 수신자 헤더를 생성한다")
+        void send_이름이포함된발신자와수신자헤더를생성한다() throws Exception {
+            // given
+            GoogleMailProperties properties = new GoogleMailProperties();
+            properties.setSendUri("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
+            CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
 
-        MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
-                .accessToken("access-token")
-                .build();
+            GoogleMailSendCommandService service = new GoogleMailSendCommandService(
+                    properties,
+                    RestClient.builder().requestFactory(requestFactory).build()
+            );
 
-        MailSendCommand command = new MailSendCommand(
-                UUID.randomUUID(),
-                new MailAddressCommand("홍길동", "sender@example.com"),
-                List.of(new MailAddressCommand("김철수", "to@example.com")),
-                List.of(new MailAddressCommand("개발팀", "cc@example.com")),
-                List.of(new MailAddressCommand(null, "bcc@example.com")),
-                "제목",
-                "본문",
-                List.of()
-        );
+            MailAccount mailAccount = MailAccount.builder()
+                    .id(UUID.randomUUID())
+                    .accessToken("access-token")
+                    .build();
 
-        service.send(mailAccount, command);
+            MailSendCommand command = new MailSendCommand(
+                    UUID.randomUUID(),
+                    new MailAddressCommand("홍길동", "sender@example.com"),
+                    List.of(new MailAddressCommand("김철수", "to@example.com")),
+                    List.of(new MailAddressCommand("개발팀", "cc@example.com")),
+                    List.of(new MailAddressCommand(null, "bcc@example.com")),
+                    "제목",
+                    "본문",
+                    List.of()
+            );
 
-        String raw = extractRawMessage(requestFactory.requestBody());
-        MimeMessage mimeMessage = new MimeMessage(
-                Session.getInstance(new Properties()),
-                new ByteArrayInputStream(Base64.getUrlDecoder().decode(raw))
-        );
+            // when
+            service.send(mailAccount, command);
 
-        assertAddress(mimeMessage.getFrom()[0], "홍길동", "sender@example.com");
-        assertAddress(mimeMessage.getRecipients(jakarta.mail.Message.RecipientType.TO)[0], "김철수", "to@example.com");
-        assertAddress(mimeMessage.getRecipients(jakarta.mail.Message.RecipientType.CC)[0], "개발팀", "cc@example.com");
-        assertAddress(mimeMessage.getRecipients(jakarta.mail.Message.RecipientType.BCC)[0], null, "bcc@example.com");
+            // then
+            String raw = extractRawMessage(requestFactory.requestBody());
+            MimeMessage mimeMessage = new MimeMessage(
+                    Session.getInstance(new Properties()),
+                    new ByteArrayInputStream(Base64.getUrlDecoder().decode(raw))
+            );
+
+            assertAddress(mimeMessage.getFrom()[0], "홍길동", "sender@example.com");
+            assertAddress(mimeMessage.getRecipients(jakarta.mail.Message.RecipientType.TO)[0], "김철수", "to@example.com");
+            assertAddress(mimeMessage.getRecipients(jakarta.mail.Message.RecipientType.CC)[0], "개발팀", "cc@example.com");
+            assertAddress(mimeMessage.getRecipients(jakarta.mail.Message.RecipientType.BCC)[0], null, "bcc@example.com");
+        }
     }
 
     private void assertAddress(Address actualAddress, String expectedName, String expectedAddress) throws Exception {
@@ -85,7 +98,7 @@ class GoogleMailSendCommandServiceTest {
         Pattern pattern = Pattern.compile("\"raw\"\\s*:\\s*\"([^\"]+)\"");
         Matcher matcher = pattern.matcher(requestBody);
         assertNotNull(requestBody);
-        org.junit.jupiter.api.Assertions.assertTrue(matcher.find());
+        assertTrue(matcher.find());
         return matcher.group(1);
     }
 

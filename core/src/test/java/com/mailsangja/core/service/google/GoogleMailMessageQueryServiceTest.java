@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class GoogleMailMessageQueryServiceTest {
 
     @Nested
-    @DisplayName("getMessage")
+    @DisplayName("메시지 조회")
     class GetMessage {
 
         @Test
