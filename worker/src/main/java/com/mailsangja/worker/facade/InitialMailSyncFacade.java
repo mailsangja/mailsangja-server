@@ -11,6 +11,7 @@ import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import com.mailsangja.worker.service.google.GoogleMailMessageQueryService;
+import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import com.mailsangja.worker.service.messaging.MailTaskPublisherService;
@@ -28,6 +29,7 @@ import java.util.List;
 public class InitialMailSyncFacade {
 
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final MailTaskPublisherService mailTaskPublisherService;
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;

@@ -28,6 +28,7 @@ import java.util.List;
 public class MailCommandService {
 
     private final MailQueryService mailQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final GoogleMailSendCommandService googleMailSendCommandService;
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final ThreadRepositoryPort threadRepositoryPort;
@@ -39,16 +40,17 @@ public class MailCommandService {
                 command.userId(),
                 command.from().address()
         );
+        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(senderMailAccount);
 
-        var sendResult = googleMailSendCommandService.send(senderMailAccount, command);
+        var sendResult = googleMailSendCommandService.send(ensuredMailAccount, command);
         validateSendResult(sendResult);
         GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
-                senderMailAccount.getAccessToken(),
+                ensuredMailAccount.getAccessToken(),
                 sendResult.gmailMessageId()
         );
         validateMessageResult(sendResult.gmailMessageId(), sendResult.gmailThreadId(), messageResult);
 
-        return new MailSendPersistCommand(senderMailAccount, messageResult, command);
+        return new MailSendPersistCommand(ensuredMailAccount, messageResult, command);
     }
 
     private void validateSendResult(GoogleMailSendResult sendResult) {

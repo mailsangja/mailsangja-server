@@ -19,6 +19,7 @@ public enum MailAccountErrorCode implements ErrorCode {
     INVALID_OAUTH_RESULT(400, "MS-MAIL-INVALID-OAUTH-RESULT", "OAuth 응답값이 올바르지 않습니다."),
     INVALID_INITIAL_MAIL_SYNC_MESSAGE(400, "MS-MAIL-INVALID-INITIAL-MAIL-SYNC-MESSAGE", "초기 메일 동기화 메시지 값이 올바르지 않습니다."),
     GOOGLE_TOKEN_EXCHANGE_FAILED(502, "MS-MAIL-GOOGLE-TOKEN-EXCHANGE-FAILED", "Google OAuth 토큰 교환에 실패했습니다."),
+    GOOGLE_TOKEN_REFRESH_FAILED(502, "MS-MAIL-GOOGLE-TOKEN-REFRESH-FAILED", "Google access token 재발급에 실패했습니다."),
     GOOGLE_USER_INFO_FETCH_FAILED(502, "MS-MAIL-GOOGLE-USER-INFO-FETCH-FAILED", "Google 사용자 정보 조회에 실패했습니다."),
     GOOGLE_MAIL_WATCH_FAILED(502, "MS-MAIL-GOOGLE-MAIL-WATCH-FAILED", "Google Gmail watch 등록에 실패했습니다."),
     GOOGLE_MAIL_READ_MODIFY_FAILED(502, "MS-MAIL-GOOGLE-MAIL-READ-MODIFY-FAILED", "Google Gmail 읽음 처리 동기화에 실패했습니다."),

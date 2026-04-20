@@ -20,13 +20,16 @@ import java.util.List;
 public class GmailNewMessageSyncCommandService {
 
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final GmailNewMessageApplyCommandService gmailNewMessageApplyCommandService;
 
     public NewMailPushContext syncNewMessage(GmailHistoryEvent event) {
         validateEvent(event);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
+        );
 
         List<InitialMailSyncThreadResult> threadResults = googleMailMessageQueryService.getThreads(
                 mailAccount.getAccessToken(),

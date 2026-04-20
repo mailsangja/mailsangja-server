@@ -17,10 +17,13 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.StringJoiner;
 
 @Service
 public class GoogleOAuthQueryService {
+
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final GoogleOAuthProperties googleOAuthProperties;
     private final RestClient googleOAuthRestClient;
@@ -67,10 +70,36 @@ public class GoogleOAuthQueryService {
                     .retrieve()
                     .body(GoogleOAuthTokenResult.class);
 
-            validateTokenResult(tokenResult);
+            validateTokenResult(tokenResult, MailAccountErrorCode.GOOGLE_TOKEN_EXCHANGE_FAILED);
             return tokenResult;
         } catch (RestClientException e) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_EXCHANGE_FAILED);
+        }
+    }
+
+    public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
+        validateRefreshInput(refreshToken);
+
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("client_id", googleOAuthProperties.getClientId());
+        formData.add("client_secret", googleOAuthProperties.getClientSecret());
+        formData.add("refresh_token", refreshToken);
+        formData.add("grant_type", "refresh_token");
+
+        try {
+            GoogleOAuthTokenResult tokenResult = googleOAuthRestClient
+                    .post()
+                    .uri(googleOAuthProperties.getTokenUri())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(formData)
+                    .retrieve()
+                    .body(GoogleOAuthTokenResult.class);
+
+            validateTokenResult(tokenResult, MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED);
+            return tokenResult;
+        } catch (RestClientException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED);
         }
     }
 
@@ -100,9 +129,13 @@ public class GoogleOAuthQueryService {
         return new GoogleMailAccountResult(
                 userInfoResult.email(),
                 tokenResult.accessToken(),
-                LocalDateTime.now().plusSeconds(tokenResult.expiresIn()),
+                getKstNow().plusSeconds(tokenResult.expiresIn()),
                 tokenResult.refreshToken()
         );
+    }
+
+    private LocalDateTime getKstNow() {
+        return LocalDateTime.now(KST_ZONE_ID);
     }
 
     private void validateTokenExchangeInput(String code) {
@@ -115,12 +148,21 @@ public class GoogleOAuthQueryService {
         }
     }
 
-    private void validateTokenResult(GoogleOAuthTokenResult tokenResult) {
+    private void validateRefreshInput(String refreshToken) {
+        if (isBlank(refreshToken)
+                || isBlank(googleOAuthProperties.getClientId())
+                || isBlank(googleOAuthProperties.getClientSecret())
+                || isBlank(googleOAuthProperties.getTokenUri())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED);
+        }
+    }
+
+    private void validateTokenResult(GoogleOAuthTokenResult tokenResult, MailAccountErrorCode errorCode) {
         if (tokenResult == null
                 || isBlank(tokenResult.accessToken())
                 || tokenResult.expiresIn() == null
                 || tokenResult.expiresIn() <= 0) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_EXCHANGE_FAILED);
+            throw new MailAccountException(errorCode);
         }
     }
 

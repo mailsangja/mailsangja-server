@@ -64,6 +64,44 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
+    public int updateGoogleTokenIfAccessTokenMatches(
+            UUID id,
+            String expectedAccessToken,
+            String newAccessToken,
+            LocalDateTime newAccessTokenExpiresAt,
+            String newRefreshToken
+    ) {
+        return mailAccountJpaRepositoryModule.updateGoogleTokenIfAccessTokenMatches(
+                id,
+                expectedAccessToken,
+                newAccessToken,
+                newAccessTokenExpiresAt,
+                newRefreshToken
+        );
+    }
+
+    @Override
+    public int renewGoogleWatchIfAccessTokenMatches(
+            UUID id,
+            String expectedAccessToken,
+            String newAccessToken,
+            LocalDateTime newAccessTokenExpiresAt,
+            String newRefreshToken,
+            String newSyncHistoryId,
+            LocalDateTime newWatchExpiresAt
+    ) {
+        return mailAccountJpaRepositoryModule.renewGoogleWatchIfAccessTokenMatches(
+                id,
+                expectedAccessToken,
+                newAccessToken,
+                newAccessTokenExpiresAt,
+                newRefreshToken,
+                newSyncHistoryId,
+                newWatchExpiresAt
+        );
+    }
+
+    @Override
     public List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit) {
         return mailAccountJpaRepositoryModule.findRenewalTargetGmailAccounts(provider, watchExpiresAtThreshold)
                 .stream()

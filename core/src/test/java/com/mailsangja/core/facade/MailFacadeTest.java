@@ -2,24 +2,30 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.inbox.InboxException;
 import com.mailsangja.core.common.exception.mail.MailSendException;
+import com.mailsangja.core.config.properties.GoogleMailProperties;
+import com.mailsangja.core.config.properties.GoogleOAuthProperties;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
+import com.mailsangja.core.dto.mail.GoogleOAuthTokenResult;
 import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
+import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.service.google.GoogleMailAttachmentQueryService;
 import com.mailsangja.core.service.google.GoogleMailMessageQueryService;
 import com.mailsangja.core.service.google.GoogleMailSendCommandService;
-import com.mailsangja.core.service.mail.MailAttachmentQueryService;
+import com.mailsangja.core.service.google.GoogleOAuthQueryService;
+import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
+import com.mailsangja.core.service.mail.MailAccountCommandService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.core.service.mail.MailAttachmentQueryService;
 import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.core.service.mail.MailQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Direction;
-import com.mailsangja.db.entity.mail.GmailThreadLock;
 import com.mailsangja.db.entity.mail.MailAccount;
-import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.Role;
@@ -30,19 +36,22 @@ import com.mailsangja.db.port.MailAccountRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class MailFacadeTest {
 
@@ -220,21 +229,80 @@ class MailFacadeTest {
     }
 
     private MailFacade createMailFacade(List<MailAccount> mailAccounts, List<Attachment> attachments) {
-        MailQueryService mailQueryService = new MailQueryService(new FakeMailAccountRepositoryPort(mailAccounts));
-        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(new FakeMailAccountRepositoryPort(mailAccounts));
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(mailAccount -> mailAccount.getUser() != null)
+                        .filter(mailAccount -> invocation.getArgument(0).equals(mailAccount.getUser().getId()))
+                        .filter(mailAccount -> invocation.getArgument(1).equals(mailAccount.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(mailAccount -> mailAccount.getUser() != null)
+                        .filter(mailAccount -> invocation.getArgument(0).equals(mailAccount.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(mailAccount -> invocation.getArgument(0).equals(mailAccount.getId()))
+                        .filter(mailAccount -> mailAccount.isActive() == (boolean) invocation.getArgument(1))
+                        .findFirst());
+        when(attachmentRepositoryPort.findByIdAndDeletedAtIsNull(any()))
+                .thenAnswer(invocation -> attachments.stream()
+                        .filter(attachment -> invocation.getArgument(0).equals(attachment.getId()))
+                        .findFirst());
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(any(), anyString(), any()))
+                .thenReturn(Optional.empty());
+        when(threadRepositoryPort.save(any(Thread.class))).thenAnswer(invocation -> {
+            Thread thread = invocation.getArgument(0);
+            if (thread.getId() != null) {
+                return thread;
+            }
+            return Thread.builder()
+                    .id(UUID.randomUUID())
+                    .mailAccount(thread.getMailAccount())
+                    .gmailThreadId(thread.getGmailThreadId())
+                    .direction(thread.getDirection())
+                    .historyId(thread.getHistoryId())
+                    .latestSubject(thread.getLatestSubject())
+                    .latestSnippet(thread.getLatestSnippet())
+                    .latestParticipantAddress(thread.getLatestParticipantAddress())
+                    .latestParticipantName(thread.getLatestParticipantName())
+                    .lastMessageAt(thread.getLastMessageAt())
+                    .read(thread.isRead())
+                    .messageCount(thread.getMessageCount())
+                    .build();
+        });
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(any(), anyString()))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
         MailCommandService mailCommandService = new MailCommandService(
                 mailQueryService,
+                googleAccessTokenEnsureService,
                 new FakeGoogleMailSendCommandService(),
                 new FakeGoogleMailMessageQueryService(),
-                new FakeThreadRepositoryPort(),
-                new FakeMessageRepositoryPort(),
-                new FakeGmailThreadLockRepositoryPort()
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
         );
-        MailAttachmentQueryService mailAttachmentQueryService = new MailAttachmentQueryService(
-                new FakeAttachmentRepositoryPort(attachments)
-        );
+        MailAttachmentQueryService mailAttachmentQueryService = new MailAttachmentQueryService(attachmentRepositoryPort);
         return new MailFacade(
                 mailAccountQueryService,
+                googleAccessTokenEnsureService,
                 mailCommandService,
                 mailAttachmentQueryService,
                 new FakeGoogleMailAttachmentQueryService()
@@ -300,132 +368,34 @@ class MailFacadeTest {
                 .build();
     }
 
-    private static class FakeMailAccountRepositoryPort implements MailAccountRepositoryPort {
-
-        private final List<MailAccount> mailAccounts;
-
-        private FakeMailAccountRepositoryPort(List<MailAccount> mailAccounts) {
-            this.mailAccounts = mailAccounts;
-        }
-
-        @Override
-        public MailAccount save(MailAccount mailAccount) {
-            return mailAccount;
-        }
-
-        @Override
-        public Optional<MailAccount> findByIdAndDeletedAtIsNull(UUID id) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByIdAndActiveAndDeletedAtIsNull(UUID id, boolean active) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByEmailAddressAndDeletedAtIsNull(String emailAddress) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByUserIdAndProviderAndDeletedAtIsNull(UUID userId, MailProvider provider) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(
-                UUID userId,
-                MailProvider provider,
-                String emailAddress
-        ) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(
-                UUID userId,
-                String emailAddress,
-                boolean active
-        ) {
-            return mailAccounts.stream()
-                    .filter(mailAccount -> mailAccount.getUser() != null)
-                    .filter(mailAccount -> userId.equals(mailAccount.getUser().getId()))
-                    .filter(mailAccount -> emailAddress.equalsIgnoreCase(mailAccount.getEmailAddress()))
-                    .filter(mailAccount -> mailAccount.isActive() == active)
-                    .findFirst();
-        }
-
-        @Override
-        public Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress) {
-            return Optional.empty();
-        }
-
-        @Override
-        public List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId) {
-            return List.of();
-        }
-
-        @Override
-        public List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit) {
-            return List.of();
-        }
-
-        @Override
-        public List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active) {
-            return mailAccounts.stream()
-                    .filter(mailAccount -> mailAccount.getUser() != null)
-                    .filter(mailAccount -> userId.equals(mailAccount.getUser().getId()))
-                    .filter(mailAccount -> mailAccount.isActive() == active)
-                    .toList();
-        }
-    }
-
-    private static class FakeAttachmentRepositoryPort implements AttachmentRepositoryPort {
-
-        private final List<Attachment> attachments;
-
-        private FakeAttachmentRepositoryPort(List<Attachment> attachments) {
-            this.attachments = attachments;
-        }
-
-        @Override
-        public Attachment save(Attachment attachment) {
-            return attachment;
-        }
-
-        @Override
-        public Optional<Attachment> findByIdAndDeletedAtIsNull(UUID id) {
-            return attachments.stream()
-                    .filter(attachment -> id.equals(attachment.getId()))
-                    .findFirst();
-        }
-
-        @Override
-        public List<Attachment> findAllByMessageIdAndDeletedAtIsNull(UUID messageId) {
-            return List.of();
-        }
-    }
-
-    private static class FakeGoogleMailSendCommandService extends GoogleMailSendCommandService {
+    private static final class FakeGoogleMailSendCommandService extends GoogleMailSendCommandService {
 
         private FakeGoogleMailSendCommandService() {
-            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+            super(new GoogleMailProperties(), RestClient.builder().build());
         }
 
         @Override
-        public GoogleMailSendResult send(MailAccount mailAccount, com.mailsangja.core.dto.mail.MailSendCommand command) {
-            return new GoogleMailSendResult(
-                    "gmail-message-id",
-                    "gmail-thread-id"
-            );
+        public GoogleMailSendResult send(MailAccount mailAccount, MailSendCommand command) {
+            return new GoogleMailSendResult("gmail-message-id", "gmail-thread-id");
         }
     }
 
-    private static class FakeGoogleMailMessageQueryService extends GoogleMailMessageQueryService {
+    private static final class FakeGoogleOAuthQueryService extends GoogleOAuthQueryService {
+
+        private FakeGoogleOAuthQueryService() {
+            super(new GoogleOAuthProperties(), RestClient.builder().build());
+        }
+
+        @Override
+        public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
+            return new GoogleOAuthTokenResult("refreshed-token", refreshToken, 3600L, null, "Bearer");
+        }
+    }
+
+    private static final class FakeGoogleMailMessageQueryService extends GoogleMailMessageQueryService {
 
         private FakeGoogleMailMessageQueryService() {
-            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+            super(new GoogleMailProperties(), RestClient.builder().build());
         }
 
         @Override
@@ -445,285 +415,20 @@ class MailFacadeTest {
                     LocalDateTime.now(),
                     "본문",
                     null,
-                    List.of(new GoogleMailAttachmentResult(
-                            "gmail-attachment-id",
-                            "file.txt",
-                            "text/plain",
-                            5
-                    ))
+                    List.of(new GoogleMailAttachmentResult("gmail-attachment-id", "file.txt", "text/plain", 5))
             );
         }
     }
 
-    private static class FakeGoogleMailAttachmentQueryService extends GoogleMailAttachmentQueryService {
+    private static final class FakeGoogleMailAttachmentQueryService extends GoogleMailAttachmentQueryService {
 
         private FakeGoogleMailAttachmentQueryService() {
-            super(new com.mailsangja.core.config.properties.GoogleMailProperties(), RestClient.builder().build());
+            super(new GoogleMailProperties(), RestClient.builder().build());
         }
 
         @Override
         public byte[] download(MailAccount mailAccount, Message message, Attachment attachment) {
             return "file-content".getBytes();
-        }
-    }
-
-    private static class FakeThreadRepositoryPort implements ThreadRepositoryPort {
-
-        private final List<Thread> threads = new ArrayList<>();
-
-        @Override
-        public Thread save(Thread thread) {
-            Thread savedThread = thread.getId() == null
-                    ? Thread.builder()
-                    .id(UUID.randomUUID())
-                    .mailAccount(thread.getMailAccount())
-                    .gmailThreadId(thread.getGmailThreadId())
-                    .direction(thread.getDirection())
-                    .historyId(thread.getHistoryId())
-                    .latestSubject(thread.getLatestSubject())
-                    .latestSnippet(thread.getLatestSnippet())
-                    .latestParticipantAddress(thread.getLatestParticipantAddress())
-                    .latestParticipantName(thread.getLatestParticipantName())
-                    .lastMessageAt(thread.getLastMessageAt())
-                    .read(thread.isRead())
-                    .messageCount(thread.getMessageCount())
-                    .build()
-                    : thread;
-            threads.removeIf(existing -> existing.getId() != null && existing.getId().equals(savedThread.getId()));
-            threads.add(savedThread);
-            return savedThread;
-        }
-
-        @Override
-        public Optional<Thread> findByIdAndDeletedAtIsNull(UUID id) {
-            return threads.stream().filter(thread -> id.equals(thread.getId())).findFirst();
-        }
-
-        public Optional<Thread> findByIdIncludingDeleted(UUID id) {
-            return threads.stream().filter(thread -> id.equals(thread.getId())).findFirst();
-        }
-
-        @Override
-        public Optional<Thread> findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
-                UUID mailAccountId,
-                String gmailThreadId,
-                Direction direction
-        ) {
-            return threads.stream()
-                    .filter(thread -> thread.getMailAccount() != null)
-                    .filter(thread -> mailAccountId.equals(thread.getMailAccount().getId()))
-                    .filter(thread -> gmailThreadId.equals(thread.getGmailThreadId()))
-                    .filter(thread -> direction == thread.getDirection())
-                    .findFirst();
-        }
-
-        @Override
-        public List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        public List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        public void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-        }
-
-        public int bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return 0;
-        }
-
-        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return 0;
-        }
-
-        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(
-                UUID mailAccountId,
-                String gmailThreadId,
-                LocalDateTime deletedAt
-        ) {
-            return 0;
-        }
-
-        @Override
-        public org.springframework.data.domain.Slice<Thread> findInboxByUserIdAndDeletedAtIsNull(
-                UUID userId,
-                UUID markerId,
-                org.springframework.data.domain.Pageable pageable
-        ) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public org.springframework.data.domain.Slice<Thread> findSentByUserIdAndDeletedAtIsNull(
-                UUID userId,
-                UUID markerId,
-                org.springframework.data.domain.Pageable pageable
-        ) {
-            throw new UnsupportedOperationException();
-        }
-
-        public Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public long countUnreadInboxByUserId(UUID userId) {
-            throw new UnsupportedOperationException();
-        }
-    }
-
-    private static class FakeGmailThreadLockRepositoryPort implements GmailThreadLockRepositoryPort {
-
-        @Override
-        public GmailThreadLock save(GmailThreadLock gmailThreadLock) {
-            return gmailThreadLock;
-        }
-
-        @Override
-        public void acquireThreadLock(MailAccount mailAccount, String gmailThreadId) {
-        }
-
-        @Override
-        public Optional<GmailThreadLock> findByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
-                UUID mailAccountId,
-                String gmailThreadId
-        ) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<GmailThreadLock> findByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullForUpdate(
-                UUID mailAccountId,
-                String gmailThreadId
-        ) {
-            return Optional.empty();
-        }
-    }
-
-    private static class FakeMessageRepositoryPort implements MessageRepositoryPort {
-
-        private final List<Message> messages = new ArrayList<>();
-
-        public Optional<Message> findByIdIncludingDeleted(UUID id) {
-            return messages.stream()
-                    .filter(message -> id.equals(message.getId()))
-                    .findFirst();
-        }
-
-        @Override
-        public Message save(Message message) {
-            messages.removeIf(existing -> existing.getId() != null && existing.getId().equals(message.getId()));
-            messages.add(message);
-            return message;
-        }
-
-        @Override
-        public Optional<Message> findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(UUID threadId, String gmailMessageId) {
-            if (threadId == null) {
-                return Optional.empty();
-            }
-            return messages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> threadId.equals(message.getThread().getId()))
-                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
-                    .findFirst();
-        }
-
-        public Optional<Message> findByThreadIdAndGmailMessageId(UUID threadId, String gmailMessageId) {
-            if (threadId == null) {
-                return Optional.empty();
-            }
-            return messages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> threadId.equals(message.getThread().getId()))
-                    .filter(message -> gmailMessageId.equals(message.getGmailMessageId()))
-                    .findFirst();
-        }
-
-        @Override
-        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            return Optional.empty();
-        }
-
-        public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageId(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            return Optional.empty();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
-            return List.of();
-        }
-
-        public List<Message> findAllByThreadIdIncludingDeleted(UUID threadId) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByThreadIdInAndDeletedAtIsNull(List<UUID> threadIds) {
-            return List.of();
-        }
-
-        @Override
-        public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        public List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return messages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> message.getThread().getMailAccount() != null)
-                    .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
-                            && gmailThreadId.equals(message.getThread().getGmailThreadId()));
-        }
-
-        public boolean existsByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndGmailMessageIdNot(
-                UUID mailAccountId,
-                String gmailThreadId,
-                String gmailMessageId
-        ) {
-            return messages.stream()
-                    .filter(message -> message.getThread() != null)
-                    .filter(message -> message.getThread().getMailAccount() != null)
-                    .anyMatch(message -> mailAccountId.equals(message.getThread().getMailAccount().getId())
-                            && gmailThreadId.equals(message.getThread().getGmailThreadId())
-                            && !gmailMessageId.equals(message.getGmailMessageId()));
-        }
-
-        public int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return 0;
-        }
-
-        public int bulkSoftDeleteByMailAccountIdAndGmailThreadId(
-                UUID mailAccountId,
-                String gmailThreadId,
-                LocalDateTime deletedAt
-        ) {
-            return 0;
-        }
-
-        public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
-            return List.of();
-        }
-
-        public Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable) {
-            throw new UnsupportedOperationException();
-        }
-
-        public void hardDelete(Message message) {
-            messages.remove(message);
         }
     }
 }

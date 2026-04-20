@@ -10,6 +10,7 @@ import com.mailsangja.core.service.inbox.InboxCommandService;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
+import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -33,6 +34,7 @@ public class InboxFacade {
     private final InboxCommandService inboxCommandService;
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
 
     public MarkerSliceResponse<ThreadSummaryResponse> getInbox(User user, UUID marker, int size) {
         ThreadListResult result = inboxQueryService.findInboxThreadsResult(user.getId(), marker, PageRequest.of(0, size));
@@ -55,7 +57,10 @@ public class InboxFacade {
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         if (thread.getMailAccount().getProvider() == MailProvider.GMAIL) {
-            googleMailReadCommandService.markThreadAsRead(thread.getMailAccount(), thread);
+            googleMailReadCommandService.markThreadAsRead(
+                    googleAccessTokenEnsureService.ensureValidGoogleAccessToken(thread.getMailAccount()),
+                    thread
+            );
         }
         inboxCommandService.markThreadAsRead(thread);
     }
@@ -64,7 +69,10 @@ public class InboxFacade {
         Message message = inboxQueryService.findActiveMessageById(messageId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), message.getThread());
         if (message.getThread().getMailAccount().getProvider() == MailProvider.GMAIL) {
-            googleMailReadCommandService.markMessageAsRead(message.getThread().getMailAccount(), message);
+            googleMailReadCommandService.markMessageAsRead(
+                    googleAccessTokenEnsureService.ensureValidGoogleAccessToken(message.getThread().getMailAccount()),
+                    message
+            );
         }
         inboxCommandService.markMessageAsRead(message);
     }
@@ -73,7 +81,10 @@ public class InboxFacade {
         Message message = inboxQueryService.findActiveMessageById(messageId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), message.getThread());
         if (message.getThread().getMailAccount().getProvider() == MailProvider.GMAIL) {
-            googleMailReadCommandService.markMessageAsUnread(message.getThread().getMailAccount(), message);
+            googleMailReadCommandService.markMessageAsUnread(
+                    googleAccessTokenEnsureService.ensureValidGoogleAccessToken(message.getThread().getMailAccount()),
+                    message
+            );
         }
         inboxCommandService.markMessageAsUnread(message);
     }
@@ -82,7 +93,10 @@ public class InboxFacade {
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         if (thread.getMailAccount().getProvider() == MailProvider.GMAIL) {
-            googleMailReadCommandService.markThreadAsUnread(thread.getMailAccount(), thread);
+            googleMailReadCommandService.markThreadAsUnread(
+                    googleAccessTokenEnsureService.ensureValidGoogleAccessToken(thread.getMailAccount()),
+                    thread
+            );
         }
         inboxCommandService.markThreadAsUnread(thread);
     }

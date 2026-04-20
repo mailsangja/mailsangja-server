@@ -13,6 +13,7 @@ import com.mailsangja.worker.handler.mail.GmailHistoryEventClassifier;
 import com.mailsangja.worker.handler.mail.GmailHistoryEventHandler;
 import com.mailsangja.worker.service.google.GooglePubsubOidcQueryService;
 import com.mailsangja.worker.service.google.GoogleMailHistoryQueryService;
+import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.worker.service.mail.MailAccountCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class GmailPushFacade {
     private final GooglePubsubOidcQueryService googlePubsubOidcQueryService;
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final GoogleMailHistoryQueryService googleMailHistoryQueryService;
     private final GmailHistoryEventClassifier gmailHistoryEventClassifier;
     private final List<GmailHistoryEventHandler> gmailHistoryEventHandlers;
@@ -43,7 +45,9 @@ public class GmailPushFacade {
         GoogleMailPushNotificationResult notification = decodeNotification(request.message());
         validateNotification(notification);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveGoogleMailAccountByEmailAddress(notification.emailAddress());
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveGoogleMailAccountByEmailAddress(notification.emailAddress())
+        );
         String startHistoryId = resolveStartHistoryId(mailAccount, notification.historyId());
 
         GoogleMailHistoryListResult historyResult = googleMailHistoryQueryService.getHistory(
