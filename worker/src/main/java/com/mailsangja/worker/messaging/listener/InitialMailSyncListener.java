@@ -1,0 +1,120 @@
+package com.mailsangja.worker.messaging.listener;
+
+import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
+import com.mailsangja.worker.dto.gmail.message.GoogleMailMessageListResult;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.messaging.publisher.InitialMailSyncThreadBatchPublisher;
+import com.mailsangja.worker.service.google.GmailMessageApiService;
+import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
+import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
+import com.mailsangja.worker.service.mail.MailAccountQueryService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class InitialMailSyncListener {
+
+    private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
+    private final GmailMessageApiService gmailMessageApiService;
+    private final InitialMailSyncThreadBatchPublisher initialMailSyncThreadBatchPublisher;
+    private final InitialMailSyncCommandService initialMailSyncCommandService;
+    private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
+
+    @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
+    public void handle(InitialMailSyncMessage message) {
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
+        );
+
+        GoogleMailMessageListResult result = gmailMessageApiService.getLatestMessages(
+                mailAccount.getAccessToken()
+        );
+
+        List<String> threadIds = extractThreadIds(result);
+        List<List<String>> threadBatches = partitionThreadIds(threadIds);
+
+        for (List<String> threadBatch : threadBatches) {
+            initialMailSyncThreadBatchPublisher.publish(new InitialMailSyncThreadBatchMessage(
+                    message.mailAccountId(),
+                    message.userId(),
+                    message.provider(),
+                    message.emailAddress(),
+                    threadBatch
+            ));
+        }
+
+        log.info(
+                "Prepared initial mail sync thread batches. mailAccountId={} emailAddress={} fetchedCount={} uniqueThreadCount={} batchCount={}",
+                message.mailAccountId(),
+                message.emailAddress(),
+                result.fetchedCount(),
+                threadIds.size(),
+                threadBatches.size()
+        );
+    }
+
+    @RabbitListener(
+            queues = "#{@initialMailSyncThreadBatchQueue.name}",
+            containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory"
+    )
+    public void handleThreadBatch(InitialMailSyncThreadBatchMessage message) {
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
+        );
+
+        List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
+                mailAccount.getAccessToken(),
+                message.threadIds()
+        );
+
+        List<InitialMailSyncThreadSaveCommand> commands = threadResults.stream()
+                .map(InitialMailSyncThreadSaveCommand::from)
+                .toList();
+
+        initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
+
+        log.info(
+                "Saved initial mail sync thread batch. mailAccountId={} emailAddress={} threadCount={}",
+                message.mailAccountId(),
+                message.emailAddress(),
+                message.threadIds().size()
+        );
+    }
+
+    private List<String> extractThreadIds(GoogleMailMessageListResult result) {
+        if (result == null || result.messages() == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> deduplicatedThreadIds = new LinkedHashSet<>();
+        result.messages().stream()
+                .filter(m -> m != null && m.threadId() != null && !m.threadId().isBlank())
+                .forEach(m -> deduplicatedThreadIds.add(m.threadId()));
+        return List.copyOf(deduplicatedThreadIds);
+    }
+
+    private List<List<String>> partitionThreadIds(List<String> threadIds) {
+        if (threadIds.isEmpty()) {
+            return List.of();
+        }
+        int batchSize = googleMailInitialSyncProperties.getThreadBatchSize();
+        List<List<String>> batches = new ArrayList<>();
+        for (int start = 0; start < threadIds.size(); start += batchSize) {
+            int end = Math.min(start + batchSize, threadIds.size());
+            batches.add(List.copyOf(threadIds.subList(start, end)));
+        }
+        return batches;
+    }
+}
