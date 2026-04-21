@@ -1,5 +1,7 @@
 package com.mailsangja.worker.config.rabbitmq;
 
+import com.mailsangja.worker.common.exception.mq.MqErrorCode;
+import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -9,8 +11,12 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
 @Configuration
 public class RabbitMqConfig {
+
+    private static final long MAX_QUEUE_TTL_MILLIS = Integer.MAX_VALUE;
 
     @Bean
     public DirectExchange mailTaskExchange(MailTaskRabbitProperties properties) {
@@ -37,5 +43,25 @@ public class RabbitMqConfig {
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
         rabbitTemplate.setMandatory(Boolean.TRUE.equals(properties.getPublisherMandatory()));
         return rabbitTemplate;
+    }
+
+    static int toQueueTtlMillis(Duration ttl, String propertyName) {
+        if (ttl == null) {
+            throw new MqException(MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL, propertyName + " must not be null.");
+        }
+        if (ttl.isNegative()) {
+            throw new MqException(MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL, propertyName + " must be greater than or equal to 0.");
+        }
+        long ttlMillis = ttl.toMillis();
+        if (ttlMillis > MAX_QUEUE_TTL_MILLIS) {
+            throw new MqException(MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL, propertyName + " must be less than or equal to " + MAX_QUEUE_TTL_MILLIS + "ms.");
+        }
+        return (int) ttlMillis;
+    }
+
+    static void validateTaskName(String taskName, String propertyName) {
+        if (taskName == null || taskName.isBlank()) {
+            throw new MqException(MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL, propertyName + " must not be blank.");
+        }
     }
 }
