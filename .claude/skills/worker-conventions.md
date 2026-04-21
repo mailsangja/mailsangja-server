@@ -1,0 +1,658 @@
+---
+name: worker-conventions
+description: Worker 모듈 아키텍처 및 개발 규칙입니다. RabbitMQ 큐 등록, Listener, Handler, Message Record 작성 시 이 규칙을 따릅니다.
+allowed-tools: Read, Write, Edit, Glob
+---
+
+# Worker Module Conventions
+
+`spring-api-rules.md`의 공통 규칙을 기반으로 하며, Worker 모듈에서 추가로 적용하는 규칙을 정의합니다.
+
+- Root Package: `com.mailsangja.worker`
+- 진입점: HTTP (Google Pub/Sub), RabbitMQ Listener, Cron Scheduler
+- Exchange 타입: `DirectExchange` (main + DLX 분리)
+- Queue 이름: `mailsangja.{taskName}` / Routing Key: `mail.{taskName}`
+
+---
+
+## 핵심 구조 원칙: RabbitMQ 앞단 / 뒷단 분리
+
+Worker 모듈의 모든 흐름은 RabbitMQ를 경계로 **앞단(Producer)**과 **뒷단(Consumer)**으로 명확히 분리됩니다.
+
+```
+[앞단 — Producer Side]
+  HTTP 진입점 or Cron Scheduler
+    → Facade (흐름 조율 + MQ 발행)
+         → Classifier (이벤트 분류)
+         → Publisher (MQ 발행)
+
+[RabbitMQ 경계]
+
+[뒷단 — Consumer Side]
+  Listener (비즈니스 Facade 역할)
+    → Handler (이벤트 타입별 전략 단위)
+         → *ApiService (외부 API 호출)
+         → *CommandService / *QueryService (DB 조작)
+```
+
+### 앞단 역할
+
+- 동기 처리만 담당합니다: OIDC 검증, 토큰 갱신, 외부 API 조회, 이벤트 분류, MQ 발행
+- DB Write를 직접 수행하지 않습니다. DB Write는 뒷단의 책임입니다.
+- MQ 발행 완료 즉시 응답합니다 (Pub/Sub ACK).
+
+### 뒷단 역할
+
+- 핵심 비즈니스 로직 전체가 뒷단에 위치합니다.
+- **Listener가 비즈니스 Facade 역할을 합니다. 뒷단에 별도의 Facade 클래스를 두지 않습니다.**
+- Listener가 Handler, ApiService, CommandService를 직접 조율합니다.
+
+---
+
+## 패키지 구조
+
+```
+com.mailsangja.worker
+├── controller/
+│   └── {Domain}Controller.java
+├── facade/
+│   └── {Domain}Facade.java             # 앞단 HTTP 진입 흐름 조율 전용
+├── handler/{domain}/
+│   ├── *Classifier.java
+│   └── *Handler.java
+├── service/{domain}/
+│   ├── {Domain}ApiService.java         # 외부 Gmail/Google API 호출 전용
+│   ├── {Domain}CommandService.java     # DB Write
+│   └── {Domain}QueryService.java       # DB Read
+├── messaging/
+│   ├── *Listener.java                  # 뒷단 비즈니스 진입점 (Facade 역할)
+│   └── *Publisher.java                 # 앞단 MQ 발행 전용
+├── scheduler/
+│   └── *Scheduler.java                 # Cron 트리거
+├── config/
+│   ├── rabbitmq/
+│   │   ├── RabbitMqConfig.java         # Exchange, Converter, RabbitTemplate, 공통 유틸
+│   │   └── {TaskName}RabbitConfig.java # 큐 1개당 파일 1개
+│   └── properties/
+│       └── *RabbitProperties.java
+├── common/
+│   ├── exception/
+│   └── util/
+└── dto/{domain}/
+    ├── *Message.java    # MQ payload (record)
+    ├── *Request.java    # 외부 Gmail API 요청 파라미터 (record)
+    ├── *Response.java   # 외부 Gmail API 원본 응답 (Jackson 역직렬화용, record)
+    ├── *Result.java     # 내부 변환 결과 (record)
+    └── *Command.java    # 내부 명령 전달 (record)
+```
+
+---
+
+## 새 메시지 큐 등록
+
+새 task를 추가할 때 반드시 아래를 함께 정의한다.
+
+### 1. application.yaml — task-name 추가
+
+```yaml
+mailsangja:
+  rabbitmq:
+    {task-name}:
+      task-name: ${ENV_VAR:default.task.name}
+```
+
+task 이름은 점(`.`) 구분 소문자 형식, 도메인이 아닌 작업 의미 중심으로 짓는다.
+
+- 예: `sync.gmail.initial`, `event.gmail.message-added`, `watch.renewal.gmail`
+
+### 2. Properties 클래스
+
+위치: `config/properties/{TaskName}RabbitProperties.java`
+
+```java
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "mailsangja.rabbitmq.{task-name}")
+public class {TaskName}RabbitProperties {
+
+    private String taskName;
+
+    public String getQueueName()            { return "mailsangja." + taskName; }
+    public String getRoutingKey()           { return "mail." + taskName; }
+    public String getDeadLetterQueueName()  { return getQueueName() + ".dlq"; }
+    public String getDeadLetterRoutingKey() { return getRoutingKey() + ".dlq"; }
+}
+```
+
+> **`taskName` 필드 하나만 외부 주입. 나머지 이름은 반드시 `taskName`으로 파생한다. 큐 이름, routing key 문자열 하드코딩 금지.**
+
+### 3. RabbitConfig 클래스
+
+위치: `config/rabbitmq/{TaskName}RabbitConfig.java` — **큐 1개당 파일 1개**
+
+반드시 아래 7개 Bean을 모두 정의한다.
+
+| Bean | 설명 |
+|------|------|
+| `{taskName}Queue` | 메인 큐 (TTL + DLX 설정) |
+| `{taskName}DeadLetterQueue` | DLQ (단순 durable) |
+| `{taskName}Binding` | 메인 큐 → mailTaskExchange 바인딩 |
+| `{taskName}DeadLetterBinding` | DLQ → mailTaskDeadLetterExchange 바인딩 |
+| `{taskName}MessageRecoverer` | 재시도 소진 시 DLQ 전송 |
+| `{taskName}RetryInterceptor` | stateless 재시도 정책 |
+| `{taskName}RabbitListenerContainerFactory` | Concurrency, Retry, Converter 설정 |
+
+```java
+@Configuration
+public class {TaskName}RabbitConfig {
+
+    private static final Logger log = LoggerFactory.getLogger({TaskName}RabbitConfig.class);
+
+    @Bean
+    public Queue {taskName}Queue(
+            {TaskName}RabbitProperties properties,
+            MailTaskRabbitProperties mailTaskRabbitProperties
+    ) {
+        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.{task-name}.task-name");
+        return QueueBuilder.durable(properties.getQueueName())
+                .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
+                .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
+                .deadLetterRoutingKey(properties.getDeadLetterRoutingKey())
+                .build();
+    }
+
+    @Bean
+    public Queue {taskName}DeadLetterQueue({TaskName}RabbitProperties properties) {
+        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.{task-name}.task-name");
+        return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
+    }
+
+    @Bean
+    public Binding {taskName}Binding(
+            @Qualifier("{taskName}Queue") Queue {taskName}Queue,
+            @Qualifier("mailTaskExchange") DirectExchange mailTaskExchange,
+            {TaskName}RabbitProperties properties
+    ) {
+        return BindingBuilder.bind({taskName}Queue).to(mailTaskExchange).with(properties.getRoutingKey());
+    }
+
+    @Bean
+    public Binding {taskName}DeadLetterBinding(
+            @Qualifier("{taskName}DeadLetterQueue") Queue {taskName}DeadLetterQueue,
+            @Qualifier("mailTaskDeadLetterExchange") DirectExchange mailTaskDeadLetterExchange,
+            {TaskName}RabbitProperties properties
+    ) {
+        return BindingBuilder.bind({taskName}DeadLetterQueue)
+                .to(mailTaskDeadLetterExchange)
+                .with(properties.getDeadLetterRoutingKey());
+    }
+
+    @Bean
+    public MessageRecoverer {taskName}MessageRecoverer({TaskName}RabbitProperties properties) {
+        return (message, cause) -> {
+            log.warn(
+                    "{TaskName} retries exhausted. routingKey={} messageBody={}",
+                    properties.getDeadLetterRoutingKey(),
+                    new String(message.getBody()),
+                    cause
+            );
+            throw new AmqpRejectAndDontRequeueException("{TaskName} retries exhausted", cause);
+        };
+    }
+
+    @Bean
+    public MethodInterceptor {taskName}RetryInterceptor(
+            MailTaskRabbitProperties properties,
+            @Qualifier("{taskName}MessageRecoverer") MessageRecoverer {taskName}MessageRecoverer
+    ) {
+        return RetryInterceptorBuilder.stateless()
+                .maxRetries(properties.getRetryMaxAttempts())
+                .recoverer({taskName}MessageRecoverer)
+                .build();
+    }
+
+    @Bean
+    public SimpleRabbitListenerContainerFactory {taskName}RabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            MessageConverter rabbitMessageConverter,
+            @Qualifier("{taskName}RetryInterceptor") MethodInterceptor {taskName}RetryInterceptor,
+            MailTaskRabbitProperties properties
+    ) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(rabbitMessageConverter);
+        factory.setConcurrentConsumers(properties.getConcurrency());
+        factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setDefaultRequeueRejected(false);
+        factory.setAdviceChain({taskName}RetryInterceptor);
+        return factory;
+    }
+}
+```
+
+> **`rabbitListenerContainerFactory` (default 이름)는 `InitialMailSyncRabbitConfig`가 점유 중이다. 새 task는 반드시 `{taskName}RabbitListenerContainerFactory` 이름으로 등록하고 `@RabbitListener`에 `containerFactory`를 명시해야 한다.**
+
+### 4. RabbitMqConfig 역할
+
+`RabbitMqConfig`는 공통 인프라와 shared 유틸 메서드만 담당한다. 큐/바인딩은 각 `{TaskName}RabbitConfig`에서 정의한다.
+
+| Bean / 유틸 | 설명 |
+|------------|------|
+| `mailTaskExchange` | 공유 Direct Exchange |
+| `mailTaskDeadLetterExchange` | 공유 DLX |
+| `rabbitMessageConverter` | `JacksonJsonMessageConverter` |
+| `rabbitTemplate` | 발행 전용 Template |
+| `static toQueueTtlMillis(Duration, String)` | TTL 검증 유틸 |
+| `static validateTaskName(String, String)` | taskName 검증 유틸 |
+
+---
+
+## DTO / Message Record
+
+> **모든 DTO는 Java `record`. 검증 책임은 record 내부에 집중하여 응집도를 높인다.**
+
+### MQ Message — compact constructor 검증
+
+```java
+// ✅ compact constructor에서 self-validation
+public record {TaskName}Message(
+        UUID mailAccountId,
+        UUID userId,
+        String provider,
+        String emailAddress
+) {
+    public {TaskName}Message {
+        Objects.requireNonNull(mailAccountId, "mailAccountId must not be null");
+        Objects.requireNonNull(userId, "userId must not be null");
+        if (provider == null || provider.isBlank())
+            throw new IllegalArgumentException("provider must not be blank");
+        if (emailAddress == null || emailAddress.isBlank())
+            throw new IllegalArgumentException("emailAddress must not be blank");
+        if (!MailProvider.GMAIL.name().equals(provider))
+            throw new IllegalArgumentException("Unsupported provider: " + provider);
+    }
+}
+
+// ❌ 검증을 Publisher에 흩뿌리는 방식 지양
+public void publish(SomeMessage message) {
+    if (message.mailAccountId() == null || ...) { throw ...; }
+}
+```
+
+### HTTP 진입 DTO — decode() 위임
+
+복잡한 파싱과 검증이 필요한 HTTP 진입 DTO는 `decode()` 메서드로 변환 책임을 record 내부에 위임한다. Facade는 결과만 받는다.
+
+```java
+// ✅ DTO가 파싱 + 검증 + 변환을 모두 담당
+public record GooglePubsubPushRequest(GooglePubsubMessageRequest message, String subscription) {
+
+    public GoogleMailPushNotificationResult decode(ObjectMapper objectMapper) {
+        if (message == null || message.data() == null || message.data().isBlank())
+            throw new MailPushException(MailPushErrorCode.INVALID_PUBSUB_MESSAGE_DATA);
+        try {
+            byte[] decoded = Base64.getDecoder().decode(message.data());
+            return objectMapper.readValue(decoded, GoogleMailPushNotificationResult.class);
+        } catch (IllegalArgumentException | IOException e) {
+            throw new MailPushException(MailPushErrorCode.INVALID_PUBSUB_MESSAGE_DATA);
+        }
+    }
+}
+
+// compact constructor로 결과 DTO도 self-validation
+public record GoogleMailPushNotificationResult(String emailAddress, String historyId) {
+    public GoogleMailPushNotificationResult {
+        if (emailAddress == null || emailAddress.isBlank())
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_PUSH_NOTIFICATION);
+        if (historyId == null || historyId.isBlank())
+            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_PUSH_NOTIFICATION);
+    }
+}
+```
+
+### 정적 팩토리 메서드 (`from`)
+
+Entity → Message 변환이 한 곳 이상에서 발생하면 `from()` 정적 팩토리를 Record 내부에 선언한다.
+
+```java
+public record WatchRenewalMessage(...) {
+    // compact constructor ...
+
+    public static WatchRenewalMessage from(MailAccount mailAccount) {
+        return new WatchRenewalMessage(
+                mailAccount.getId(),
+                mailAccount.getUser().getId(),
+                mailAccount.getProvider().name(),
+                mailAccount.getEmailAddress()
+        );
+    }
+}
+```
+
+### DTO 접미사 구분
+
+| 접미사 | 역할 | 예시 |
+|--------|------|------|
+| `*Message` | RabbitMQ 메시지 payload | `WatchRenewalMessage` |
+| `*Request` | 외부 Gmail API 요청 파라미터 / HTTP 요청 입력 | `GmailMessageListRequest` |
+| `*Response` | 외부 Gmail API 원본 JSON 응답 (Jackson 역직렬화) | `GmailThreadResponse` |
+| `*Result` | 내부 변환 결과 | `GmailHistoryListResult` |
+| `*Command` | 내부 명령 전달 | `RenewGoogleWatchCommand` |
+
+---
+
+## 앞단 규칙 (Producer Side)
+
+### Facade
+
+앞단 Facade는 HTTP 요청 수명 내에서 수행해야 하는 동기 흐름만 조율한다.
+
+- 핵심 비즈니스 로직을 포함하지 않는다.
+- 저수준 파싱, null 체크, 필드 검증을 Facade 메서드 안에 직접 작성하지 않는다. DTO의 compact constructor 또는 `decode()` 메서드에 위임한다.
+- MailAccount 도메인 로직은 엔티티 메서드에 위임한다.
+- MQ 발행 완료 후 즉시 응답한다. DB Write 결과를 기다리지 않는다.
+
+```java
+// ✅ Facade — 흐름 조율만, 저수준 검증 없음
+public void handlePush(String authorizationHeader, GooglePubsubPushRequest request) {
+    googlePubsubOidcApiService.validateAuthorization(authorizationHeader);
+
+    GoogleMailPushNotificationResult notification = request.decode(objectMapper);
+
+    MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+            mailAccountQueryService.findActiveGoogleMailAccountByEmailAddress(notification.emailAddress())
+    );
+
+    GoogleMailHistoryListResult historyResult = gmailHistoryApiService.getHistory(
+            mailAccount.getAccessToken(),
+            mailAccount.resolveStartHistoryId(notification.historyId())
+    );
+
+    gmailHistoryEventPublisher.publishAll(
+            gmailHistoryEventClassifier.classify(mailAccount, historyResult)
+    );
+
+    mailAccountCommandService.updateSyncHistoryId(mailAccount, historyResult.historyId());
+}
+```
+
+도메인 로직은 엔티티에 위임한다.
+
+```java
+// MailAccount 엔티티 — resolveStartHistoryId
+public String resolveStartHistoryId(String fallback) {
+    return (syncHistoryId != null && !syncHistoryId.isBlank()) ? syncHistoryId : fallback;
+}
+```
+
+### Publisher
+
+`RabbitTemplate`을 직접 여기저기 주입하지 않고 반드시 `*Publisher`를 통해서만 발행한다.
+
+```java
+@Component
+@RequiredArgsConstructor
+public class GmailHistoryEventPublisher {
+
+    private final RabbitTemplate rabbitTemplate;
+    private final MailTaskRabbitProperties properties;
+
+    public void publishAll(List<GmailHistoryEvent> events) {
+        events.forEach(this::publish);
+    }
+
+    private void publish(GmailHistoryEvent event) {
+        try {
+            rabbitTemplate.convertAndSend(
+                    properties.getExchange(),
+                    event.eventType().getRoutingKey(),
+                    event,
+                    new CorrelationData(event.mailAccountId() + ":" + event.gmailMessageId())
+            );
+        } catch (AmqpException e) {
+            log.warn("Failed to publish event={} mailAccountId={}", event.eventType(), event.mailAccountId(), e);
+        }
+    }
+}
+```
+
+- Message 필드 검증은 Record compact constructor 책임 — Publisher에서 중복 검증 금지
+- Publisher는 Properties 설정값의 유효성만 검증한다
+- `AmqpException`은 포착 후 warn 로깅 — 예외 전파 금지
+- `GmailHistoryEventType`에 `getRoutingKey()` 메서드를 두어 라우팅 키를 중앙화한다
+- 성공: `log.info`, 실패: `log.warn`
+
+---
+
+## 뒷단 규칙 (Consumer Side)
+
+### Listener — 비즈니스 Facade 역할
+
+Listener는 MQ 메시지를 수신하는 진입점이자, 뒷단 비즈니스 흐름의 Facade다.
+**별도 Facade 클래스 없이** Listener 메서드 안에서 비즈니스 흐름을 직접 조율한다.
+
+Listener가 직접 담당하는 책임:
+- MailAccount 조회
+- Access Token 갱신 (`GoogleAccessTokenEnsureService`) — Gmail API 호출이 있는 경우만
+- Handler 호출 (Strategy dispatch 포함)
+- 필요한 경우 후속 MQ 발행 (Publisher 호출)
+
+```java
+// ✅ Listener — 비즈니스 흐름 직접 조율
+@Component
+@RequiredArgsConstructor
+public class GmailHistoryEventListener {
+
+    private final MailAccountQueryService mailAccountQueryService;
+    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
+    private final MessageAddedHistoryEventHandler messageAddedHandler;
+    private final List<GmailHistoryEventHandler> stateChangeHandlers;
+
+    @RabbitListener(
+            queues = "#{@gmailMessageAddedQueue.name}",
+            containerFactory = "gmailMessageAddedContainerFactory"
+    )
+    public void handleMessageAdded(GmailHistoryEvent event) {
+        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+                mailAccountQueryService.findById(event.mailAccountId())
+        );
+        messageAddedHandler.handle(mailAccount, event);
+    }
+
+    @RabbitListener(
+            queues = {
+                "#{@gmailMessageReadQueue.name}",
+                "#{@gmailMessageUnreadQueue.name}",
+                "#{@gmailMessageTrashedQueue.name}",
+                "#{@gmailMessageRestoredQueue.name}",
+                "#{@gmailMessagePermanentlyDeletedQueue.name}"
+            },
+            containerFactory = "gmailHistoryStateContainerFactory"
+    )
+    public void handleStateChange(GmailHistoryEvent event) {
+        stateChangeHandlers.stream()
+                .filter(h -> h.supports() == event.eventType())
+                .findFirst()
+                .orElseThrow(() -> new MailPushException(MailPushErrorCode.GMAIL_HISTORY_RESULT_INVALID))
+                .handle(event);
+    }
+}
+```
+
+**두 그룹을 ContainerFactory로 분리하는 이유:**
+
+| 그룹 | 큐 수 | ContainerFactory | 특성 |
+|------|-------|-----------------|------|
+| `message-added` | 1개 | `gmailMessageAddedContainerFactory` | Gmail Thread API 호출 포함, 낮은 concurrency |
+| `history-state` | 5개 | `gmailHistoryStateContainerFactory` | DB Write만, 높은 concurrency, 외부 API 불필요 |
+
+**Token 갱신 위치:**
+- Gmail API를 호출하는 Handler를 호출하기 전에만 Listener에서 갱신한다.
+- DB Write만 수행하는 Handler(`history-state`)는 토큰 갱신 불필요.
+
+```java
+// ✅ message-added — 토큰 갱신 후 Handler 호출
+public void handleMessageAdded(GmailHistoryEvent event) {
+    MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(...);
+    messageAddedHandler.handle(mailAccount, event);
+}
+
+// ✅ history-state — 토큰 갱신 없이 바로 dispatch
+public void handleStateChange(GmailHistoryEvent event) {
+    stateChangeHandlers.stream()...handle(event);
+}
+```
+
+- `queues`는 반드시 `#{@{beanName}.name}` SpEL 참조 — 문자열 하드코딩 금지
+- `containerFactory`에 해당 task의 팩토리 Bean 이름을 명시한다
+- 같은 도메인의 관련 큐 여러 개는 하나의 Listener 클래스에 묶을 수 있다
+
+---
+
+## Gmail ApiService 규칙
+
+외부 Google API를 호출하는 서비스는 반드시 `*ApiService`로 명명한다. 내부 비즈니스 서비스(`*CommandService`, `*QueryService`)와 명확히 구분한다.
+
+| 클래스 | 패키지 | 역할 |
+|--------|--------|------|
+| `GmailHistoryApiService` | `service/google/` | Gmail History API 호출 |
+| `GmailMessageApiService` | `service/google/` | Gmail Messages/Threads API 호출 |
+| `GmailWatchApiService` | `service/google/` | Gmail Watch API 호출 |
+| `GooglePubsubOidcApiService` | `service/google/` | Pub/Sub OIDC 검증 |
+| `GoogleOAuthApiService` | `service/google/` | Google OAuth 토큰 교환 |
+
+- `*ApiService`는 외부 API를 호출하고 `*Response` → `*Result` 변환까지 담당한다.
+- 호출 측(Listener)은 `*Result`만 받는다. 원본 `*Response`를 직접 다루지 않는다.
+
+```java
+// ✅ ApiService — 호출 + 변환 캡슐화
+public GoogleMailMessageListResult listMessages(String accessToken, int maxResults) {
+    GmailMessageListResponse response = gmailApiClient.listMessages(accessToken, maxResults);
+    return GoogleMailMessageListResult.from(response);
+}
+
+// ✅ 호출 측은 Result만 사용
+GoogleMailMessageListResult result = gmailMessageApiService.listMessages(accessToken, 20);
+```
+
+### Google Access Token 갱신 규칙
+
+모든 Google API 호출 전에 반드시 `GoogleAccessTokenEnsureService.ensureValidGoogleAccessToken()`으로 토큰을 선제 갱신한다.
+
+```java
+// ✅
+MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+        mailAccountQueryService.findById(message.mailAccountId())
+);
+
+// ❌ 금지 — 갱신 없이 직접 사용
+String accessToken = mailAccount.getAccessToken();
+```
+
+- `mailAccount.getAccessToken()` 직접 사용 금지
+- 앞단 Facade, 뒷단 Listener 모두 동일하게 적용한다
+- 만료 10분 전 갱신 버퍼를 두어 API 호출 도중 만료를 방지한다
+
+---
+
+## Handler / Classifier 규칙
+
+### Classifier
+
+- History API 응답을 내부 이벤트 타입으로 변환하는 순수 해석 로직만 담당한다.
+- 동일 메시지 ID에 대해 여러 이벤트가 겹칠 경우, `LinkedHashMap<messageId, event>` 구조로 최신 이벤트만 유지한다 (중복 제거).
+- 처리 우선순위 순서대로 분류하며, 뒤에 분류된 이벤트가 앞의 이벤트를 덮어쓴다.
+- 외부 I/O, DB 조작, 상태 변경을 포함하지 않는다.
+
+### Handler
+
+Handler는 이벤트 타입별 비즈니스 처리 단위다. Listener로부터 호출되어 `*ApiService` + `*CommandService`를 조합해 실제 작업을 수행한다.
+
+- `supports()` 반환값과 클래스명 접두사를 반드시 일치시킨다 (`MESSAGE_ADDED` → `MessageAdded...`)
+- `@Component`로만 등록하면 Listener의 `List<{Domain}EventHandler>`에 자동 주입된다
+- Repository Port 또는 JPA Module을 Handler에서 직접 주입하지 않는다
+- 외부 API 조회는 트랜잭션과 DB 락 바깥에서 수행한다
+- 락을 획득한 뒤에는 대상 상태를 다시 검증한다. 락 밖에서 확인한 상태를 그대로 신뢰하지 않는다
+
+```java
+// ✅ Handler — ApiService + CommandService 조합
+@Component
+@RequiredArgsConstructor
+public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler {
+
+    private final GmailThreadApiService gmailThreadApiService;
+    private final GmailNewMessageApplyCommandService applyCommandService;
+
+    @Override
+    public GmailHistoryEventType supports() {
+        return GmailHistoryEventType.MESSAGE_ADDED;
+    }
+
+    @Override
+    public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
+        GmailThreadResult threadResult = gmailThreadApiService.getThread(
+                mailAccount.getAccessToken(), event.gmailThreadId()
+        );
+        applyCommandService.applyNewMessageSync(mailAccount, event, threadResult);
+    }
+}
+```
+
+### 새 이벤트 타입 추가
+
+1. 이벤트 enum에 새 항목 추가 + `getRoutingKey()` 반환값 추가
+2. `{EventType}{Domain}EventHandler` 구현체 작성 후 `@Component` 등록
+3. Google API 응답에서 새 타입이 식별되어야 한다면 `*Classifier`에 분류 로직 추가
+4. 새 큐가 필요하면 Properties + RabbitConfig + Listener 등록
+
+---
+
+## Gmail 동시성 규칙
+
+- `Message`, `Thread` 상태를 변경하는 모든 비동기 write 경로는 `mailAccountId + gmailThreadId` 단위로 직렬화한다.
+- 락 획득에는 `GmailThreadLockRepositoryPort.acquireThreadLock()`을 사용한다.
+- 락을 획득한 뒤에만 Thread 집계 상태(`message_count`, `is_read` 등)를 계산하고 반영한다.
+- Gmail 원본 thread snapshot으로 DB를 보강할 때는 기존 row를 무분별하게 overwrite하지 말고, 락 획득 이후 현재 DB 상태를 다시 확인한 뒤 필요한 최소 범위만 반영한다.
+
+---
+
+## Retry / DLQ 규칙
+
+- `defaultRequeueRejected=false` 기본 설정 — poison message 무한 재적재 방지
+- 재시도 소진 시 `AmqpRejectAndDontRequeueException`으로 DLQ 라우팅
+- DLQ 적재 시 routing key와 핵심 식별자를 로그에 남긴다
+- 소비 로직은 중복 수신에도 안전하도록 idempotent하게 작성한다
+
+---
+
+## 큐 구성 현황
+
+| 큐 이름 | 용도 | 발행 주체 | 소비 주체 |
+|---------|------|-----------|-----------|
+| `mailsangja.sync.gmail.initial` | 초기 동기화 시작 | core 모듈 | `InitialMailSyncListener` |
+| `mailsangja.sync.gmail.initial.thread-batch` | 스레드 배치 처리 | `InitialMailSyncListener` | `InitialMailSyncListener` |
+| `mailsangja.watch.renewal.gmail` | Watch 갱신 | `GmailWatchRenewalScheduler` | `GmailWatchRenewalListener` |
+| `mailsangja.event.gmail.message-added` | 신규 메시지 저장 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
+| `mailsangja.event.gmail.message-read` | 읽음 처리 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
+| `mailsangja.event.gmail.message-unread` | 안읽음 처리 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
+| `mailsangja.event.gmail.message-trashed` | 휴지통 이동 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
+| `mailsangja.event.gmail.message-restored` | 휴지통 복구 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
+| `mailsangja.event.gmail.message-permanently-deleted` | 영구 삭제 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
+
+---
+
+## 레이어별 책임 요약
+
+| 레이어 | 클래스 | 위치 | 책임 |
+|--------|--------|------|------|
+| Controller | `*Controller` | 앞단 | HTTP 요청 수신, Facade 위임 |
+| Facade | `*Facade` | 앞단 | 동기 흐름 조율 (토큰 갱신, 외부 API, 분류, 발행) |
+| Classifier | `*Classifier` | 앞단 | 외부 이벤트 → 내부 이벤트 타입 변환, 중복 제거 |
+| Publisher | `*Publisher` | 앞단 | `RabbitTemplate` 래핑, MQ 발행 전용 |
+| Scheduler | `*Scheduler` | 앞단 | Cron 트리거, Facade 또는 Publisher 위임 |
+| **Listener** | `*Listener` | **뒷단** | **비즈니스 Facade 역할, 토큰 갱신 + Handler 호출 조율** |
+| Handler | `*Handler` | 뒷단 | 이벤트 타입별 전략 단위, ApiService + CommandService 조합 |
+| ApiService | `*ApiService` | 뒷단 | 외부 Gmail/Google API 호출 + Result 변환 |
+| CommandService | `*CommandService` | 뒷단 | DB Write, `@Transactional` 선언 |
+| QueryService | `*QueryService` | 뒷단 | DB Read |
