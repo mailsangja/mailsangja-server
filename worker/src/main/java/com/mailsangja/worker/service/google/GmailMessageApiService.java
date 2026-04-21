@@ -31,14 +31,14 @@ import java.util.List;
 
 @Slf4j
 @Service
-public class GoogleMailMessageQueryService {
+public class GmailMessageApiService {
 
     private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
     private final RestClient googleMailMessageRestClient;
 
-    public GoogleMailMessageQueryService(
+    public GmailMessageApiService(
             GoogleMailInitialSyncProperties googleMailInitialSyncProperties,
             @Qualifier("googleMailMessageRestClient") RestClient googleMailMessageRestClient
     ) {

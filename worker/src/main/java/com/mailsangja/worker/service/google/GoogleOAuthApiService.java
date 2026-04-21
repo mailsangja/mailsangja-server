@@ -13,12 +13,12 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 @Service
-public class GoogleOAuthQueryService {
+public class GoogleOAuthApiService {
 
     private final GoogleOAuthProperties googleOAuthProperties;
     private final RestClient googleOAuthRestClient;
 
-    public GoogleOAuthQueryService(
+    public GoogleOAuthApiService(
             GoogleOAuthProperties googleOAuthProperties,
             @Qualifier("googleOAuthRestClient") RestClient googleOAuthRestClient
     ) {

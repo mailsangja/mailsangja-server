@@ -63,7 +63,7 @@ class GoogleMailMessageQueryServiceTest {
                         """))
                 .build();
 
-        GoogleMailMessageQueryService service = new GoogleMailMessageQueryService(properties, restClient);
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
 
         List<InitialMailSyncThreadResult> results = service.getThreads("token", List.of("thread-1"));
 
