@@ -31,7 +31,7 @@ public class GmailNewMessageApplyCommandService {
     private final InitialMailSyncCommandService initialMailSyncCommandService;
 
     @Transactional
-    public NewMessageApplyResult applyNewMessageSync(
+    public void applyNewMessageSync(
             MailAccount mailAccount,
             GmailHistoryEvent event,
             InitialMailSyncThreadSaveCommand syncCommand
@@ -41,11 +41,9 @@ public class GmailNewMessageApplyCommandService {
         restoreIfDeleted(mailAccount, event.gmailThreadId());
 
         initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand));
-
-        return findNewMessageApplyResult(mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId());
     }
 
-    private NewMessageApplyResult findNewMessageApplyResult(UUID mailAccountId, String gmailThreadId, String gmailMessageId) {
+    public NewMessageApplyResult findNewMessageApplyResult(UUID mailAccountId, String gmailThreadId, String gmailMessageId) {
         Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, gmailThreadId, gmailMessageId
         );
