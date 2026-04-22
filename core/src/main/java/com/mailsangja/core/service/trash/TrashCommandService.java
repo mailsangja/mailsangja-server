@@ -66,10 +66,7 @@ public class TrashCommandService {
         String gmailThreadId = message.getThread().getGmailThreadId();
         gmailThreadLockRepositoryPort.acquireThreadLock(message.getThread().getMailAccount(), gmailThreadId);
 
-        message.restore();
-        messageRepositoryPort.save(message);
-
-        // Thread가 삭제 상태였다면 복원 (활성 메시지가 생겼으므로)
+        messageRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
         threadRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }
