@@ -66,7 +66,8 @@ public class TrashCommandService {
         String gmailThreadId = message.getThread().getGmailThreadId();
         gmailThreadLockRepositoryPort.acquireThreadLock(message.getThread().getMailAccount(), gmailThreadId);
 
-        messageRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+        message.restore();
+        messageRepositoryPort.save(message);
         threadRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }

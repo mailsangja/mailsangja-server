@@ -100,7 +100,7 @@ public class TrashFacade {
         validateThreadAccess(user, message.getThread());
         trashCommandService.restoreMessage(message);
         MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(message.getThread().getMailAccount());
-        googleGmailApiService.untrashThread(ensuredMailAccount.getAccessToken(), message.getThread().getGmailThreadId());
+        googleGmailApiService.untrashMessage(ensuredMailAccount.getAccessToken(), message.getGmailMessageId());
     }
 
     private void validateThreadAccess(User user, Thread thread) {
