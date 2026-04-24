@@ -65,8 +65,10 @@ com.mailsangja.worker
 │   ├── {Domain}CommandService.java     # DB Write
 │   └── {Domain}QueryService.java       # DB Read
 ├── messaging/
-│   ├── *Listener.java                  # 뒷단 비즈니스 진입점 (Facade 역할)
-│   └── *Publisher.java                 # 앞단 MQ 발행 전용
+│   ├── listener/
+│   │   └── *Listener.java              # 뒷단 비즈니스 진입점 (Facade 역할)
+│   └── publisher/
+│       └── *Publisher.java             # 앞단 MQ 발행 전용
 ├── scheduler/
 │   └── *Scheduler.java                 # Cron 트리거
 ├── config/
@@ -427,86 +429,187 @@ public class GmailHistoryEventPublisher {
 
 ## 뒷단 규칙 (Consumer Side)
 
+### Listener와 Handler를 두 레이어로 나누는 이유
+
+Listener는 단순한 "MQ 수신 어댑터"가 아닙니다. `@RabbitListener`에 선언된 `containerFactory`가 그 메서드에 적용되는 **concurrency · retry · DLQ 정책 전체**이기 때문에, Listener 메서드가 비즈니스 흐름 조율의 진입점이자 처리 특성의 경계선이 됩니다.
+
+```
+Listener 메서드
+    ↳ containerFactory = "..." → 이 메서드에만 적용되는 concurrency / retry / DLQ
+```
+
+같은 클래스 안의 두 메서드도 서로 다른 ContainerFactory를 가질 수 있으므로, 처리 비용이 다른 이벤트를 하나의 Listener 클래스로 묶으면서도 정책을 분리할 수 있습니다.
+
+**Listener의 책임 (흐름 조율):**
+- MailAccount 조회
+- 토큰 갱신 (`GoogleAccessTokenEnsureService`) — Gmail API 호출이 있는 경우만
+- Handler 디스패치 (어떤 핸들러를 실행할지 결정)
+- 후속 MQ 발행 (필요한 경우)
+
+**Handler의 책임 (비즈니스 실행):**
+- `*ApiService` + `*CommandService` 조합으로 실제 작업 수행
+- 이벤트 타입 단위의 응집된 비즈니스 로직
+
+이 분리로 인해 Listener는 "무엇을 준비하고 누구에게 넘길 것인가"만 담당하고, Handler는 "실제로 무엇을 할 것인가"만 담당합니다.
+
+---
+
+### Handler 분리 기준
+
+**Handler를 분리해야 하는 경우:**
+
+1. **같은 ContainerFactory를 공유하는 여러 이벤트 타입** — 하나의 Listener 메서드에서 여러 타입을 받을 때, `if/switch` 대신 전략 패턴으로 Handler를 분리한다. 새 타입 추가 시 Listener 수정 없이 Handler `@Component` 등록만으로 확장 가능하다.
+
+    ```java
+    // ✅ 전략 패턴 Handler — Listener는 dispatch만
+    stateChangeHandlers.stream()
+        .filter(h -> h.supports() == event.eventType())
+        .findFirst()
+        .orElseThrow(...)
+        .handle(event);
+    ```
+
+2. **비즈니스 로직이 복잡해 Listener 메서드가 길어지는 경우** — Gmail Thread API 조회 + DB 저장 + FCM 푸시처럼 여러 서비스를 조합하는 경우 전용 Handler로 분리한다.
+
+**Handler 없이 Listener에 직접 작성하는 경우:**
+
+큐 1개 = 이벤트 타입 1가지 = 처리 흐름 1가지이고 로직이 직선적으로 이어지는 경우는 Handler로 추출하지 않는다.
+
+```java
+// ✅ GmailWatchRenewalListener — 단순 직선 흐름, Handler 불필요
+public void handle(WatchRenewalMessage message) {
+    MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(...);
+    GoogleOAuthTokenResult tokenResult = googleOAuthApiService.refreshAccessToken(...);
+    GoogleMailWatchResult watchResult = gmailWatchApiService.watch(...);
+    mailAccountCommandService.renewGoogleWatch(...);
+}
+```
+
+| 상황 | 선택 |
+|------|------|
+| 큐 1개, 이벤트 타입 1가지, 직선 흐름 | **Listener에 직접 작성** |
+| 같은 ContainerFactory를 공유하는 여러 이벤트 타입 | **`GmailHistoryEventHandler` 전략 패턴** |
+| 타입은 1가지지만 비즈니스 로직이 복잡 | **전용 Handler 분리** (`MessageAddedHistoryEventHandler` 패턴) |
+
+---
+
 ### Listener — 비즈니스 Facade 역할
 
 Listener는 MQ 메시지를 수신하는 진입점이자, 뒷단 비즈니스 흐름의 Facade다.
 **별도 Facade 클래스 없이** Listener 메서드 안에서 비즈니스 흐름을 직접 조율한다.
 
-Listener가 직접 담당하는 책임:
-- MailAccount 조회
-- Access Token 갱신 (`GoogleAccessTokenEnsureService`) — Gmail API 호출이 있는 경우만
-- Handler 호출 (Strategy dispatch 포함)
-- 필요한 경우 후속 MQ 발행 (Publisher 호출)
+**두 그룹을 ContainerFactory로 분리하는 구조:**
 
 ```java
-// ✅ Listener — 비즈니스 흐름 직접 조율
-@Component
-@RequiredArgsConstructor
-public class GmailHistoryEventListener {
-
-    private final MailAccountQueryService mailAccountQueryService;
-    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
-    private final MessageAddedHistoryEventHandler messageAddedHandler;
-    private final List<GmailHistoryEventHandler> stateChangeHandlers;
-
-    @RabbitListener(
-            queues = "#{@gmailMessageAddedQueue.name}",
-            containerFactory = "gmailMessageAddedContainerFactory"
-    )
-    public void handleMessageAdded(GmailHistoryEvent event) {
-        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findById(event.mailAccountId())
-        );
-        messageAddedHandler.handle(mailAccount, event);
-    }
-
-    @RabbitListener(
-            queues = {
-                "#{@gmailMessageReadQueue.name}",
-                "#{@gmailMessageUnreadQueue.name}",
-                "#{@gmailMessageTrashedQueue.name}",
-                "#{@gmailMessageRestoredQueue.name}",
-                "#{@gmailMessagePermanentlyDeletedQueue.name}"
-            },
-            containerFactory = "gmailHistoryStateContainerFactory"
-    )
-    public void handleStateChange(GmailHistoryEvent event) {
-        stateChangeHandlers.stream()
-                .filter(h -> h.supports() == event.eventType())
-                .findFirst()
-                .orElseThrow(() -> new MailPushException(MailPushErrorCode.GMAIL_HISTORY_RESULT_INVALID))
-                .handle(event);
-    }
-}
-```
-
-**두 그룹을 ContainerFactory로 분리하는 이유:**
-
-| 그룹 | 큐 수 | ContainerFactory | 특성 |
-|------|-------|-----------------|------|
-| `message-added` | 1개 | `gmailMessageAddedContainerFactory` | Gmail Thread API 호출 포함, 낮은 concurrency |
-| `history-state` | 5개 | `gmailHistoryStateContainerFactory` | DB Write만, 높은 concurrency, 외부 API 불필요 |
-
-**Token 갱신 위치:**
-- Gmail API를 호출하는 Handler를 호출하기 전에만 Listener에서 갱신한다.
-- DB Write만 수행하는 Handler(`history-state`)는 토큰 갱신 불필요.
-
-```java
-// ✅ message-added — 토큰 갱신 후 Handler 호출
+// ✅ message-added — Listener에서 토큰 갱신 후 전용 Handler에 MailAccount 직접 전달
+@RabbitListener(
+        queues = "#{@gmailMessageAddedQueue.name}",
+        containerFactory = "gmailMessageAddedContainerFactory"
+)
 public void handleMessageAdded(GmailHistoryEvent event) {
-    MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(...);
+    MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+            mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
+    );
     messageAddedHandler.handle(mailAccount, event);
 }
 
-// ✅ history-state — 토큰 갱신 없이 바로 dispatch
+// ✅ history-state 5개 — 전략 풀에 이벤트만 전달, 토큰 갱신은 각 Handler 책임
+@RabbitListener(
+        queues = {
+            "#{@gmailMessageReadQueue.name}",
+            "#{@gmailMessageUnreadQueue.name}",
+            "#{@gmailMessageTrashedQueue.name}",
+            "#{@gmailMessageRestoredQueue.name}",
+            "#{@gmailMessagePermanentlyDeletedQueue.name}"
+        },
+        containerFactory = "gmailHistoryStateContainerFactory"
+)
 public void handleStateChange(GmailHistoryEvent event) {
-    stateChangeHandlers.stream()...handle(event);
+    stateChangeHandlers.stream()
+            .filter(h -> h.supports() == event.eventType())
+            .findFirst()
+            .orElseThrow(() -> new MailPushException(MailPushErrorCode.GMAIL_HISTORY_RESULT_INVALID))
+            .handle(event);
+}
+```
+
+**`MessageAddedHistoryEventHandler`는 전략 풀이 아닌 전용 컴포넌트:**
+
+`GmailHistoryEventHandler` 인터페이스를 구현하지 않으며 `(MailAccount, GmailHistoryEvent)` 시그니처를 가진다. Listener가 이미 갱신된 `MailAccount`를 전달하므로 Handler 내부에서 토큰 갱신이 필요 없다.
+
+**전략 풀 Handler의 토큰 갱신 위치:**
+
+`history-state` 핸들러는 Listener로부터 이벤트만 받으므로, Gmail API 호출이 필요한 경우 Handler 내부에서 직접 토큰을 갱신한다.
+
+```java
+// ✅ read/unread — 메시지 미존재 시 Gmail API 재조회 가능, Handler 내부에서 토큰 갱신
+@Override
+public void handle(GmailHistoryEvent event) {
+    MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
+            mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
+    );
+    InitialMailSyncThreadSaveCommand syncCommand = prepareSyncCommandIfNeeded(mailAccount, event);
+    gmailHistoryStateApplyCommandService.applyMessageReadState(mailAccount, event, true, syncCommand);
+}
+
+// ✅ trashed/permanently-deleted — DB 반영만, 토큰 갱신 없음
+@Override
+public void handle(GmailHistoryEvent event) {
+    MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+    gmailHistoryDeleteApplyCommandService.applyMessageTrashed(mailAccount, event);
 }
 ```
 
 - `queues`는 반드시 `#{@{beanName}.name}` SpEL 참조 — 문자열 하드코딩 금지
 - `containerFactory`에 해당 task의 팩토리 Bean 이름을 명시한다
 - 같은 도메인의 관련 큐 여러 개는 하나의 Listener 클래스에 묶을 수 있다
+
+---
+
+## 큐 / ContainerFactory 전체 현황
+
+### ContainerFactory 목록
+
+| ContainerFactory Bean 이름 | 정의 위치 | 처리 특성 |
+|---------------------------|-----------|-----------|
+| `rabbitListenerContainerFactory` | `InitialMailSyncRabbitConfig` | default factory — `containerFactory` 미지정 시 사용 |
+| `gmailMessageAddedContainerFactory` | `GmailMessageAddedRabbitConfig` | message-added 전용 |
+| `initialMailSyncThreadBatchRabbitListenerContainerFactory` | `InitialMailSyncThreadBatchRabbitConfig` | 초기 동기화 2단계 배치 전용 |
+| `gmailHistoryStateContainerFactory` | `GmailMessagePermanentlyDeletedRabbitConfig` | history-state 5개 큐 공유 |
+| `watchRenewalRabbitListenerContainerFactory` | `WatchRenewalRabbitConfig` | Watch 갱신 전용 |
+
+> **`gmailHistoryStateContainerFactory`는 `GmailMessagePermanentlyDeletedRabbitConfig`에 정의되어 있으며, read/unread/trashed/restored/permanently-deleted 5개 큐가 공유한다. 나머지 4개 config(`GmailMessageReadRabbitConfig` 등)는 Queue + Binding Bean만 정의하고 ContainerFactory는 정의하지 않는다.**
+
+### 큐 → ContainerFactory → Listener 연결 전체 맵
+
+| 큐 Bean 이름 | 큐 이름 (runtime) | ContainerFactory | Listener 메서드 | Handler |
+|---|---|---|---|---|
+| `initialMailSyncQueue` | `mailsangja.sync.gmail.initial` | `rabbitListenerContainerFactory` (default) | `InitialMailSyncListener#handle()` | 없음 (Listener 직접 처리) |
+| `initialMailSyncThreadBatchQueue` | `mailsangja.sync.gmail.initial.thread-batch` | `initialMailSyncThreadBatchRabbitListenerContainerFactory` | `InitialMailSyncListener#handleThreadBatch()` | 없음 (Listener 직접 처리) |
+| `watchRenewalQueue` | `mailsangja.watch.renewal.gmail` | `watchRenewalRabbitListenerContainerFactory` | `GmailWatchRenewalListener#handle()` | 없음 (Listener 직접 처리) |
+| `gmailMessageAddedQueue` | `mailsangja.event.gmail.message-added` | `gmailMessageAddedContainerFactory` | `GmailHistoryEventListener#handleMessageAdded()` | `MessageAddedHistoryEventHandler` (전용, 인터페이스 미구현) |
+| `gmailMessageReadQueue` | `mailsangja.event.gmail.message-read` | `gmailHistoryStateContainerFactory` | `GmailHistoryEventListener#handleStateChange()` | `MessageReadHistoryEventHandler` |
+| `gmailMessageUnreadQueue` | `mailsangja.event.gmail.message-unread` | `gmailHistoryStateContainerFactory` | `GmailHistoryEventListener#handleStateChange()` | `MessageUnreadHistoryEventHandler` |
+| `gmailMessageTrashedQueue` | `mailsangja.event.gmail.message-trashed` | `gmailHistoryStateContainerFactory` | `GmailHistoryEventListener#handleStateChange()` | `MessageTrashedHistoryEventHandler` |
+| `gmailMessageRestoredQueue` | `mailsangja.event.gmail.message-restored` | `gmailHistoryStateContainerFactory` | `GmailHistoryEventListener#handleStateChange()` | `MessageRestoredHistoryEventHandler` |
+| `gmailMessagePermanentlyDeletedQueue` | `mailsangja.event.gmail.message-permanently-deleted` | `gmailHistoryStateContainerFactory` | `GmailHistoryEventListener#handleStateChange()` | `MessagePermanentlyDeletedHistoryEventHandler` |
+
+### InitialMailSyncListener의 Producer/Consumer 이중 역할
+
+`InitialMailSyncListener`는 동일 클래스에서 두 단계를 처리한다.
+
+```
+[1단계] initialMailSyncQueue 소비
+    → Gmail Messages API로 최신 메일 목록 조회
+    → threadId 중복 제거 후 batchSize로 분할
+    → initialMailSyncThreadBatchQueue로 배치 발행   ← Producer 역할
+
+[2단계] initialMailSyncThreadBatchQueue 소비
+    → 각 threadId별 Gmail Thread API 조회
+    → DB 저장
+```
+
+1단계는 default ContainerFactory(`rabbitListenerContainerFactory`), 2단계는 `initialMailSyncThreadBatchRabbitListenerContainerFactory`를 사용해 처리 특성을 분리한다.
 
 ---
 
@@ -551,7 +654,7 @@ String accessToken = mailAccount.getAccessToken();
 ```
 
 - `mailAccount.getAccessToken()` 직접 사용 금지
-- 앞단 Facade, 뒷단 Listener 모두 동일하게 적용한다
+- 앞단 Facade, 뒷단 Listener / Handler 모두 동일하게 적용한다
 - 만료 10분 전 갱신 버퍼를 두어 API 호출 도중 만료를 방지한다
 
 ---
@@ -576,25 +679,37 @@ Handler는 이벤트 타입별 비즈니스 처리 단위다. Listener로부터 
 - 락을 획득한 뒤에는 대상 상태를 다시 검증한다. 락 밖에서 확인한 상태를 그대로 신뢰하지 않는다
 
 ```java
-// ✅ Handler — ApiService + CommandService 조합
+// ✅ 전략 Handler — GmailHistoryEventHandler 구현
 @Component
 @RequiredArgsConstructor
-public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler {
+public class MessageTrashedHistoryEventHandler implements GmailHistoryEventHandler {
 
-    private final GmailThreadApiService gmailThreadApiService;
-    private final GmailNewMessageApplyCommandService applyCommandService;
+    private final MailAccountQueryService mailAccountQueryService;
+    private final GmailHistoryDeleteApplyCommandService gmailHistoryDeleteApplyCommandService;
 
     @Override
     public GmailHistoryEventType supports() {
-        return GmailHistoryEventType.MESSAGE_ADDED;
+        return GmailHistoryEventType.MESSAGE_TRASHED;
     }
 
     @Override
+    public void handle(GmailHistoryEvent event) {
+        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+        gmailHistoryDeleteApplyCommandService.applyMessageTrashed(mailAccount, event);
+    }
+}
+
+// ✅ 전용 Handler — 인터페이스 미구현, Listener가 MailAccount를 직접 전달
+@Component
+@RequiredArgsConstructor
+public class MessageAddedHistoryEventHandler {
+
+    private final GmailNewMessageSyncCommandService gmailNewMessageSyncCommandService;
+    private final FcmPushCommandService fcmPushCommandService;
+
     public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
-        GmailThreadResult threadResult = gmailThreadApiService.getThread(
-                mailAccount.getAccessToken(), event.gmailThreadId()
-        );
-        applyCommandService.applyNewMessageSync(mailAccount, event, threadResult);
+        NewMailPushContext context = gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event);
+        fcmPushCommandService.sendNewMailPush(context);
     }
 }
 ```
@@ -626,22 +741,6 @@ public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler
 
 ---
 
-## 큐 구성 현황
-
-| 큐 이름 | 용도 | 발행 주체 | 소비 주체 |
-|---------|------|-----------|-----------|
-| `mailsangja.sync.gmail.initial` | 초기 동기화 시작 | core 모듈 | `InitialMailSyncListener` |
-| `mailsangja.sync.gmail.initial.thread-batch` | 스레드 배치 처리 | `InitialMailSyncListener` | `InitialMailSyncListener` |
-| `mailsangja.watch.renewal.gmail` | Watch 갱신 | `GmailWatchRenewalScheduler` | `GmailWatchRenewalListener` |
-| `mailsangja.event.gmail.message-added` | 신규 메시지 저장 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
-| `mailsangja.event.gmail.message-read` | 읽음 처리 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
-| `mailsangja.event.gmail.message-unread` | 안읽음 처리 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
-| `mailsangja.event.gmail.message-trashed` | 휴지통 이동 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
-| `mailsangja.event.gmail.message-restored` | 휴지통 복구 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
-| `mailsangja.event.gmail.message-permanently-deleted` | 영구 삭제 | `GmailHistoryEventPublisher` | `GmailHistoryEventListener` |
-
----
-
 ## 레이어별 책임 요약
 
 | 레이어 | 클래스 | 위치 | 책임 |
@@ -651,8 +750,9 @@ public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler
 | Classifier | `*Classifier` | 앞단 | 외부 이벤트 → 내부 이벤트 타입 변환, 중복 제거 |
 | Publisher | `*Publisher` | 앞단 | `RabbitTemplate` 래핑, MQ 발행 전용 |
 | Scheduler | `*Scheduler` | 앞단 | Cron 트리거, Facade 또는 Publisher 위임 |
-| **Listener** | `*Listener` | **뒷단** | **비즈니스 Facade 역할, 토큰 갱신 + Handler 호출 조율** |
-| Handler | `*Handler` | 뒷단 | 이벤트 타입별 전략 단위, ApiService + CommandService 조합 |
+| **Listener** | `*Listener` | **뒷단** | **비즈니스 Facade 역할, ContainerFactory 경계, 흐름 조율** |
+| Handler (전략) | `*Handler` implements `*EventHandler` | 뒷단 | 전략 풀 멤버, `supports()` 기준 이벤트 타입별 처리 |
+| Handler (전용) | `*Handler` (인터페이스 미구현) | 뒷단 | Listener 직접 지목, `(MailAccount, Event)` 시그니처 |
 | ApiService | `*ApiService` | 뒷단 | 외부 Gmail/Google API 호출 + Result 변환 |
 | CommandService | `*CommandService` | 뒷단 | DB Write, `@Transactional` 선언 |
 | QueryService | `*QueryService` | 뒷단 | DB Read |
