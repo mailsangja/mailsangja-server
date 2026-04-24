@@ -66,7 +66,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             @Param("deletedAt") LocalDateTime deletedAt
     );
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("UPDATE Thread t SET t.deletedAt = NULL WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId AND t.deletedAt IS NOT NULL")
     int bulkRestoreByMailAccountIdAndGmailThreadId(
             @Param("mailAccountId") UUID mailAccountId,
