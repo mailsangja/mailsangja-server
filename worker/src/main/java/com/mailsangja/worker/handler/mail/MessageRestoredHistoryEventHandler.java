@@ -1,8 +1,10 @@
 package com.mailsangja.worker.handler.mail;
 
+import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
-import com.mailsangja.worker.service.trash.GmailHistoryDeleteCommandService;
+import com.mailsangja.worker.service.mail.MailAccountQueryService;
+import com.mailsangja.worker.service.trash.GmailHistoryDeleteApplyCommandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MessageRestoredHistoryEventHandler implements GmailHistoryEventHandler {
 
-    private final GmailHistoryDeleteCommandService gmailHistoryDeleteCommandService;
+    private final MailAccountQueryService mailAccountQueryService;
+    private final GmailHistoryDeleteApplyCommandService gmailHistoryDeleteApplyCommandService;
 
     @Override
     public GmailHistoryEventType supports() {
@@ -19,6 +22,7 @@ public class MessageRestoredHistoryEventHandler implements GmailHistoryEventHand
 
     @Override
     public void handle(GmailHistoryEvent event) {
-        gmailHistoryDeleteCommandService.restoreMessage(event);
+        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+        gmailHistoryDeleteApplyCommandService.applyMessageRestored(mailAccount, event);
     }
 }
