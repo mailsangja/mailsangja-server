@@ -8,6 +8,8 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
+import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
+import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.mail.sync.NewMessageApplyResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +31,7 @@ public class GmailNewMessageApplyCommandService {
     private final InitialMailSyncCommandService initialMailSyncCommandService;
 
     @Transactional
-    public NewMessageApplyResult applyNewMessageSync(
+    public void applyNewMessageSync(
             MailAccount mailAccount,
             GmailHistoryEvent event,
             InitialMailSyncThreadSaveCommand syncCommand
@@ -39,18 +41,16 @@ public class GmailNewMessageApplyCommandService {
         restoreIfDeleted(mailAccount, event.gmailThreadId());
 
         initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand));
-
-        return findNewMessageApplyResult(mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId());
     }
 
-    private NewMessageApplyResult findNewMessageApplyResult(UUID mailAccountId, String gmailThreadId, String gmailMessageId) {
+    public NewMessageApplyResult findNewMessageApplyResult(UUID mailAccountId, String gmailThreadId, String gmailMessageId) {
         Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, gmailThreadId, gmailMessageId
         );
         if (messageOpt.isEmpty()) {
             log.warn("저장된 메시지를 찾을 수 없습니다: mailAccountId={} gmailThreadId={} gmailMessageId={}",
                     mailAccountId, gmailThreadId, gmailMessageId);
-            return new NewMessageApplyResult(null, null);
+            throw new MailPushException(MailPushErrorCode.NEW_MESSAGE_NOT_SAVED);
         }
         Message message = messageOpt.get();
         return new NewMessageApplyResult(message.getId(), message.getThread().getId());

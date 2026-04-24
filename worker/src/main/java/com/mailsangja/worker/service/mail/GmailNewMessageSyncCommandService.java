@@ -41,7 +41,10 @@ public class GmailNewMessageSyncCommandService {
         }
 
         InitialMailSyncThreadSaveCommand syncCommand = InitialMailSyncThreadSaveCommand.from(threadResults.getFirst());
-        NewMessageApplyResult applyResult = gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
+        gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
+        NewMessageApplyResult applyResult = gmailNewMessageApplyCommandService.findNewMessageApplyResult(
+                mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
+        );
 
         String subject = null;
         String snippet = null;

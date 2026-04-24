@@ -6,8 +6,10 @@ import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.service.mail.GmailNewMessageSyncCommandService;
 import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler {
@@ -23,6 +25,10 @@ public class MessageAddedHistoryEventHandler implements GmailHistoryEventHandler
     @Override
     public void handle(GmailHistoryEvent event) {
         NewMailPushContext context = gmailNewMessageSyncCommandService.syncNewMessage(event);
-        fcmPushCommandService.sendNewMailPush(context);
+        try {
+            fcmPushCommandService.sendNewMailPush(context);
+        } catch (Exception e) {
+            log.warn("FCM push skipped due to unexpected error: mailAccountId={} error={}", context.mailAccountId(), e.getMessage());
+        }
     }
 }
