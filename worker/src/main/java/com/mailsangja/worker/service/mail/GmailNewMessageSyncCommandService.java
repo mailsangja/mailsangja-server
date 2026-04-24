@@ -9,7 +9,7 @@ import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import com.mailsangja.worker.dto.mail.sync.NewMessageApplyResult;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
-import com.mailsangja.worker.service.google.GoogleMailMessageQueryService;
+import com.mailsangja.worker.service.google.GmailMessageApiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,19 +19,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GmailNewMessageSyncCommandService {
 
-    private final MailAccountQueryService mailAccountQueryService;
-    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
-    private final GoogleMailMessageQueryService googleMailMessageQueryService;
+    private final GmailMessageApiService gmailMessageApiService;
     private final GmailNewMessageApplyCommandService gmailNewMessageApplyCommandService;
 
-    public NewMailPushContext syncNewMessage(GmailHistoryEvent event) {
-        validateEvent(event);
-
-        MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
-        );
-
-        List<InitialMailSyncThreadResult> threadResults = googleMailMessageQueryService.getThreads(
+    public NewMailPushContext syncNewMessage(MailAccount mailAccount, GmailHistoryEvent event) {
+        List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
                 mailAccount.getAccessToken(),
                 List.of(event.gmailThreadId())
         );
@@ -61,18 +53,5 @@ public class GmailNewMessageSyncCommandService {
                 applyResult.threadId(),
                 applyResult.messageId()
         );
-    }
-
-    private void validateEvent(GmailHistoryEvent event) {
-        if (event == null
-                || event.mailAccountId() == null
-                || isBlank(event.gmailThreadId())
-                || isBlank(event.gmailMessageId())) {
-            throw new MailPushException(MailPushErrorCode.INVALID_GMAIL_PUSH_NOTIFICATION);
-        }
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
     }
 }

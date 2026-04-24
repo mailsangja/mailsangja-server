@@ -4,7 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
-import com.mailsangja.worker.service.google.GoogleOAuthQueryService;
+import com.mailsangja.worker.service.google.GoogleOAuthApiService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,16 +15,16 @@ public class GoogleAccessTokenEnsureService {
     private static final long REFRESH_WINDOW_MINUTES = 10L;
 
     private final MailAccountCommandService mailAccountCommandService;
-    private final GoogleOAuthQueryService googleOAuthQueryService;
+    private final GoogleOAuthApiService googleOAuthApiService;
     private final MailAccountQueryService mailAccountQueryService;
 
     public GoogleAccessTokenEnsureService(
             MailAccountCommandService mailAccountCommandService,
-            GoogleOAuthQueryService googleOAuthQueryService,
+            GoogleOAuthApiService googleOAuthApiService,
             MailAccountQueryService mailAccountQueryService
     ) {
         this.mailAccountCommandService = mailAccountCommandService;
-        this.googleOAuthQueryService = googleOAuthQueryService;
+        this.googleOAuthApiService = googleOAuthApiService;
         this.mailAccountQueryService = mailAccountQueryService;
     }
 
@@ -42,7 +42,7 @@ public class GoogleAccessTokenEnsureService {
 
         return mailAccountCommandService.refreshGoogleAccessToken(
                 mailAccount.getId(),
-                googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken())
+                googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken())
         );
     }
 
