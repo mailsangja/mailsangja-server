@@ -14,6 +14,7 @@ import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -430,9 +431,9 @@ class GoogleMailSendCommandServiceTest {
 
     private String extractJsonField(String requestBody, String fieldName) {
         Pattern pattern = Pattern.compile("\"" + fieldName + "\"\\s*:\\s*\"([^\"]+)\"");
-        Matcher matcher = pattern.matcher(requestBody);
         assertNotNull(requestBody);
-        org.junit.jupiter.api.Assertions.assertTrue(matcher.find());
+        Matcher matcher = pattern.matcher(requestBody);
+        Assertions.assertTrue(matcher.find());
         return matcher.group(1);
     }
 
