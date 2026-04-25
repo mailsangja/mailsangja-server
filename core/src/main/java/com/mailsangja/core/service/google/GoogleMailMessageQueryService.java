@@ -6,6 +6,7 @@ import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResponse;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
+import com.mailsangja.core.dto.mail.GoogleMailReplyContextResult;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -59,6 +60,10 @@ public class GoogleMailMessageQueryService {
         }
     }
 
+    public GoogleMailReplyContextResult getReplyContext(String accessToken, String gmailMessageId) {
+        throw new UnsupportedOperationException("getReplyContext is not implemented yet.");
+    }
+
     private void validateInput(String accessToken, String gmailMessageId) {
         if (isBlank(accessToken)
                 || isBlank(gmailMessageId)
@@ -93,6 +98,10 @@ public class GoogleMailMessageQueryService {
                 response.id(),
                 response.threadId(),
                 response.historyId(),
+                extractHeaderValue(response, "Message-ID"),
+                extractHeaderValue(response, "References"),
+                extractHeaderValue(response, "In-Reply-To"),
+                extractHeaderValue(response, "Reply-To"),
                 extractHeaderValue(response, "Subject"),
                 from.addresses().getFirst(),
                 from.names().getFirst(),

@@ -18,6 +18,10 @@ public record MailSendPersistCommand(
     public Message.CreateValues toCreateValues() {
         return new Message.CreateValues(
                 messageResult.gmailMessageId(),
+                messageResult.rfcMessageId(),
+                messageResult.referencesHeader(),
+                messageResult.inReplyToHeader(),
+                messageResult.replyToHeader(),
                 Direction.OUTBOUND,
                 messageResult.subject(),
                 messageResult.fromAddress(),

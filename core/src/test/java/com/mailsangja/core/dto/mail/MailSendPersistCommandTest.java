@@ -21,6 +21,10 @@ class MailSendPersistCommandTest {
                         "gmail-message-id",
                         "gmail-thread-id",
                         "history-id",
+                        "<rfc-message-id@example.com>",
+                        "<older-message-id@example.com>",
+                        "<parent-message-id@example.com>",
+                        "\"Reply\" <reply@example.com>",
                         "제목",
                         "sender@example.com",
                         null,
@@ -49,6 +53,10 @@ class MailSendPersistCommandTest {
         Message.CreateValues values = command.toCreateValues();
 
         assertEquals(Direction.OUTBOUND, values.direction());
+        assertEquals("<rfc-message-id@example.com>", values.rfcMessageId());
+        assertEquals("<older-message-id@example.com>", values.referencesHeader());
+        assertEquals("<parent-message-id@example.com>", values.inReplyToHeader());
+        assertEquals("\"Reply\" <reply@example.com>", values.replyToHeader());
         assertEquals("보내는사람", values.fromName());
         assertEquals(List.of("받는사람"), values.toNames());
         assertEquals(List.of("참조사람"), values.ccNames());
@@ -70,6 +78,10 @@ class MailSendPersistCommandTest {
                         "gmail-message-id",
                         "gmail-thread-id",
                         "history-id",
+                        null,
+                        null,
+                        null,
+                        null,
                         "제목",
                         "sender@example.com",
                         "sender@example.com",
@@ -106,6 +118,10 @@ class MailSendPersistCommandTest {
                         "gmail-message-id",
                         "gmail-thread-id",
                         "history-id",
+                        null,
+                        null,
+                        null,
+                        null,
                         "제목",
                         "sender@example.com",
                         "sender@example.com",

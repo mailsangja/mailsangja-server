@@ -48,7 +48,11 @@ class GoogleMailMessageQueryServiceTest {
                                   {"name": "Subject", "value": "subject"},
                                   {"name": "From", "value": "Alice Kim <alice@example.com>"},
                                   {"name": "To", "value": "Bob <bob@example.com>, carol@example.com"},
-                                  {"name": "Cc", "value": "\\"Dave, Jr.\\" <dave@example.com>"}
+                                  {"name": "Cc", "value": "\\"Dave, Jr.\\" <dave@example.com>"},
+                                  {"name": "Message-ID", "value": "<message-id@example.com>"},
+                                  {"name": "References", "value": "<root-message@example.com>"},
+                                  {"name": "In-Reply-To", "value": "<parent-message@example.com>"},
+                                  {"name": "Reply-To", "value": "\\"Reply Alias\\" <reply@example.com>"}
                                 ],
                                 "parts": [
                                   {
@@ -75,6 +79,10 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals(Arrays.asList("Bob", "carol@example.com"), results.getFirst().messages().getFirst().toNames());
         assertEquals(List.of("dave@example.com"), results.getFirst().messages().getFirst().ccAddresses());
         assertEquals(List.of("Dave, Jr."), results.getFirst().messages().getFirst().ccNames());
+        assertEquals("<message-id@example.com>", results.getFirst().messages().getFirst().rfcMessageId());
+        assertEquals("<root-message@example.com>", results.getFirst().messages().getFirst().referencesHeader());
+        assertEquals("<parent-message@example.com>", results.getFirst().messages().getFirst().inReplyToHeader());
+        assertEquals("\"Reply Alias\" <reply@example.com>", results.getFirst().messages().getFirst().replyToHeader());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());
         assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
     }
