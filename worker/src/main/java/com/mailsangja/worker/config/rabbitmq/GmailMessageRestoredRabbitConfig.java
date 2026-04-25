@@ -22,7 +22,6 @@ public class GmailMessageRestoredRabbitConfig {
             GmailHistoryEventRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-restored-task-name");
         return QueueBuilder.durable(properties.getQueueName(EVENT_TYPE))
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -32,7 +31,6 @@ public class GmailMessageRestoredRabbitConfig {
 
     @Bean
     public Queue gmailMessageRestoredDeadLetterQueue(GmailHistoryEventRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-restored-task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName(EVENT_TYPE)).build();
     }
 

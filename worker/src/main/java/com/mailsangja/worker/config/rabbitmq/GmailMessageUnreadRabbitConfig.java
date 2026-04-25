@@ -22,7 +22,6 @@ public class GmailMessageUnreadRabbitConfig {
             GmailHistoryEventRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-unread-task-name");
         return QueueBuilder.durable(properties.getQueueName(EVENT_TYPE))
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -32,7 +31,6 @@ public class GmailMessageUnreadRabbitConfig {
 
     @Bean
     public Queue gmailMessageUnreadDeadLetterQueue(GmailHistoryEventRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-unread-task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName(EVENT_TYPE)).build();
     }
 

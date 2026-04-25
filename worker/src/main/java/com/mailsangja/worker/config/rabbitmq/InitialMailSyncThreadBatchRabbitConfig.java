@@ -30,7 +30,6 @@ public class InitialMailSyncThreadBatchRabbitConfig {
             InitialMailSyncRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getThreadBatchTaskName(), "mailsangja.rabbitmq.initial-mail-sync.thread-batch-task-name");
         return QueueBuilder.durable(properties.getThreadBatchQueueName())
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -40,7 +39,6 @@ public class InitialMailSyncThreadBatchRabbitConfig {
 
     @Bean
     public Queue initialMailSyncThreadBatchDeadLetterQueue(InitialMailSyncRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getThreadBatchTaskName(), "mailsangja.rabbitmq.initial-mail-sync.thread-batch-task-name");
         return QueueBuilder.durable(properties.getThreadBatchDeadLetterQueueName()).build();
     }
 
@@ -70,9 +68,10 @@ public class InitialMailSyncThreadBatchRabbitConfig {
     public MessageRecoverer initialMailSyncThreadBatchMessageRecoverer(InitialMailSyncRabbitProperties properties) {
         return (message, cause) -> {
             log.warn(
-                    "Initial mail sync thread batch retries exhausted. Sending to DLQ routingKey={} messageBody={}",
+                    "Initial mail sync thread batch retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
                     properties.getThreadBatchDeadLetterRoutingKey(),
-                    new String(message.getBody()),
+                    message.getMessageProperties().getMessageId(),
+                    message.getBody().length,
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("Initial mail sync thread batch retries exhausted", cause);

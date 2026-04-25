@@ -32,7 +32,6 @@ public class GmailMessageAddedRabbitConfig {
             GmailHistoryEventRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-added-task-name");
         return QueueBuilder.durable(properties.getQueueName(EVENT_TYPE))
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -42,7 +41,6 @@ public class GmailMessageAddedRabbitConfig {
 
     @Bean
     public Queue gmailMessageAddedDeadLetterQueue(GmailHistoryEventRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-added-task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName(EVENT_TYPE)).build();
     }
 
@@ -72,9 +70,10 @@ public class GmailMessageAddedRabbitConfig {
     public MessageRecoverer gmailMessageAddedMessageRecoverer(GmailHistoryEventRabbitProperties properties) {
         return (message, cause) -> {
             log.warn(
-                    "Gmail message-added retries exhausted. routingKey={} messageBody={}",
+                    "Gmail message-added retries exhausted. routingKey={} messageId={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(EVENT_TYPE),
-                    new String(message.getBody()),
+                    message.getMessageProperties().getMessageId(),
+                    message.getBody().length,
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("Gmail message-added retries exhausted", cause);

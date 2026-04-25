@@ -30,7 +30,6 @@ public class WatchRenewalRabbitConfig {
             WatchRenewalRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.watch-renewal.task-name");
         return QueueBuilder.durable(properties.getQueueName())
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -40,7 +39,6 @@ public class WatchRenewalRabbitConfig {
 
     @Bean
     public Queue watchRenewalDeadLetterQueue(WatchRenewalRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.watch-renewal.task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
     }
 
@@ -70,9 +68,10 @@ public class WatchRenewalRabbitConfig {
     public MessageRecoverer watchRenewalMessageRecoverer(WatchRenewalRabbitProperties properties) {
         return (message, cause) -> {
             log.warn(
-                    "Watch renewal message retries exhausted. Sending to DLQ routingKey={} messageBody={}",
+                    "Watch renewal message retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(),
-                    new String(message.getBody()),
+                    message.getMessageProperties().getMessageId(),
+                    message.getBody().length,
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("Watch renewal retries exhausted", cause);

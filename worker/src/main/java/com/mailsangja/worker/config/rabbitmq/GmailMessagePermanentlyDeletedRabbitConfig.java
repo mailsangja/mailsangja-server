@@ -32,7 +32,6 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
             GmailHistoryEventRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-permanently-deleted-task-name");
         return QueueBuilder.durable(properties.getQueueName(EVENT_TYPE))
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -42,7 +41,6 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
 
     @Bean
     public Queue gmailMessagePermanentlyDeletedDeadLetterQueue(GmailHistoryEventRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(EVENT_TYPE), "mailsangja.rabbitmq.gmail-history-event.message-permanently-deleted-task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName(EVENT_TYPE)).build();
     }
 
@@ -73,8 +71,9 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
     public MessageRecoverer gmailHistoryStateMessageRecoverer() {
         return (message, cause) -> {
             log.warn(
-                    "Gmail history state event retries exhausted. messageBody={}",
-                    new String(message.getBody()),
+                    "Gmail history state event retries exhausted. messageId={} payloadSize={}B",
+                    message.getMessageProperties().getMessageId(),
+                    message.getBody().length,
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("Gmail history state event retries exhausted", cause);

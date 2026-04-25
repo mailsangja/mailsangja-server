@@ -30,7 +30,6 @@ public class InitialMailSyncRabbitConfig {
             InitialMailSyncRabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.initial-mail-sync.task-name");
         return QueueBuilder.durable(properties.getQueueName())
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -40,7 +39,6 @@ public class InitialMailSyncRabbitConfig {
 
     @Bean
     public Queue initialMailSyncDeadLetterQueue(InitialMailSyncRabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.initial-mail-sync.task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
     }
 
@@ -70,9 +68,10 @@ public class InitialMailSyncRabbitConfig {
     public MessageRecoverer initialMailSyncMessageRecoverer(InitialMailSyncRabbitProperties properties) {
         return (message, cause) -> {
             log.warn(
-                    "Initial mail sync message retries exhausted. Sending to DLQ routingKey={} messageBody={}",
+                    "Initial mail sync message retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(),
-                    new String(message.getBody()),
+                    message.getMessageProperties().getMessageId(),
+                    message.getBody().length,
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("Initial mail sync retries exhausted", cause);
