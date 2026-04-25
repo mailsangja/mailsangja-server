@@ -8,7 +8,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum MqErrorCode implements ErrorCode {
 
-    INVALID_RABBITMQ_QUEUE_TTL(500, "MS-MQ-INVALID-RABBITMQ-QUEUE-TTL", "RabbitMQ Queue TTL 설정이 올바르지 않습니다.");
+    INVALID_RABBITMQ_QUEUE_TTL(500, "MS-MQ-INVALID-RABBITMQ-QUEUE-TTL", "RabbitMQ Queue TTL 설정이 올바르지 않습니다."),
+    INVALID_RABBITMQ_TASK_NAME(500, "MS-MQ-INVALID-RABBITMQ-TASK-NAME", "RabbitMQ Task Name 설정이 올바르지 않습니다.");
 
     private final int status;
     private final String code;

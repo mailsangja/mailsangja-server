@@ -61,7 +61,7 @@ public class RabbitMqConfig {
 
     static void validateTaskName(String taskName, String propertyName) {
         if (taskName == null || taskName.isBlank()) {
-            throw new MqException(MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL, propertyName + " must not be blank.");
+            throw new MqException(MqErrorCode.INVALID_RABBITMQ_TASK_NAME, propertyName + " must not be blank.");
         }
     }
 }
