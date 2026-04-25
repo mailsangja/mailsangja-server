@@ -375,6 +375,8 @@ public void handlePush(String authorizationHeader, GooglePubsubPushRequest reque
             mailAccount.resolveStartHistoryId(notification.historyId())
     );
 
+    // publishAll()이 AmqpException을 전파하면 아래 updateSyncHistoryId는 호출되지 않는다.
+    // Pub/Sub은 NACK → 재전달하므로 이벤트 누락 없이 재처리된다.
     gmailHistoryEventPublisher.publishAll(
             gmailHistoryEventClassifier.classify(mailAccount, historyResult)
     );
@@ -409,25 +411,20 @@ public class GmailHistoryEventPublisher {
     }
 
     private void publish(GmailHistoryEvent event) {
-        try {
-            rabbitTemplate.convertAndSend(
-                    properties.getExchange(),
-                    event.eventType().getRoutingKey(),
-                    event,
-                    new CorrelationData(event.mailAccountId() + ":" + event.gmailMessageId())
-            );
-        } catch (AmqpException e) {
-            log.warn("Failed to publish event={} mailAccountId={}", event.eventType(), event.mailAccountId(), e);
-        }
+        rabbitTemplate.convertAndSend(
+                properties.getExchange(),
+                event.eventType().getRoutingKey(),
+                event,
+                new CorrelationData(event.mailAccountId() + ":" + event.gmailMessageId())
+        );
     }
 }
 ```
 
 - Message 필드 검증은 Record compact constructor 책임 — Publisher에서 중복 검증 금지
 - Publisher는 Properties 설정값의 유효성만 검증한다
-- `AmqpException`은 포착 후 warn 로깅 — 예외 전파 금지
+- `AmqpException`은 그대로 전파한다 — catch 후 삼키지 않는다
 - `GmailHistoryEventType`에 `getRoutingKey()` 메서드를 두어 라우팅 키를 중앙화한다
-- 성공: `log.info`, 실패: `log.warn`
 
 ---
 
