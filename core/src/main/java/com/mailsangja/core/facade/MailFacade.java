@@ -56,6 +56,10 @@ public class MailFacade {
         mailCommandService.saveSentMail(persistCommand);
     }
 
+    public void replyMail(User user, UUID messageId, MailSendRequest request) {
+        throw new UnsupportedOperationException("replyMail is not implemented yet.");
+    }
+
     public MailAttachmentDownloadResult getAttachment(User user, UUID attachmentId) {
         validateAttachmentId(attachmentId);
 

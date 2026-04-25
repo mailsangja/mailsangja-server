@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
@@ -31,9 +32,14 @@ public class MailController implements MailControllerDocs {
     @PostMapping(value = "/api/v1/mail/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> sendMail(
             @AuthUser User user,
+            @RequestParam(required = false) UUID messageId,
             @ModelAttribute MailSendRequest request
     ) {
-        mailFacade.sendMail(user, request);
+        if (messageId == null) {
+            mailFacade.sendMail(user, request);
+        } else {
+            mailFacade.replyMail(user, messageId, request);
+        }
         return ResponseEntity.ok().build();
     }
 

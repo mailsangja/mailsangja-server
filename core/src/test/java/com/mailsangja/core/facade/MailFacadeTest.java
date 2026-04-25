@@ -1,6 +1,7 @@
 package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.inbox.InboxException;
+import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.config.properties.GoogleOAuthProperties;
@@ -45,6 +46,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -188,6 +190,487 @@ class MailFacadeTest {
         );
 
         assertThrows(MailSendException.class, () -> mailFacade.sendMail(user, request));
+    }
+
+    @Test
+    void replyMail_답장대상메시지가없으면실패한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+        List<MailAccount> mailAccounts = List.of(mailAccount);
+        List<Message> messages = List.of();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(account -> invocation.getArgument(1).equals(account.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(messageRepositoryPort.findByIdIncludingDeleted(any()))
+                .thenAnswer(invocation -> messages.stream()
+                        .filter(message -> invocation.getArgument(0).equals(message.getId()))
+                        .findFirst());
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
+        MailCommandService mailCommandService = new MailCommandService(
+                mailQueryService,
+                googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
+        );
+        MailFacade mailFacade = new MailFacade(
+                mailAccountQueryService,
+                googleAccessTokenEnsureService,
+                mailCommandService,
+                new MailAttachmentQueryService(attachmentRepositoryPort),
+                new FakeGoogleMailAttachmentQueryService()
+        );
+
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목",
+                "답장 본문",
+                null
+        );
+
+        // when
+        MailSendException exception = assertThrows(
+                MailSendException.class,
+                () -> mailFacade.replyMail(user, UUID.randomUUID(), request)
+        );
+
+        // then
+        assertEquals(MailSendErrorCode.REPLY_TARGET_MESSAGE_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void replyMail_삭제된답장대상메시지면실패한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+        Message replyTargetMessage = createMessage(mailAccount, Direction.INBOUND, true);
+        List<MailAccount> mailAccounts = List.of(mailAccount);
+        List<Message> messages = List.of(replyTargetMessage);
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(account -> invocation.getArgument(1).equals(account.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(messageRepositoryPort.findByIdIncludingDeleted(any()))
+                .thenAnswer(invocation -> messages.stream()
+                        .filter(message -> invocation.getArgument(0).equals(message.getId()))
+                        .findFirst());
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
+        MailCommandService mailCommandService = new MailCommandService(
+                mailQueryService,
+                googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
+        );
+        MailFacade mailFacade = new MailFacade(
+                mailAccountQueryService,
+                googleAccessTokenEnsureService,
+                mailCommandService,
+                new MailAttachmentQueryService(attachmentRepositoryPort),
+                new FakeGoogleMailAttachmentQueryService()
+        );
+
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목",
+                "답장 본문",
+                null
+        );
+
+        // when
+        MailSendException exception = assertThrows(
+                MailSendException.class,
+                () -> mailFacade.replyMail(user, replyTargetMessage.getId(), request)
+        );
+
+        // then
+        assertEquals(MailSendErrorCode.REPLY_TARGET_MESSAGE_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void replyMail_다른사용자메시지면실패한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        User anotherUser = createUser(UUID.randomUUID());
+        MailAccount senderMailAccount = createMailAccount(user, "sender@example.com", true);
+        MailAccount replyTargetMailAccount = createMailAccount(anotherUser, "sender@example.com", true);
+        Message replyTargetMessage = createMessage(replyTargetMailAccount, Direction.INBOUND, false);
+        List<MailAccount> mailAccounts = List.of(senderMailAccount);
+        List<Message> messages = List.of(replyTargetMessage);
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(account -> invocation.getArgument(1).equals(account.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(messageRepositoryPort.findByIdIncludingDeleted(any()))
+                .thenAnswer(invocation -> messages.stream()
+                        .filter(message -> invocation.getArgument(0).equals(message.getId()))
+                        .findFirst());
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
+        MailCommandService mailCommandService = new MailCommandService(
+                mailQueryService,
+                googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
+        );
+        MailFacade mailFacade = new MailFacade(
+                mailAccountQueryService,
+                googleAccessTokenEnsureService,
+                mailCommandService,
+                new MailAttachmentQueryService(attachmentRepositoryPort),
+                new FakeGoogleMailAttachmentQueryService()
+        );
+
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목",
+                "답장 본문",
+                null
+        );
+
+        // when
+        MailSendException exception = assertThrows(
+                MailSendException.class,
+                () -> mailFacade.replyMail(user, replyTargetMessage.getId(), request)
+        );
+
+        // then
+        assertEquals(MailSendErrorCode.REPLY_TARGET_MESSAGE_ACCESS_DENIED, exception.getErrorCode());
+    }
+
+    @Test
+    void replyMail_발신계정이답장대상메시지계정과다르면실패한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        MailAccount senderMailAccount = createMailAccount(user, "sender@example.com", true);
+        MailAccount replyTargetMailAccount = createMailAccount(user, "other@example.com", true);
+        Message replyTargetMessage = createMessage(replyTargetMailAccount, Direction.INBOUND, false);
+        List<MailAccount> mailAccounts = List.of(senderMailAccount, replyTargetMailAccount);
+        List<Message> messages = List.of(replyTargetMessage);
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(account -> invocation.getArgument(1).equals(account.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(messageRepositoryPort.findByIdIncludingDeleted(any()))
+                .thenAnswer(invocation -> messages.stream()
+                        .filter(message -> invocation.getArgument(0).equals(message.getId()))
+                        .findFirst());
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
+        MailCommandService mailCommandService = new MailCommandService(
+                mailQueryService,
+                googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
+        );
+        MailFacade mailFacade = new MailFacade(
+                mailAccountQueryService,
+                googleAccessTokenEnsureService,
+                mailCommandService,
+                new MailAttachmentQueryService(attachmentRepositoryPort),
+                new FakeGoogleMailAttachmentQueryService()
+        );
+
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목",
+                "답장 본문",
+                null
+        );
+
+        // when
+        MailSendException exception = assertThrows(
+                MailSendException.class,
+                () -> mailFacade.replyMail(user, replyTargetMessage.getId(), request)
+        );
+
+        // then
+        assertEquals(MailSendErrorCode.REPLY_SENDER_ACCOUNT_MISMATCH, exception.getErrorCode());
+    }
+
+    @Test
+    void replyMail_subject에개행문자가있으면기존메일작성검증으로실패한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        MailFacade mailFacade = new MailFacade(
+                mock(MailAccountQueryService.class),
+                mock(GoogleAccessTokenEnsureService.class),
+                mock(MailCommandService.class),
+                mock(MailAttachmentQueryService.class),
+                mock(GoogleMailAttachmentQueryService.class)
+        );
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목\n추가",
+                "답장 본문",
+                null
+        );
+
+        // when
+        MailSendException exception = assertThrows(
+                MailSendException.class,
+                () -> mailFacade.replyMail(user, UUID.randomUUID(), request)
+        );
+
+        // then
+        assertEquals(MailSendErrorCode.INVALID_MAIL_SUBJECT, exception.getErrorCode());
+    }
+
+    @Test
+    void replyMail_발신계정이비활성이면실패한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        MailAccount inactiveMailAccount = createMailAccount(user, "sender@example.com", false);
+        Message replyTargetMessage = createMessage(inactiveMailAccount, Direction.INBOUND, false);
+        List<MailAccount> mailAccounts = List.of(inactiveMailAccount);
+        List<Message> messages = List.of(replyTargetMessage);
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(account -> invocation.getArgument(1).equals(account.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(messageRepositoryPort.findByIdIncludingDeleted(any()))
+                .thenAnswer(invocation -> messages.stream()
+                        .filter(message -> invocation.getArgument(0).equals(message.getId()))
+                        .findFirst());
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
+        MailCommandService mailCommandService = new MailCommandService(
+                mailQueryService,
+                googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
+        );
+        MailFacade mailFacade = new MailFacade(
+                mailAccountQueryService,
+                googleAccessTokenEnsureService,
+                mailCommandService,
+                new MailAttachmentQueryService(attachmentRepositoryPort),
+                new FakeGoogleMailAttachmentQueryService()
+        );
+
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목",
+                "답장 본문",
+                null
+        );
+
+        // when
+        MailSendException exception = assertThrows(
+                MailSendException.class,
+                () -> mailFacade.replyMail(user, replyTargetMessage.getId(), request)
+        );
+
+        // then
+        assertEquals(MailSendErrorCode.SENDER_MAIL_ACCOUNT_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void replyMail_정상입력이면답장을전송한다() {
+        // given
+        User user = createUser(UUID.randomUUID());
+        MailAccount mailAccount = createMailAccount(user, "sender@example.com", true);
+        Message replyTargetMessage = createMessage(mailAccount, Direction.INBOUND, false);
+        List<MailAccount> mailAccounts = List.of(mailAccount);
+        List<Message> messages = List.of(replyTargetMessage);
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        AttachmentRepositoryPort attachmentRepositoryPort = mock(AttachmentRepositoryPort.class);
+        ThreadRepositoryPort threadRepositoryPort = mock(ThreadRepositoryPort.class);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort = mock(GmailThreadLockRepositoryPort.class);
+        when(mailAccountRepositoryPort.findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(any(), anyString(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(account -> invocation.getArgument(1).equals(account.getEmailAddress()))
+                        .filter(MailAccount::isActive)
+                        .findFirst());
+        when(mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(any(), eq(true)))
+                .thenAnswer(invocation -> mailAccounts.stream()
+                        .filter(account -> account.getUser() != null)
+                        .filter(account -> invocation.getArgument(0).equals(account.getUser().getId()))
+                        .filter(MailAccount::isActive)
+                        .toList());
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(any(), anyString(), any()))
+                .thenReturn(Optional.empty());
+        when(threadRepositoryPort.save(any(Thread.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findByIdIncludingDeleted(any()))
+                .thenAnswer(invocation -> messages.stream()
+                        .filter(message -> invocation.getArgument(0).equals(message.getId()))
+                        .findFirst());
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(any(), anyString()))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
+        GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
+                mailAccountQueryService,
+                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new FakeGoogleOAuthQueryService()
+        );
+        MailCommandService mailCommandService = new MailCommandService(
+                mailQueryService,
+                googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
+                threadRepositoryPort,
+                messageRepositoryPort,
+                gmailThreadLockRepositoryPort
+        );
+        MailFacade mailFacade = new MailFacade(
+                mailAccountQueryService,
+                googleAccessTokenEnsureService,
+                mailCommandService,
+                new MailAttachmentQueryService(attachmentRepositoryPort),
+                new FakeGoogleMailAttachmentQueryService()
+        );
+
+        MailSendRequest request = new MailSendRequest(
+                "\"Sender\" <sender@example.com>",
+                List.of("\"To\" <to@example.com>"),
+                null,
+                null,
+                "Re: 제목",
+                "답장 본문",
+                null
+        );
+
+        // when
+        org.junit.jupiter.api.function.Executable executable =
+                () -> mailFacade.replyMail(user, replyTargetMessage.getId(), request);
+
+        // then
+        assertDoesNotThrow(executable);
     }
 
     @Test
@@ -368,6 +851,32 @@ class MailFacadeTest {
                 .build();
     }
 
+    private Message createMessage(MailAccount mailAccount, Direction direction, boolean deleted) {
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId("gmail-thread-id")
+                .direction(direction)
+                .read(true)
+                .messageCount(1)
+                .build();
+
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(thread)
+                .gmailMessageId("gmail-message-id")
+                .direction(direction)
+                .fromAddress(mailAccount.getEmailAddress())
+                .read(true)
+                .build();
+
+        if (deleted) {
+            message.delete();
+        }
+
+        return message;
+    }
+
     private static final class FakeGoogleMailSendCommandService extends GoogleMailSendCommandService {
 
         private FakeGoogleMailSendCommandService() {
@@ -404,6 +913,10 @@ class MailFacadeTest {
                     gmailMessageId,
                     "gmail-thread-id",
                     "history-id",
+                    "<rfc-message-id@example.com>",
+                    "<older-message-id@example.com>",
+                    "<parent-message-id@example.com>",
+                    "\"Reply\" <reply@example.com>",
                     "제목",
                     "sender@example.com",
                     "Sender Name",

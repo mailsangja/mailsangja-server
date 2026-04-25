@@ -3,6 +3,7 @@ package com.mailsangja.core.service.google;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
+import com.mailsangja.core.dto.mail.GoogleMailReplyContextResult;
 import com.mailsangja.core.dto.mail.GoogleMailSendResponse;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
 import com.mailsangja.core.dto.mail.MailAddressCommand;
@@ -66,6 +67,14 @@ public class GoogleMailSendCommandService {
         } catch (RestClientException e) {
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
         }
+    }
+
+    public GoogleMailSendResult reply(
+            MailAccount mailAccount,
+            MailSendCommand command,
+            GoogleMailReplyContextResult replyContext
+    ) {
+        throw new UnsupportedOperationException("reply is not implemented yet.");
     }
 
     private void validateInput(MailAccount mailAccount, MailSendCommand command) {
