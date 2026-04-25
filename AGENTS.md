@@ -10,15 +10,17 @@ Before changing code, read these files in order:
 2. `.github/copilot-instructions.md`
 3. `.claude/skills/product-requirements.md`
 4. `.claude/skills/spring-api-rules.md`
-5. `.claude/agents/backend-developer.md`
-6. `.claude/agents/code-reviewer.md`
+5. `.claude/skills/worker-conventions.md` — **Worker module or RabbitMQ work only**
+6. `.claude/agents/backend-developer.md`
+7. `.claude/agents/code-reviewer.md`
 
 These references are not automatic imports. Treat them as required source documents for implementation and review.
 
 If guidance conflicts:
 
 - Follow `.claude/skills/product-requirements.md` for product intent and User Story scope.
-- Follow `.claude/skills/spring-api-rules.md` for implementation and architecture rules.
+- Follow `.claude/skills/worker-conventions.md` for Worker module and RabbitMQ implementation rules. This takes precedence over `spring-api-rules.md` for anything in the `worker` module.
+- Follow `.claude/skills/spring-api-rules.md` for all other implementation and architecture rules.
 - Use `CLAUDE.md` for project-wide operating constraints.
 
 ## Working Rules
@@ -32,13 +34,13 @@ If guidance conflicts:
 
 ## Architecture
 
-- Multi-module Gradle project.
-- Shared persistence code lives in `db`.
-- Executable Spring Boot application code lives in feature modules such as `core` and `worker`.
-- `core` handles HTTP API flows and publishes async mail tasks.
-- `worker` handles Gmail push/webhook ingestion and RabbitMQ consumer flows (e.g., `worker/src/main/java/com/mailsangja/worker/messaging/*Listener.java`).
-- Root package convention: `com.mailsangja.{module}`.
-- Stack: Java 21, Spring Boot 4.0.5, PostgreSQL, Spring Data JPA, Redis, RabbitMQ, Lombok.
+Stack: Java 21, Spring Boot 4.0.5, PostgreSQL, Spring Data JPA, Redis, RabbitMQ, Lombok. Root package: `com.mailsangja.{module}`.
+
+| Module | Role |
+|--------|------|
+| `db` | JPA Entity, Repository. Library only — not runnable. Referenced by other modules. |
+| `core` | HTTP API server. User auth, Gmail OAuth, Pub/Sub ingestion, MQ publishing. |
+| `worker` | MQ consumer. Gmail sync, watch renewal, and other async post-processing. |
 
 ## Required Dependency Direction
 
@@ -87,7 +89,7 @@ Mandatory constraints:
 - Do not use class-level `@Transactional`.
 - Do not use `@Transactional(readOnly = true)`.
 - Keep external I/O outside transaction boundaries.
-- In async flows, publish from dedicated messaging services (e.g., `core/.../service/mail/*MessageCommandService.java`) and consume in `worker/messaging/*Listener` that delegate to facades.
+- In async flows, publish via dedicated `*Publisher` classes in `worker/messaging/publisher/`. In `worker`, Listeners act as the business Facade directly — there is no separate Facade layer on the consumer side. See `worker-conventions.md` for details.
 - `@Async` is allowed only in `PushFacade`.
 - External settings must use `@ConfigurationProperties`.
 - Gmail account connection OAuth is separate from service login OAuth.

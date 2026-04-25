@@ -134,8 +134,6 @@ com.mailsangja.{module}
 ├── service/{domain}/
 │   ├── {Domain}CommandService.java   # 쓰기 작업
 │   └── {Domain}QueryService.java     # 읽기 작업
-├── service/messaging/
-│   └── *PublisherService.java        # RabbitMQ 발행 전용 서비스
 ├── common/
 │   ├── dto/        # SliceResponse, PageResponse, ResponseDto
 │   ├── exception/
@@ -152,8 +150,6 @@ com.mailsangja.{module}
 │   ├── *Request.java  # Controller ↔ Facade
 │   ├── *Response.java # Controller ↔ Facade
 │   └── properties/
-├── messaging/
-│   └── *Listener.java                # RabbitMQ 소비 진입점
 └── {domain}/
     ├── exception/
     └── config/     # 도메인 전용 Properties
@@ -297,129 +293,11 @@ public class UserController implements UserControllerDocs {
 
 ---
 
-## RabbitMQ / Async Messaging Rules
+## RabbitMQ / Worker 모듈
 
-RabbitMQ는 API 응답과 분리 가능한 비동기 후속 작업에만 사용한다.
-현재 프로젝트에서는 `core`가 작업을 발행하고 `worker`가 큐를 소비해 후속 메일 동기화, watch 갱신 등의 무거운 작업을 처리한다.
+Worker 모듈의 RabbitMQ 설정, Publisher/Listener/Handler 패턴, 큐 등록 절차, Message DTO 규칙은 모두 `.claude/skills/worker-conventions.md`에 정의되어 있습니다.
 
-### 역할 분리
-
-- HTTP 진입점의 계층 규칙과 별도로, 메시지 소비 진입점은 `messaging/*Listener`가 담당한다
-- Listener는 메시지를 직접 처리하지 않고 즉시 같은 모듈의 `Facade`로 위임한다
-- Producer는 `RabbitTemplate`을 직접 여기저기 주입하지 않고 `service/messaging/*PublisherService` 또는 `*MessageCommandService` 같은 전용 발행 서비스에서만 사용한다
-- 무거운 외부 API 호출, 대량 동기화, 배치성 작업, 재시도 가능한 후속 처리는 RabbitMQ로 분리한다
-
-### 패키지 / 클래스 배치
-
-- RabbitMQ 설정은 `config/RabbitMqConfig.java`에 둔다
-- 메시징 전용 설정값은 `config/properties/*RabbitProperties.java`에 둔다
-- 메시지 발행 서비스는 `service/messaging/`에 둔다
-- 메시지 소비자는 `messaging/*Listener.java`에 둔다
-- 메시지 payload는 `dto/{domain}/` 아래 Java `record`로 작성하고 `*Message` 이름을 사용한다
-
-### 설정 규칙
-
-- 브로커 접속 정보는 `spring.rabbitmq.*`에 둔다
-- 업무 큐/익스체인지/TTL/재시도/동시성 같은 애플리케이션 규칙은 반드시 `mailsangja.rabbitmq.*`에 둔다
-- RabbitMQ 설정값 하드코딩 금지 — 반드시 `@ConfigurationProperties`로 바인딩한다
-- 새 task를 추가할 때 queue 이름, routing key, dead letter queue/routing key는 개별 문자열을 흩뿌리지 말고 `taskName` 기반으로 파생한다
-
-```java
-@Getter
-@Setter
-@Component
-@ConfigurationProperties(prefix = "mailsangja.rabbitmq.watch-renewal")
-public class WatchRenewalRabbitProperties {
-
-    private String taskName;
-
-    public String getQueueName() {
-        return "mailsangja." + taskName;
-    }
-
-    public String getRoutingKey() {
-        return "mail." + taskName;
-    }
-
-    public String getDeadLetterQueueName() {
-        return getQueueName() + ".dlq";
-    }
-
-    public String getDeadLetterRoutingKey() {
-        return getRoutingKey() + ".dlq";
-    }
-}
-```
-
-### Exchange / Queue 컨벤션
-
-- 기본 exchange 타입은 `DirectExchange`를 사용한다
-- main exchange와 dead-letter exchange를 분리한다
-- 새 task를 추가할 때는 최소한 아래 요소를 함께 정의한다
-- main queue
-- main binding
-- dead-letter queue
-- dead-letter binding
-- queue 이름은 `mailsangja.{taskName}` 패턴을 사용한다
-- routing key는 `mail.{taskName}` 패턴을 사용한다
-- dead-letter queue와 routing key는 `.dlq` 접미사로 파생한다
-- task 이름은 도메인명이 아니라 작업 의미 중심으로 짓는다
-- 예: `sync.gmail.initial`, `sync.gmail.initial.thread-batch`, `watch.renewal.gmail`
-
-### Producer 규칙
-
-- 발행 전에 payload와 Rabbit 설정값을 private validation 메서드로 검증한다
-- 발행은 `rabbitTemplate.convertAndSend(exchange, routingKey, message, correlationData)`를 기본 형태로 사용한다
-- `CorrelationData`에는 `mailAccountId`, `userId`, 배치 식별자 등 추적 가능한 값을 넣는다
-- publish 실패 시 예외를 무시하지 말고 경고 로그를 남긴다
-- publisher confirm / return callback이 필요한 경우 `RabbitMqConfig`에서 일괄 설정한다
-
-### Consumer 규칙
-
-- `@RabbitListener`의 queue 값은 문자열 하드코딩 대신 Queue Bean 참조를 사용한다
-- 예: `queues = "#{@watchRenewalQueue.name}"`
-- 작업별 재시도 정책이나 동시성이 다르면 listener container factory를 분리한다
-- Listener 메서드는 메시지 역직렬화와 위임만 담당하고, 실제 비즈니스 판단은 Facade와 Service에서 수행한다
-
-```java
-@Component
-@RequiredArgsConstructor
-public class GmailWatchRenewalListener {
-
-    private final MailAccountFacade mailAccountFacade;
-
-    @RabbitListener(
-            queues = "#{@watchRenewalQueue.name}",
-            containerFactory = "watchRenewalRabbitListenerContainerFactory"
-    )
-    public void handle(WatchRenewalMessage message) {
-        mailAccountFacade.handleWatchRenewal(message);
-    }
-}
-```
-
-### Retry / DLQ 규칙
-
-- 메시지 처리 기본 보장은 at-least-once를 기준으로 설계한다
-- 소비 로직은 중복 수신에도 안전하도록 idempotent하게 작성한다
-- poison message의 무한 재적재를 막기 위해 `defaultRequeueRejected=false`를 기본으로 사용한다
-- 재시도 횟수 초과 시 `AmqpRejectAndDontRequeueException`으로 DLQ로 보낸다
-- task별 실패 처리 방식이 다르면 task 전용 `MessageRecoverer`, retry interceptor, listener container factory를 둔다
-- DLQ 적재 시 task 이름, routing key, 핵심 식별자를 로그에 남긴다
-
-### 트랜잭션 / 외부 I/O
-
-- RabbitMQ 발행은 DB 상태 변경 이후의 후속 비동기 작업 트리거 용도로 사용한다
-- 외부 MQ I/O를 긴 DB 트랜잭션 내부에 묶지 않는다
-- Listener 내부에서도 외부 API 호출과 DB 저장이 섞일 수 있으므로, 기존 트랜잭션 규칙을 그대로 적용한다
-
-### 메시지 DTO 규칙
-
-- 메시지 payload는 반드시 Java `record`
-- 외부 API raw response 전체를 그대로 메시지에 싣지 않는다
-- 메시지에는 식별자와 후속 처리에 필요한 최소 필드만 담는다
-- Producer와 Consumer 양쪽에서 필수값을 검증한다
-- 로그에는 message body 전체를 남기지 말고 식별 가능한 최소 정보만 남긴다
+Worker 모듈 관련 작업(새 큐 추가, Listener/Handler 작성, MQ 설정 변경 등)은 반드시 해당 파일을 참조하십시오.
 
 ## 인증 파라미터 애노테이션
 

@@ -94,40 +94,45 @@ com.mailsangja.worker
 
 새 task를 추가할 때 반드시 아래를 함께 정의한다.
 
-### 1. application.yaml — task-name 추가
+### 1. application-mq.yaml — 튜닝 값만 관리
+
+큐 이름은 코드에 고정(하드코딩)한다. `application-mq.yaml`에는 운영 튜닝 값(동시성·TTL·재시도)만 환경변수로 관리한다.
 
 ```yaml
+# application-mq.yaml
 mailsangja:
   rabbitmq:
-    {task-name}:
-      task-name: ${ENV_VAR:default.task.name}
+    task:
+      concurrency: ${MAIL_TASK_CONCURRENCY:1}
+      ttl: ${MAIL_TASK_TTL:30m}
+      retry-max-attempts: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:3}
 ```
 
 task 이름은 점(`.`) 구분 소문자 형식, 도메인이 아닌 작업 의미 중심으로 짓는다.
 
 - 예: `sync.gmail.initial`, `event.gmail.message-added`, `watch.renewal.gmail`
 
+> **큐 이름은 RabbitMQ 브로커에 실제로 생성되는 인프라 이름이므로 환경마다 달라지면 안 된다. yaml이 아닌 Properties 클래스 상수로 고정하고, 동시성·TTL 같은 운영 튜닝 값만 환경변수로 관리한다.**
+
 ### 2. Properties 클래스
 
 위치: `config/properties/{TaskName}RabbitProperties.java`
 
 ```java
-@Getter
-@Setter
 @Component
-@ConfigurationProperties(prefix = "mailsangja.rabbitmq.{task-name}")
 public class {TaskName}RabbitProperties {
 
-    private String taskName;
+    private static final String TASK_NAME = "{task.name}";
 
-    public String getQueueName()            { return "mailsangja." + taskName; }
-    public String getRoutingKey()           { return "mail." + taskName; }
-    public String getDeadLetterQueueName()  { return getQueueName() + ".dlq"; }
-    public String getDeadLetterRoutingKey() { return getRoutingKey() + ".dlq"; }
+    public String getTaskName()              { return TASK_NAME; }
+    public String getQueueName()             { return "mailsangja." + TASK_NAME; }
+    public String getRoutingKey()            { return "mail." + TASK_NAME; }
+    public String getDeadLetterQueueName()   { return getQueueName() + ".dlq"; }
+    public String getDeadLetterRoutingKey()  { return getRoutingKey() + ".dlq"; }
 }
 ```
 
-> **`taskName` 필드 하나만 외부 주입. 나머지 이름은 반드시 `taskName`으로 파생한다. 큐 이름, routing key 문자열 하드코딩 금지.**
+> **`TASK_NAME`을 private static final 상수로 선언하고 나머지 이름은 반드시 여기서 파생한다. `@ConfigurationProperties` 사용 금지 — yaml 키 부재 시 기동 실패의 원인이 된다.**
 
 ### 3. RabbitConfig 클래스
 
@@ -156,7 +161,6 @@ public class {TaskName}RabbitConfig {
             {TaskName}RabbitProperties properties,
             MailTaskRabbitProperties mailTaskRabbitProperties
     ) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.{task-name}.task-name");
         return QueueBuilder.durable(properties.getQueueName())
                 .ttl(RabbitMqConfig.toQueueTtlMillis(mailTaskRabbitProperties.getTtl(), "mailsangja.rabbitmq.task.ttl"))
                 .deadLetterExchange(mailTaskRabbitProperties.getDeadLetterExchange())
@@ -166,7 +170,6 @@ public class {TaskName}RabbitConfig {
 
     @Bean
     public Queue {taskName}DeadLetterQueue({TaskName}RabbitProperties properties) {
-        RabbitMqConfig.validateTaskName(properties.getTaskName(), "mailsangja.rabbitmq.{task-name}.task-name");
         return QueueBuilder.durable(properties.getDeadLetterQueueName()).build();
     }
 
@@ -194,9 +197,10 @@ public class {TaskName}RabbitConfig {
     public MessageRecoverer {taskName}MessageRecoverer({TaskName}RabbitProperties properties) {
         return (message, cause) -> {
             log.warn(
-                    "{TaskName} retries exhausted. routingKey={} messageBody={}",
+                    "{TaskName} retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(),
-                    new String(message.getBody()),
+                    message.getMessageProperties().getMessageId(),
+                    message.getBody().length,
                     cause
             );
             throw new AmqpRejectAndDontRequeueException("{TaskName} retries exhausted", cause);
