@@ -41,6 +41,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,6 +57,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MailFacadeTest {
+
+    private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     @Test
     void sendMail_내활성메일계정이면검증을통과한다() {
@@ -832,7 +835,7 @@ class MailFacadeTest {
                 .icon("icon")
                 .color("#4285F4")
                 .accessToken("token")
-                .accessTokenExpiresAt(LocalDateTime.now().plusHours(1))
+                .accessTokenExpiresAt(LocalDateTime.now(KST_ZONE_ID).plusHours(1))
                 .refreshToken("refresh")
                 .active(active)
                 .build();
