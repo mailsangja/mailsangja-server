@@ -93,10 +93,7 @@ public class GoogleMailSendCommandService {
                     .retrieve()
                     .body(GoogleMailSendResponse.class);
 
-            return new GoogleMailSendResult(
-                    response == null ? null : response.id(),
-                    response == null || isBlank(response.threadId()) ? replyContext.gmailThreadId() : response.threadId()
-            );
+            return validateResponse(response);
         } catch (RestClientException e) {
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
         }
