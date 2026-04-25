@@ -68,8 +68,6 @@ public class TrashCommandService {
 
         message.restore();
         messageRepositoryPort.save(message);
-
-        // Thread가 삭제 상태였다면 복원 (활성 메시지가 생겼으므로)
         threadRepositoryPort.bulkRestoreByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
 }

@@ -27,7 +27,8 @@ public enum MailPushErrorCode implements ErrorCode {
     GMAIL_HISTORY_FETCH_FAILED(502, "MS-MAIL-GMAIL-HISTORY-FETCH-FAILED", "Gmail History 조회에 실패했습니다."),
     GMAIL_HISTORY_RESULT_INVALID(502, "MS-MAIL-GMAIL-HISTORY-RESULT-INVALID", "Gmail History 응답값이 올바르지 않습니다."),
     GMAIL_MESSAGES_FETCH_FAILED(502, "MS-MAIL-GMAIL-MESSAGES-FETCH-FAILED", "Gmail 최신 메일 조회에 실패했습니다."),
-    GMAIL_MESSAGES_RESULT_INVALID(502, "MS-MAIL-GMAIL-MESSAGES-RESULT-INVALID", "Gmail 최신 메일 응답값이 올바르지 않습니다.");
+    GMAIL_MESSAGES_RESULT_INVALID(502, "MS-MAIL-GMAIL-MESSAGES-RESULT-INVALID", "Gmail 최신 메일 응답값이 올바르지 않습니다."),
+    NEW_MESSAGE_NOT_SAVED(500, "MS-MAIL-NEW-MESSAGE-NOT-SAVED", "새 메시지 저장에 실패했습니다.");
 
     private final int status;
     private final String code;
