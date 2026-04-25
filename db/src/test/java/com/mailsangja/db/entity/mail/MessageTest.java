@@ -18,7 +18,8 @@ class MessageTest {
                 "<message-id@example.com>",
                 "<root-message@example.com>",
                 "<parent-message@example.com>",
-                "\"Reply Alias\" <reply@example.com>"
+                "reply@example.com",
+                "Reply Alias"
         );
 
         // when
@@ -28,7 +29,8 @@ class MessageTest {
         assertEquals("<message-id@example.com>", message.getRfcMessageId());
         assertEquals("<root-message@example.com>", message.getReferencesHeader());
         assertEquals("<parent-message@example.com>", message.getInReplyToHeader());
-        assertEquals("\"Reply Alias\" <reply@example.com>", message.getReplyToHeader());
+        assertEquals("reply@example.com", message.getReplyToAddress());
+        assertEquals("Reply Alias", message.getReplyToName());
     }
 
     @Test
@@ -38,13 +40,15 @@ class MessageTest {
                 "<old-message-id@example.com>",
                 "<old-root-message@example.com>",
                 "<old-parent-message@example.com>",
-                "\"Old Reply\" <old-reply@example.com>"
+                "old-reply@example.com",
+                "Old Reply"
         ));
         Message.CreateValues updateValues = createValues(
                 "<new-message-id@example.com>",
                 "<new-root-message@example.com>",
                 "<new-parent-message@example.com>",
-                "\"New Reply\" <new-reply@example.com>"
+                "new-reply@example.com",
+                "New Reply"
         );
 
         // when
@@ -54,7 +58,8 @@ class MessageTest {
         assertEquals("<new-message-id@example.com>", message.getRfcMessageId());
         assertEquals("<new-root-message@example.com>", message.getReferencesHeader());
         assertEquals("<new-parent-message@example.com>", message.getInReplyToHeader());
-        assertEquals("\"New Reply\" <new-reply@example.com>", message.getReplyToHeader());
+        assertEquals("new-reply@example.com", message.getReplyToAddress());
+        assertEquals("New Reply", message.getReplyToName());
     }
 
     private Thread createThread() {
@@ -72,14 +77,16 @@ class MessageTest {
             String rfcMessageId,
             String referencesHeader,
             String inReplyToHeader,
-            String replyToHeader
+            String replyToAddress,
+            String replyToName
     ) {
         return new Message.CreateValues(
                 "gmail-message-id",
                 rfcMessageId,
                 referencesHeader,
                 inReplyToHeader,
-                replyToHeader,
+                replyToAddress,
+                replyToName,
                 Direction.INBOUND,
                 "subject",
                 "from@example.com",

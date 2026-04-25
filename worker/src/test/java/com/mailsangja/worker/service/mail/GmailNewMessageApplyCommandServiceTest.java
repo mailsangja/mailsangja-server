@@ -74,7 +74,7 @@ class GmailNewMessageApplyCommandServiceTest {
         deletedThread.delete();
 
         Message oldMessage = Message.from(deletedThread, new Message.CreateValues(
-                "message-old", null, null, null, null, Direction.INBOUND, "old subject", "sender@example.com", "Sender",
+                "message-old", null, null, null, null, null, Direction.INBOUND, "old subject", "sender@example.com", "Sender",
                 List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null
         ));
@@ -136,7 +136,7 @@ class GmailNewMessageApplyCommandServiceTest {
                 .build();
 
         Message existingMessage = Message.from(activeThread, new Message.CreateValues(
-                "message-old", null, null, null, null, Direction.INBOUND, "old subject", "sender@example.com", "Sender",
+                "message-old", null, null, null, null, null, Direction.INBOUND, "old subject", "sender@example.com", "Sender",
                 List.of("me@example.com"), List.of("Me"), List.of(), List.of(), "old snippet", false,
                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null
         ));
@@ -183,13 +183,13 @@ class GmailNewMessageApplyCommandServiceTest {
                 historyId,
                 List.of(
                         new InitialMailSyncMessageSaveCommand(
-                                "message-old", "history-1", null, null, null, null, Direction.INBOUND,
+                                "message-old", "history-1", null, null, null, null, null, Direction.INBOUND,
                                 "old subject", "sender@example.com", "Sender", List.of("me@example.com"),
                                 List.of("Me"), List.of(), List.of(), "old snippet", false,
                                 LocalDateTime.of(2026, 4, 10, 9, 0), null, null, List.of()
                         ),
                         new InitialMailSyncMessageSaveCommand(
-                                newMessageId, historyId, null, null, null, null, Direction.INBOUND,
+                                newMessageId, historyId, null, null, null, null, null, Direction.INBOUND,
                                 newSubject, "sender@example.com", "Sender", List.of("me@example.com"),
                                 List.of("Me"), List.of(), List.of(), newSnippet, false,
                                 LocalDateTime.of(2026, 4, 14, 10, 0), null, null, List.of()

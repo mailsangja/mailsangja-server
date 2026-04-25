@@ -71,6 +71,7 @@ class InitialMailSyncCommandServiceTest {
                         null,
                         null,
                         null,
+                        null,
                         Direction.INBOUND,
                         "subject",
                         "alice@example.com",
@@ -94,6 +95,7 @@ class InitialMailSyncCommandServiceTest {
                 java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-2",
+                        null,
                         null,
                         null,
                         null,
@@ -152,6 +154,7 @@ class InitialMailSyncCommandServiceTest {
                         null,
                         null,
                         null,
+                        null,
                         Direction.INBOUND,
                         "subject-1",
                         "alice@example.com",
@@ -175,6 +178,7 @@ class InitialMailSyncCommandServiceTest {
                 java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-2",
                         "history-2",
+                        null,
                         null,
                         null,
                         null,
@@ -221,6 +225,7 @@ class InitialMailSyncCommandServiceTest {
                 java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
+                        null,
                         null,
                         null,
                         null,
@@ -274,6 +279,7 @@ class InitialMailSyncCommandServiceTest {
                         null,
                         null,
                         null,
+                        null,
                         Direction.OUTBOUND,
                         "subject",
                         "sender@example.com",
@@ -317,6 +323,7 @@ class InitialMailSyncCommandServiceTest {
                 java.util.List.of(new InitialMailSyncMessageSaveCommand(
                         "message-1",
                         "history-1",
+                        null,
                         null,
                         null,
                         null,

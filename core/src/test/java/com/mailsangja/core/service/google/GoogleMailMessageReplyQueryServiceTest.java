@@ -97,7 +97,8 @@ class GoogleMailMessageReplyQueryServiceTest {
         assertEquals("<message-id@example.com>", result.rfcMessageId());
         assertEquals("<root-message@example.com>", result.referencesHeader());
         assertEquals("<parent-message@example.com>", result.inReplyToHeader());
-        assertEquals("\"Reply Alias\" <reply@example.com>", result.replyToHeader());
+        assertEquals("reply@example.com", result.replyToAddress());
+        assertEquals("Reply Alias", result.replyToName());
     }
 
     private static final class FixedResponseClientHttpRequestFactory extends SimpleClientHttpRequestFactory {

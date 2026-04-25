@@ -82,7 +82,8 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals("<message-id@example.com>", results.getFirst().messages().getFirst().rfcMessageId());
         assertEquals("<root-message@example.com>", results.getFirst().messages().getFirst().referencesHeader());
         assertEquals("<parent-message@example.com>", results.getFirst().messages().getFirst().inReplyToHeader());
-        assertEquals("\"Reply Alias\" <reply@example.com>", results.getFirst().messages().getFirst().replyToHeader());
+        assertEquals("reply@example.com", results.getFirst().messages().getFirst().replyToAddress());
+        assertEquals("Reply Alias", results.getFirst().messages().getFirst().replyToName());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());
         assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
     }

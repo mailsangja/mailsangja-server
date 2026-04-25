@@ -167,6 +167,7 @@ public class GoogleMailMessageQueryService {
         ParsedMailAddresses from = extractRequiredMailAddresses(messageResponse, "From");
         ParsedMailAddresses to = extractMailAddresses(messageResponse, "To");
         ParsedMailAddresses cc = extractMailAddresses(messageResponse, "Cc");
+        ParsedMailAddresses replyTo = extractMailAddresses(messageResponse, "Reply-To");
 
         return new InitialMailSyncMessageResult(
                 messageResponse.id(),
@@ -175,7 +176,8 @@ public class GoogleMailMessageQueryService {
                 extractHeaderValue(messageResponse, "Message-ID"),
                 extractHeaderValue(messageResponse, "References"),
                 extractHeaderValue(messageResponse, "In-Reply-To"),
-                extractHeaderValue(messageResponse, "Reply-To"),
+                firstOrNull(replyTo.addresses()),
+                firstOrNull(replyTo.names()),
                 resolveDirection(messageResponse.labelIds()),
                 extractHeaderValue(messageResponse, "Subject"),
                 from.addresses().getFirst(),
@@ -399,6 +401,10 @@ public class GoogleMailMessageQueryService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String firstOrNull(List<String> values) {
+        return values == null || values.isEmpty() ? null : values.getFirst();
     }
 
     private record MimeBodyContent(

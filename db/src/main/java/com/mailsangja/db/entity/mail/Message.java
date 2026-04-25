@@ -44,8 +44,11 @@ public class Message extends BaseEntity {
     @Column(name = "in_reply_to_header", columnDefinition = "text")
     private String inReplyToHeader;
 
-    @Column(name = "reply_to_header", columnDefinition = "text")
-    private String replyToHeader;
+    @Column(name = "reply_to_address", length = 255)
+    private String replyToAddress;
+
+    @Column(name = "reply_to_name", length = 255)
+    private String replyToName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "direction", nullable = false, length = 20)
@@ -117,7 +120,8 @@ public class Message extends BaseEntity {
                 .rfcMessageId(normalizedValues.rfcMessageId())
                 .referencesHeader(normalizedValues.referencesHeader())
                 .inReplyToHeader(normalizedValues.inReplyToHeader())
-                .replyToHeader(normalizedValues.replyToHeader())
+                .replyToAddress(normalizedValues.replyToAddress())
+                .replyToName(normalizedValues.replyToName())
                 .direction(normalizedValues.direction())
                 .subject(normalizedValues.subject())
                 .fromAddress(normalizedValues.fromAddress())
@@ -141,7 +145,8 @@ public class Message extends BaseEntity {
             String rfcMessageId,
             String referencesHeader,
             String inReplyToHeader,
-            String replyToHeader,
+            String replyToAddress,
+            String replyToName,
             Direction direction,
             String subject,
             String fromAddress,
@@ -162,7 +167,8 @@ public class Message extends BaseEntity {
                     rfcMessageId,
                     referencesHeader,
                     inReplyToHeader,
-                    replyToHeader,
+                    replyToAddress,
+                    normalizeSingleName(replyToName, replyToAddress),
                     direction,
                     subject,
                     fromAddress,
@@ -194,7 +200,8 @@ public class Message extends BaseEntity {
                 normalizedValues.rfcMessageId(),
                 normalizedValues.referencesHeader(),
                 normalizedValues.inReplyToHeader(),
-                normalizedValues.replyToHeader(),
+                normalizedValues.replyToAddress(),
+                normalizedValues.replyToName(),
                 normalizedValues.subject(),
                 normalizedValues.fromAddress(),
                 normalizedValues.fromName(),
@@ -213,7 +220,8 @@ public class Message extends BaseEntity {
             String rfcMessageId,
             String referencesHeader,
             String inReplyToHeader,
-            String replyToHeader,
+            String replyToAddress,
+            String replyToName,
             String subject,
             String fromAddress,
             String fromName,
@@ -228,7 +236,8 @@ public class Message extends BaseEntity {
         this.rfcMessageId = rfcMessageId;
         this.referencesHeader = referencesHeader;
         this.inReplyToHeader = inReplyToHeader;
-        this.replyToHeader = replyToHeader;
+        this.replyToAddress = replyToAddress;
+        this.replyToName = replyToName;
         this.subject = subject;
         this.fromAddress = fromAddress;
         this.fromName = fromName;

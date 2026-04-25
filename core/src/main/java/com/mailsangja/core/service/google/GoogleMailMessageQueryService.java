@@ -113,6 +113,7 @@ public class GoogleMailMessageQueryService {
         ParsedMailAddresses from = extractRequiredMailAddresses(response, "From");
         ParsedMailAddresses to = extractMailAddresses(response, "To");
         ParsedMailAddresses cc = extractMailAddresses(response, "Cc");
+        ParsedMailAddresses replyTo = extractMailAddresses(response, "Reply-To");
 
         return new GoogleMailMessageResult(
                 response.id(),
@@ -121,7 +122,8 @@ public class GoogleMailMessageQueryService {
                 extractHeaderValue(response, "Message-ID"),
                 extractHeaderValue(response, "References"),
                 extractHeaderValue(response, "In-Reply-To"),
-                extractHeaderValue(response, "Reply-To"),
+                firstOrNull(replyTo.addresses()),
+                firstOrNull(replyTo.names()),
                 extractHeaderValue(response, "Subject"),
                 from.addresses().getFirst(),
                 from.names().getFirst(),
@@ -295,6 +297,10 @@ public class GoogleMailMessageQueryService {
             return address;
         }
         return personalName.trim();
+    }
+
+    private String firstOrNull(List<String> values) {
+        return values == null || values.isEmpty() ? null : values.getFirst();
     }
 
     private record MimeBodyContent(
