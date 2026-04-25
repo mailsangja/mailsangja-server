@@ -322,7 +322,7 @@ class GoogleMailSendCommandServiceTest {
     }
 
     @Test
-    void reply_googleApi응답본문이유효하지않아도2xx이면성공으로처리한다() {
+    void reply_googleApi응답본문이유효하지않으면2xx여도실패한다() {
         // given
         CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory(
                 """
@@ -345,7 +345,7 @@ class GoogleMailSendCommandServiceTest {
                 () -> service.reply(mailAccount, command, replyContext);
 
         // then
-        assertDoesNotThrow(executable);
+        assertThrows(MailSendException.class, executable);
     }
 
     @Test
