@@ -61,7 +61,27 @@ public class GoogleMailMessageQueryService {
     }
 
     public GoogleMailReplyContextResult getReplyContext(String accessToken, String gmailMessageId) {
-        throw new UnsupportedOperationException("getReplyContext is not implemented yet.");
+        validateInput(accessToken, gmailMessageId);
+
+        try {
+            GoogleMailMessageResponse response = googleMailRestClient
+                    .get()
+                    .uri(buildMessageUri(gmailMessageId))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(GoogleMailMessageResponse.class);
+
+            GoogleMailMessageResponse validatedResponse = validateResponse(response);
+            return new GoogleMailReplyContextResult(
+                    validatedResponse.threadId(),
+                    extractHeaderValue(validatedResponse, "Message-ID"),
+                    extractHeaderValue(validatedResponse, "References"),
+                    extractHeaderValue(validatedResponse, "Subject")
+            );
+        } catch (RestClientException e) {
+            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_FETCH_FAILED);
+        }
     }
 
     private void validateInput(String accessToken, String gmailMessageId) {

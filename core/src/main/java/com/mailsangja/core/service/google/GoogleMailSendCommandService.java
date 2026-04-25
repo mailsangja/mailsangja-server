@@ -74,7 +74,32 @@ public class GoogleMailSendCommandService {
             MailSendCommand command,
             GoogleMailReplyContextResult replyContext
     ) {
-        throw new UnsupportedOperationException("reply is not implemented yet.");
+        validateInput(mailAccount, command);
+        validateReplyContext(replyContext);
+
+        String rawMessage = createRawReplyMessage(command, replyContext);
+
+        try {
+            GoogleMailSendResponse response = googleMailRestClient
+                    .post()
+                    .uri(googleMailProperties.getSendUri())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailAccount.getAccessToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "raw", rawMessage,
+                            "threadId", replyContext.gmailThreadId()
+                    ))
+                    .retrieve()
+                    .body(GoogleMailSendResponse.class);
+
+            return new GoogleMailSendResult(
+                    response == null ? null : response.id(),
+                    response == null || isBlank(response.threadId()) ? replyContext.gmailThreadId() : response.threadId()
+            );
+        } catch (RestClientException e) {
+            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
+        }
     }
 
     private void validateInput(MailAccount mailAccount, MailSendCommand command) {
@@ -99,58 +124,84 @@ public class GoogleMailSendCommandService {
 
     private String createRawMessage(MailSendCommand command) {
         try {
-            Session session = Session.getInstance(new Properties());
-            MimeMessage mimeMessage = new MimeMessage(session);
-            mimeMessage.setFrom(createInternetAddress(command.from(), MailSendErrorCode.INVALID_SENDER_ADDRESS));
-            mimeMessage.setRecipients(Message.RecipientType.TO, createInternetAddresses(command.to()));
-
-            if (command.cc() != null && !command.cc().isEmpty()) {
-                mimeMessage.setRecipients(Message.RecipientType.CC, createInternetAddresses(command.cc()));
-            }
-
-            if (command.bcc() != null && !command.bcc().isEmpty()) {
-                mimeMessage.setRecipients(Message.RecipientType.BCC, createInternetAddresses(command.bcc()));
-            }
-
-            String normalizedSubject = normalizeSubject(command.subject());
-            if (!isBlank(normalizedSubject)) {
-                mimeMessage.setSubject(normalizedSubject, StandardCharsets.UTF_8.name());
-            }
-
-            if (command.attachments() == null || command.attachments().isEmpty()) {
-                mimeMessage.setText(command.content() == null ? "" : command.content(), StandardCharsets.UTF_8.name());
-            } else {
-                MimeMultipart multipart = new MimeMultipart();
-
-                MimeBodyPart textPart = new MimeBodyPart();
-                textPart.setText(command.content() == null ? "" : command.content(), StandardCharsets.UTF_8.name());
-                multipart.addBodyPart(textPart);
-
-                for (MailAttachmentCommand attachment : command.attachments()) {
-                    MimeBodyPart attachmentPart = new MimeBodyPart();
-                    attachmentPart.setDataHandler(new jakarta.activation.DataHandler(
-                            new ByteArrayDataSource(
-                                    attachment.bytes(),
-                                    attachment.contentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : attachment.contentType()
-                            )
-                    ));
-                    attachmentPart.setFileName(attachment.filename());
-                    multipart.addBodyPart(attachmentPart);
-                }
-
-                mimeMessage.setContent(multipart);
-            }
-
-            mimeMessage.saveChanges();
-
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            mimeMessage.writeTo(outputStream);
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(outputStream.toByteArray());
+            return encodeMimeMessage(createMimeMessage(command));
         } catch (MailSendException e) {
             throw e;
         } catch (MessagingException | java.io.IOException e) {
             throw new MailSendException(MailSendErrorCode.MAIL_MIME_BUILD_FAILED);
         }
+    }
+
+    private String createRawReplyMessage(MailSendCommand command, GoogleMailReplyContextResult replyContext) {
+        try {
+            MimeMessage mimeMessage = createMimeMessage(command);
+            mimeMessage.setHeader("In-Reply-To", replyContext.parentRfcMessageId());
+            mimeMessage.setHeader("References", createReferencesHeader(replyContext));
+            return encodeMimeMessage(mimeMessage);
+        } catch (MailSendException e) {
+            throw e;
+        } catch (MessagingException | java.io.IOException e) {
+            throw new MailSendException(MailSendErrorCode.MAIL_MIME_BUILD_FAILED);
+        }
+    }
+
+    private MimeMessage createMimeMessage(MailSendCommand command) throws MessagingException {
+        Session session = Session.getInstance(new Properties());
+        MimeMessage mimeMessage = new MimeMessage(session);
+        mimeMessage.setFrom(createInternetAddress(command.from(), MailSendErrorCode.INVALID_SENDER_ADDRESS));
+        if (command.replyTo() != null) {
+            mimeMessage.setReplyTo(new InternetAddress[]{
+                    createInternetAddress(command.replyTo(), MailSendErrorCode.INVALID_REPLY_TO_ADDRESS)
+            });
+        }
+        mimeMessage.setRecipients(Message.RecipientType.TO, createInternetAddresses(command.to()));
+
+        if (command.cc() != null && !command.cc().isEmpty()) {
+            mimeMessage.setRecipients(Message.RecipientType.CC, createInternetAddresses(command.cc()));
+        }
+
+        if (command.bcc() != null && !command.bcc().isEmpty()) {
+            mimeMessage.setRecipients(Message.RecipientType.BCC, createInternetAddresses(command.bcc()));
+        }
+
+        String normalizedSubject = normalizeSubject(command.subject());
+        if (!isBlank(normalizedSubject)) {
+            mimeMessage.setSubject(normalizedSubject, StandardCharsets.UTF_8.name());
+        }
+
+        if (command.attachments() == null || command.attachments().isEmpty()) {
+            mimeMessage.setText(command.content() == null ? "" : command.content(), StandardCharsets.UTF_8.name());
+        } else {
+            MimeMultipart multipart = new MimeMultipart();
+
+            MimeBodyPart textPart = new MimeBodyPart();
+            textPart.setText(command.content() == null ? "" : command.content(), StandardCharsets.UTF_8.name());
+            multipart.addBodyPart(textPart);
+
+            for (MailAttachmentCommand attachment : command.attachments()) {
+                MimeBodyPart attachmentPart = new MimeBodyPart();
+                attachmentPart.setDataHandler(new jakarta.activation.DataHandler(
+                        new ByteArrayDataSource(
+                                attachment.bytes(),
+                                attachment.contentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : attachment.contentType()
+                        )
+                ));
+                attachmentPart.setFileName(attachment.filename());
+                multipart.addBodyPart(attachmentPart);
+            }
+
+            mimeMessage.setContent(multipart);
+        }
+
+        return mimeMessage;
+    }
+
+    private String encodeMimeMessage(MimeMessage mimeMessage) throws MessagingException, java.io.IOException {
+        mimeMessage.saveChanges();
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        mimeMessage.writeTo(outputStream);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(outputStream.toByteArray());
     }
 
     private InternetAddress createInternetAddress(MailAddressCommand addressCommand, MailSendErrorCode errorCode) {
@@ -194,6 +245,22 @@ public class GoogleMailSendCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private void validateReplyContext(GoogleMailReplyContextResult replyContext) {
+        if (replyContext == null
+                || isBlank(replyContext.gmailThreadId())
+                || isBlank(replyContext.parentRfcMessageId())) {
+            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
+        }
+    }
+
+    private String createReferencesHeader(GoogleMailReplyContextResult replyContext) {
+        if (isBlank(replyContext.referencesHeader())) {
+            return replyContext.parentRfcMessageId();
+        }
+
+        return replyContext.referencesHeader().trim() + " " + replyContext.parentRfcMessageId();
     }
 
     private String normalizeSubject(String subject) {

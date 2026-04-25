@@ -65,6 +65,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 List.of("\"Cc\" <cc@example.com>"),
                 List.of("\"Bcc\" <bcc@example.com>"),
@@ -84,6 +85,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -103,6 +105,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -121,6 +124,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"수신자A\" <dup@example.com>"),
                 List.of("\"수신자B\" <dup@example.com>"),
                 null,
@@ -139,6 +143,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of(),
                 List.of("\"Cc\" <cc@example.com>"),
                 null,
@@ -159,6 +164,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -178,6 +184,7 @@ class MailFacadeTest {
         byte[] oversized = new byte[11 * 1024 * 1024];
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -247,6 +254,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -321,6 +329,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -397,6 +406,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -472,6 +482,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -503,6 +514,7 @@ class MailFacadeTest {
         );
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -577,6 +589,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -657,6 +670,7 @@ class MailFacadeTest {
 
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -865,6 +879,8 @@ class MailFacadeTest {
                 .id(UUID.randomUUID())
                 .thread(thread)
                 .gmailMessageId("gmail-message-id")
+                .rfcMessageId("<rfc-message-id@example.com>")
+                .referencesHeader("<older-message-id@example.com>")
                 .direction(direction)
                 .fromAddress(mailAccount.getEmailAddress())
                 .read(true)
@@ -885,6 +901,15 @@ class MailFacadeTest {
 
         @Override
         public GoogleMailSendResult send(MailAccount mailAccount, MailSendCommand command) {
+            return new GoogleMailSendResult("gmail-message-id", "gmail-thread-id");
+        }
+
+        @Override
+        public GoogleMailSendResult reply(
+                MailAccount mailAccount,
+                MailSendCommand command,
+                com.mailsangja.core.dto.mail.GoogleMailReplyContextResult replyContext
+        ) {
             return new GoogleMailSendResult("gmail-message-id", "gmail-thread-id");
         }
     }

@@ -41,6 +41,7 @@ class MailSendPersistCommandTest {
                 new MailSendCommand(
                         UUID.randomUUID(),
                         new MailAddressCommand("보내는사람", "sender@example.com"),
+                        null,
                         List.of(new MailAddressCommand("받는사람", "to@example.com")),
                         List.of(new MailAddressCommand("참조사람", "cc@example.com")),
                         List.of(),
@@ -62,7 +63,6 @@ class MailSendPersistCommandTest {
         assertEquals(List.of("참조사람"), values.ccNames());
     }
 
-    @Test
     void fromRaw_이름이없으면이메일주소를이름으로채운다() {
         MailAddressCommand command = MailAddressCommand.fromRaw("user@example.com");
 
@@ -98,6 +98,7 @@ class MailSendPersistCommandTest {
                 new MailSendCommand(
                         UUID.randomUUID(),
                         new MailAddressCommand("sender@example.com", "sender@example.com"),
+                        null,
                         List.of(),
                         List.of(new MailAddressCommand("참조사람", "cc@example.com")),
                         List.of(),
@@ -138,6 +139,7 @@ class MailSendPersistCommandTest {
                 new MailSendCommand(
                         UUID.randomUUID(),
                         new MailAddressCommand("sender@example.com", "sender@example.com"),
+                        null,
                         List.of(),
                         List.of(new MailAddressCommand("참조사람", "cc@example.com")),
                         List.of(),

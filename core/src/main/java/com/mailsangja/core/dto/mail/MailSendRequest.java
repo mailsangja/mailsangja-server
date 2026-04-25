@@ -10,6 +10,9 @@ public record MailSendRequest(
         @Schema(description = "보내는 사람. `user@example.com` 또는 `\"이름\" <user@example.com>` 형식", example = "\"홍길동\" <sender@gmail.com>")
         String from,
 
+        @Schema(description = "답장 받을 주소. `user@example.com` 또는 `\"이름\" <user@example.com>` 형식", example = "\"홍길동\" <reply@gmail.com>")
+        String replyTo,
+
         @Schema(description = "수신자 목록. multipart/form-data 에서는 to 필드를 반복 전달합니다.")
         List<String> to,
 

@@ -63,6 +63,7 @@ class GoogleMailSendCommandServiceTest {
         MailSendCommand command = new MailSendCommand(
                 UUID.randomUUID(),
                 new MailAddressCommand("홍길동", "sender@example.com"),
+                null,
                 List.of(new MailAddressCommand("김철수", "to@example.com")),
                 List.of(new MailAddressCommand("개발팀", "cc@example.com")),
                 List.of(new MailAddressCommand(null, "bcc@example.com")),
@@ -105,6 +106,7 @@ class GoogleMailSendCommandServiceTest {
         MailSendCommand command = new MailSendCommand(
                 UUID.randomUUID(),
                 new MailAddressCommand("홍길동", "sender@example.com"),
+                null,
                 List.of(new MailAddressCommand("김철수", "to@example.com")),
                 List.of(),
                 List.of(),
@@ -138,6 +140,67 @@ class GoogleMailSendCommandServiceTest {
                 mimeMessage.getHeader("References", null)
         );
         assertEquals("gmail-thread-id", extractJsonField(requestFactory.requestBody(), "threadId"));
+    }
+
+    @Test
+    void send_replyTo가있으면ReplyTo헤더를생성한다() throws Exception {
+        // given
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+        GoogleMailSendCommandService service = createService(requestFactory);
+        MailAccount mailAccount = createMailAccount();
+        MailSendCommand command = new MailSendCommand(
+                UUID.randomUUID(),
+                new MailAddressCommand("홍길동", "sender@example.com"),
+                new MailAddressCommand("답장담당자", "reply@example.com"),
+                List.of(new MailAddressCommand("김철수", "to@example.com")),
+                List.of(),
+                List.of(),
+                "제목",
+                "본문",
+                List.of()
+        );
+
+        // when
+        service.send(mailAccount, command);
+
+        // then
+        MimeMessage mimeMessage = extractMimeMessage(requestFactory.requestBody());
+        assertAddress(mimeMessage.getReplyTo()[0], "답장담당자", "reply@example.com");
+    }
+
+    @Test
+    void reply_replyTo가있으면ReplyTo헤더를생성한다() throws Exception {
+        // given
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+        GoogleMailSendCommandService service = createService(requestFactory);
+        MailAccount mailAccount = createMailAccount();
+        MailSendCommand command = new MailSendCommand(
+                UUID.randomUUID(),
+                new MailAddressCommand("홍길동", "sender@example.com"),
+                new MailAddressCommand("답장담당자", "reply@example.com"),
+                List.of(new MailAddressCommand("김철수", "to@example.com")),
+                List.of(),
+                List.of(),
+                "Re: 제목",
+                "답장 본문",
+                List.of()
+        );
+
+        // when
+        service.reply(
+                mailAccount,
+                command,
+                new GoogleMailReplyContextResult(
+                        "gmail-thread-id",
+                        "<parent-message@example.com>",
+                        null,
+                        "Re: 제목"
+                )
+        );
+
+        // then
+        MimeMessage mimeMessage = extractMimeMessage(requestFactory.requestBody());
+        assertAddress(mimeMessage.getReplyTo()[0], "답장담당자", "reply@example.com");
     }
 
     @Test
@@ -343,6 +406,7 @@ class GoogleMailSendCommandServiceTest {
         return new MailSendCommand(
                 UUID.randomUUID(),
                 new MailAddressCommand("홍길동", "sender@example.com"),
+                null,
                 List.of(new MailAddressCommand("김철수", "to@example.com")),
                 cc,
                 bcc,

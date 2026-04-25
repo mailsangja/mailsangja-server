@@ -8,6 +8,7 @@ import java.util.UUID;
 public record MailSendCommand(
         UUID userId,
         MailAddressCommand from,
+        MailAddressCommand replyTo,
         List<MailAddressCommand> to,
         List<MailAddressCommand> cc,
         List<MailAddressCommand> bcc,
@@ -20,6 +21,7 @@ public record MailSendCommand(
         return new MailSendCommand(
                 user.getId(),
                 MailAddressCommand.fromRaw(request.from()),
+                request.replyTo() == null || request.replyTo().isBlank() ? null : MailAddressCommand.fromRaw(request.replyTo()),
                 request.to() == null ? List.of() : request.to().stream()
                         .map(MailAddressCommand::fromRaw)
                         .toList(),

@@ -16,6 +16,7 @@ import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -46,6 +47,7 @@ public class MailFacade {
     public void sendMail(User user, MailSendRequest request) {
         validateRequest(request);
         validateSender(request.from());
+        validateReplyTo(request.replyTo());
         validateRecipients(request.to(), request.cc(), request.bcc());
         validateSubject(request.subject());
         validateSubjectAndContent(request.subject(), request.content());
@@ -57,7 +59,20 @@ public class MailFacade {
     }
 
     public void replyMail(User user, UUID messageId, MailSendRequest request) {
-        throw new UnsupportedOperationException("replyMail is not implemented yet.");
+        validateRequest(request);
+        validateSender(request.from());
+        validateReplyTo(request.replyTo());
+        validateRecipients(request.to(), request.cc(), request.bcc());
+        validateSubject(request.subject());
+        validateSubjectAndContent(request.subject(), request.content());
+        validateAttachments(request.attachments());
+
+        Message replyTargetMessage = mailCommandService.findReplyTargetMessage(messageId);
+        validateReplyTargetAccess(user, replyTargetMessage);
+
+        MailSendCommand command = MailSendCommand.from(user, request);
+        var persistCommand = mailCommandService.replyMail(command, replyTargetMessage);
+        mailCommandService.saveSentMail(persistCommand);
     }
 
     public MailAttachmentDownloadResult getAttachment(User user, UUID attachmentId) {
@@ -93,6 +108,17 @@ public class MailFacade {
         MailAddressCommand parsedSender = parseMailAddress(from, MailSendErrorCode.INVALID_SENDER_ADDRESS);
         if (!isValidEmail(parsedSender.address())) {
             throw new MailSendException(MailSendErrorCode.INVALID_SENDER_ADDRESS);
+        }
+    }
+
+    private void validateReplyTo(String replyTo) {
+        if (isBlank(replyTo)) {
+            return;
+        }
+
+        MailAddressCommand parsedReplyTo = parseMailAddress(replyTo, MailSendErrorCode.INVALID_REPLY_TO_ADDRESS);
+        if (!isValidEmail(parsedReplyTo.address())) {
+            throw new MailSendException(MailSendErrorCode.INVALID_REPLY_TO_ADDRESS);
         }
     }
 
@@ -191,6 +217,16 @@ public class MailFacade {
     private void validateAttachmentProvider(Attachment attachment) {
         if (attachment.getMessage().getThread().getMailAccount().getProvider() != MailProvider.GMAIL) {
             throw new InboxException(InboxErrorCode.ATTACHMENT_PROVIDER_NOT_SUPPORTED);
+        }
+    }
+
+    private void validateReplyTargetAccess(User user, Message replyTargetMessage) {
+        MailAccount replyTargetMailAccount = replyTargetMessage.getThread().getMailAccount();
+        if (user == null
+                || replyTargetMailAccount == null
+                || replyTargetMailAccount.getUser() == null
+                || !user.getId().equals(replyTargetMailAccount.getUser().getId())) {
+            throw new MailSendException(MailSendErrorCode.REPLY_TARGET_MESSAGE_ACCESS_DENIED);
         }
     }
 

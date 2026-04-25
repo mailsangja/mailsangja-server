@@ -23,6 +23,7 @@ class MailControllerTest {
         User user = User.builder().id(UUID.randomUUID()).build();
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,
@@ -48,6 +49,7 @@ class MailControllerTest {
         UUID messageId = UUID.randomUUID();
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
+                null,
                 List.of("\"To\" <to@example.com>"),
                 null,
                 null,

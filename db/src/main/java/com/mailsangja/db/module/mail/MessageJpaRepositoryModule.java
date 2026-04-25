@@ -77,7 +77,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailThreadId") String gmailThreadId
     );
 
-    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount", "thread.mailAccount.user"})
     Optional<Message> findById(UUID id);
 
     @EntityGraph(attributePaths = {"attachments"})
