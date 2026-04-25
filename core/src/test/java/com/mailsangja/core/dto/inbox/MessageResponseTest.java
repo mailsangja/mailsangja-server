@@ -22,6 +22,7 @@ class MessageResponseTest {
                 .subject("subject")
                 .fromAddress("sender@example.com")
                 .fromName("Gmail Sender")
+                .replyToHeader("\"Reply\" <reply@example.com>")
                 .toAddresses(List.of("first@example.com", "second@example.com"))
                 .toNames(Arrays.asList("First Gmail Name", null))
                 .ccAddresses(List.of("cc@example.com"))
@@ -41,6 +42,7 @@ class MessageResponseTest {
         );
 
         assertEquals("Gmail Sender", response.from().name());
+        assertEquals("\"Reply\" <reply@example.com>", response.replyTo());
         assertEquals("First Gmail Name", response.to().getFirst().name());
         assertEquals("Contact Second", response.to().get(1).name());
         assertEquals("Contact Cc", response.cc().getFirst().name());

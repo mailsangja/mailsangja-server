@@ -21,6 +21,8 @@ public record MessageResponse(
         Direction direction,
         @Schema(description = "발신자")
         MailAddressResponse from,
+        @Schema(description = "Reply-To 헤더 원본 값", example = "\"홍길동\" <reply@example.com>")
+        String replyTo,
         @Schema(description = "수신자 목록")
         List<MailAddressResponse> to,
         @Schema(description = "CC 수신자 목록")
@@ -61,6 +63,7 @@ public record MessageResponse(
                 message.getSubject(),
                 message.getDirection(),
                 MailAddressResponse.of(message.getFromName(), message.getFromAddress(), contactNameByEmail),
+                message.getReplyToHeader(),
                 toAddresses,
                 ccAddresses,
                 message.getSnippet(),
