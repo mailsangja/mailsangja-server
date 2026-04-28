@@ -7,10 +7,14 @@ Gmail OAuth는 서비스 로그인 수단이 아니라, 로그인된 사용자�
 
 | 대상 | 규칙 파일 |
 |------|-----------|
-| 공통 Spring Boot API (Controller, Service, DTO, Entity 등) | `.claude/skills/spring-api-rules.md` |
-| **Worker 모듈 및 RabbitMQ** (Listener, Handler, Publisher, 큐 등록 등) | **`.claude/skills/worker-conventions.md`** |
+| 공통 규칙 (Layer Dependency, Service 분리, DTO, Exception, Transactional 등) | `.claude/skills/spring-api-rules.md` |
+| **db 모듈** (Entity, Port/Adapter/JpaModule 패턴) | `.claude/skills/db-conventions.md` |
+| **core 모듈** (Controller, 인증, OAuth 연동, Redis) | `.claude/skills/core-conventions.md` |
+| **worker 모듈** (Listener, Handler, Publisher, 큐 설계·등록) | `.claude/skills/worker-conventions.md` |
+| **새 모듈 추가 절차** (Gradle 설정, Application 클래스, 패키지 구조) | `.claude/skills/new-module-guide.md` |
+| 기획서 (Epic, User Story) | `.claude/skills/product-requirements.md` |
 
-Worker 모듈 작업 또는 메시지 큐 관련 코드를 작성할 때는 반드시 `worker-conventions.md`를 참조하십시오.
+각 모듈 작업 시 해당 모듈 규칙 파일을 참조하고, 공통 패턴은 `spring-api-rules.md`를 함께 확인하십시오.
 
 ## General Rules
 - AI 에이전트는 사용자가 명시적으로 지시하지 않은 코드 변경이나 리팩토링을 선제적으로 수행해서는 안 됩니다.

@@ -1,6 +1,6 @@
 ---
 name: worker-conventions
-description: Worker 모듈 아키텍처 및 개발 규칙입니다. RabbitMQ 큐 등록, Listener, Handler, Message Record 작성 시 이 규칙을 따릅니다.
+description: Worker 모듈 아키텍처 및 개발 규칙입니다. RabbitMQ 큐 등록, Listener, Handler, Publisher, MQ Message DTO 작성 시 이 규칙을 따릅니다.
 allowed-tools: Read, Write, Edit, Glob
 ---
 
@@ -256,25 +256,19 @@ public class {TaskName}RabbitConfig {
 
 ## DTO / Message Record
 
-> **모든 DTO는 Java `record`. 검증 책임은 record 내부에 집중하여 응집도를 높인다.**
+> **모든 DTO는 Java `record`.** compact constructor 검증 및 decode() 패턴은 `spring-api-rules.md`의 **Record Self-Validation** 및 **HTTP 진입 DTO — decode() 위임** 섹션을 따른다.
 
 ### MQ Message — compact constructor 검증
 
+MQ Message record는 비즈니스 제약(지원 provider 목록 등)까지 compact constructor 안에 포함한다. 검증을 Publisher에 흩뿌리지 않는다.
+
 ```java
-// ✅ compact constructor에서 self-validation
-public record {TaskName}Message(
-        UUID mailAccountId,
-        UUID userId,
-        String provider,
-        String emailAddress
-) {
+// ✅ 비즈니스 제약까지 compact constructor에 포함
+public record {TaskName}Message(UUID mailAccountId, String provider) {
     public {TaskName}Message {
         Objects.requireNonNull(mailAccountId, "mailAccountId must not be null");
-        Objects.requireNonNull(userId, "userId must not be null");
         if (provider == null || provider.isBlank())
             throw new IllegalArgumentException("provider must not be blank");
-        if (emailAddress == null || emailAddress.isBlank())
-            throw new IllegalArgumentException("emailAddress must not be blank");
         if (!MailProvider.GMAIL.name().equals(provider))
             throw new IllegalArgumentException("Unsupported provider: " + provider);
     }
@@ -286,12 +280,12 @@ public void publish(SomeMessage message) {
 }
 ```
 
-### HTTP 진입 DTO — decode() 위임
+### HTTP 진입 DTO — decode() 위임 (Worker 구현)
 
-복잡한 파싱과 검증이 필요한 HTTP 진입 DTO는 `decode()` 메서드로 변환 책임을 record 내부에 위임한다. Facade는 결과만 받는다.
+Google Pub/Sub 같이 Base64 인코딩된 payload를 갖는 HTTP 진입 DTO는 `decode()` 메서드로 파싱·검증·변환 책임을 record 내부에 위임한다. decode() 결과 record도 compact constructor로 self-validation을 수행한다.
 
 ```java
-// ✅ DTO가 파싱 + 검증 + 변환을 모두 담당
+// Worker 구현 예 — Google Pub/Sub push 요청
 public record GooglePubsubPushRequest(GooglePubsubMessageRequest message, String subscription) {
 
     public GoogleMailPushNotificationResult decode(ObjectMapper objectMapper) {
@@ -306,7 +300,6 @@ public record GooglePubsubPushRequest(GooglePubsubMessageRequest message, String
     }
 }
 
-// compact constructor로 결과 DTO도 self-validation
 public record GoogleMailPushNotificationResult(String emailAddress, String historyId) {
     public GoogleMailPushNotificationResult {
         if (emailAddress == null || emailAddress.isBlank())
@@ -614,9 +607,11 @@ public void handle(GmailHistoryEvent event) {
 
 ---
 
-## Gmail ApiService 규칙
+## Gmail/Google ApiService 현황
 
-외부 Google API를 호출하는 서비스는 반드시 `*ApiService`로 명명한다. 내부 비즈니스 서비스(`*CommandService`, `*QueryService`)와 명확히 구분한다.
+`*ApiService` 명명 규칙과 `*Response` → `*Result` 변환 책임은 `spring-api-rules.md` **External API Integration Rules** 섹션을 따른다.
+
+Worker 모듈에서 사용하는 Gmail/Google ApiService 목록:
 
 | 클래스 | 패키지 | 역할 |
 |--------|--------|------|
@@ -625,20 +620,6 @@ public void handle(GmailHistoryEvent event) {
 | `GmailWatchApiService` | `service/google/` | Gmail Watch API 호출 |
 | `GooglePubsubOidcApiService` | `service/google/` | Pub/Sub OIDC 검증 |
 | `GoogleOAuthApiService` | `service/google/` | Google OAuth 토큰 교환 |
-
-- `*ApiService`는 외부 API를 호출하고 `*Response` → `*Result` 변환까지 담당한다.
-- 호출 측(Listener)은 `*Result`만 받는다. 원본 `*Response`를 직접 다루지 않는다.
-
-```java
-// ✅ ApiService — 호출 + 변환 캡슐화
-public GoogleMailMessageListResult listMessages(String accessToken, int maxResults) {
-    GmailMessageListResponse response = gmailApiClient.listMessages(accessToken, maxResults);
-    return GoogleMailMessageListResult.from(response);
-}
-
-// ✅ 호출 측은 Result만 사용
-GoogleMailMessageListResult result = gmailMessageApiService.listMessages(accessToken, 20);
-```
 
 ### Google Access Token 갱신 규칙
 

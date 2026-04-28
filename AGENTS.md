@@ -9,10 +9,13 @@ Before changing code, read these files in order:
 1. `CLAUDE.md`
 2. `.github/copilot-instructions.md`
 3. `.claude/skills/product-requirements.md`
-4. `.claude/skills/spring-api-rules.md`
-5. `.claude/skills/worker-conventions.md` — **Worker module or RabbitMQ work only**
-6. `.claude/agents/backend-developer.md`
-7. `.claude/agents/code-reviewer.md`
+4. `.claude/skills/spring-api-rules.md` — **All modules: common layer rules**
+5. `.claude/skills/db-conventions.md` — **db module or Entity/Repository work only**
+6. `.claude/skills/core-conventions.md` — **core module or OAuth/Redis/Controller work only**
+7. `.claude/skills/worker-conventions.md` — **worker module or RabbitMQ work only**
+8. `.claude/skills/new-module-guide.md` — **Adding a new Spring Boot module only**
+9. `.claude/agents/backend-developer.md`
+10. `.claude/agents/code-reviewer.md`
 
 These references are not automatic imports. Treat them as required source documents for implementation and review.
 
@@ -20,7 +23,9 @@ If guidance conflicts:
 
 - Follow `.claude/skills/product-requirements.md` for product intent and User Story scope.
 - Follow `.claude/skills/worker-conventions.md` for Worker module and RabbitMQ implementation rules. This takes precedence over `spring-api-rules.md` for anything in the `worker` module.
-- Follow `.claude/skills/spring-api-rules.md` for all other implementation and architecture rules.
+- Follow `.claude/skills/core-conventions.md` for core module HTTP, OAuth, Redis, and Controller rules. This takes precedence over `spring-api-rules.md` for anything in the `core` module.
+- Follow `.claude/skills/db-conventions.md` for Entity, Repository Port/Adapter/JpaModule rules.
+- Follow `.claude/skills/spring-api-rules.md` for cross-module architecture rules (Layer Dependency, DTO, Exception, Transactional).
 - Use `CLAUDE.md` for project-wide operating constraints.
 
 ## Working Rules
@@ -58,13 +63,18 @@ Mandatory constraints:
 
 ## API Rules
 
+See `.claude/skills/core-conventions.md` for full details.
+
 - All endpoints must start with `/api/v1/`.
 - Do not use class-level `@RequestMapping`; write the full path on each handler method.
 - Controller return types must be `ResponseEntity<T>`.
 - Use `@AuthUser` or `@AuthAdmin` instead of `Principal`.
 - For OAuth callback flows, controllers own session-based validation such as `state` and initiating `userId`.
+- Gmail account connection OAuth is separate from service login OAuth.
 
 ## DTO Rules
+
+See `.claude/skills/spring-api-rules.md` for full details.
 
 - All DTOs must be Java `record`.
 - Do not use `*Dto` naming.
@@ -77,6 +87,8 @@ Mandatory constraints:
 
 ## Persistence Rules
 
+See `.claude/skills/db-conventions.md` for full details.
+
 - Entities live in `db` and extend `BaseEntity`.
 - Use `UUID` IDs with `GenerationType.UUID`.
 - Do not use setters; expose explicit state-change methods.
@@ -85,6 +97,8 @@ Mandatory constraints:
 
 ## Transaction and Integration Rules
 
+See `.claude/skills/spring-api-rules.md` and `.claude/skills/worker-conventions.md` for full details.
+
 - Put `@Transactional` on write methods only.
 - Do not use class-level `@Transactional`.
 - Do not use `@Transactional(readOnly = true)`.
@@ -92,7 +106,6 @@ Mandatory constraints:
 - In async flows, publish via dedicated `*Publisher` classes in `worker/messaging/publisher/`. In `worker`, Listeners act as the business Facade directly — there is no separate Facade layer on the consumer side. See `worker-conventions.md` for details.
 - `@Async` is allowed only in `PushFacade`.
 - External settings must use `@ConfigurationProperties`.
-- Gmail account connection OAuth is separate from service login OAuth.
 - In Gmail account connection flows, validate session `state` and initiating `userId` before exchanging or persisting OAuth results.
 - Persisted mail account creation must validate provider support, duplicate ownership, and required token fields.
 

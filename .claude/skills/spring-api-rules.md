@@ -1,159 +1,24 @@
 ---
 name: spring-api-rules
-description: Spring Boot 기반 REST API 개발 규칙입니다. API 설계, 도메인 분리, DTO 작성 시 이 규칙을 따릅니다.
+description: 모든 모듈에 공통으로 적용되는 Spring Boot 개발 규칙입니다. 레이어 의존성, Service 분리, DTO 작성(compact constructor/decode 포함), 예외 처리, 트랜잭션, Lombok, Properties, 로깅, 외부 API 연동(ApiService), OAuth 연동 규칙을 정의합니다.
 allowed-tools: Read, Write, Edit, Glob
 ---
 
 # Spring API Development Rules
 
-Standard rules for Spring Boot REST API development in this project.
+모든 모듈(`core`, `worker` 등)에 공통으로 적용되는 규칙입니다.
 
 - Root Package: `com.mailsangja.{module}`
 - Java 21 / Spring Boot 4.0.5 / PostgreSQL / Redis / RabbitMQ
 
----
+모듈별 추가 규칙:
 
-## Multi-Module Architecture
-
-### 프로젝트 모듈 구조
-
-```
-mailsangja_server/
-├── settings.gradle          # 루트: 모듈 목록 선언
-├── db/                      # 공유 인프라 라이브러리 (단독 실행 불가)
-└── {feature}/               # 실행 모듈 (Spring Boot App)
-```
-
-### db 모듈 패키지 구조
-
-```
-com.mailsangja.db
-├── entity/
-│   ├── common/
-│   │   └── BaseEntity.java              # 공통 시간 필드 + Soft Delete
-│   └── {domain}/
-│       ├── {Domain}.java                # JPA Entity
-│       └── {EnumName}.java              # 도메인 Enum (같은 패키지)
-├── port/
-│   └── {Domain}RepositoryPort.java      # 순수 Java 인터페이스
-├── adapter/{domain}/
-│   └── {Domain}RepositoryAdapter.java   # Port 구현체 (@Repository)
-└── module/{domain}/
-    └── {Domain}JpaRepositoryModule.java  # extends JpaRepository
-```
-
-### Port / Adapter / JpaModule 패턴
-
-```java
-// Port — 순수 Java 인터페이스 (db 모듈: port/)
-public interface UserRepositoryPort {
-    User save(User user);
-    Optional<User> findById(UUID id);
-    Optional<User> findByUsername(String username);
-    boolean existsByUsername(String username);
-}
-
-// JpaModule — JPA 저장소 (db 모듈: module/{domain}/)
-public interface UserJpaRepositoryModule extends JpaRepository<User, UUID> {
-    Optional<User> findByUsername(String username);
-    boolean existsByUsername(String username);
-}
-
-// Adapter — Port 구현체 (db 모듈: adapter/{domain}/)
-@Repository
-@RequiredArgsConstructor
-public class UserRepositoryAdapter implements UserRepositoryPort {
-    private final UserJpaRepositoryModule userJpaRepositoryModule;
-
-    @Override
-    public User save(User user) {
-        return userJpaRepositoryModule.save(user);
-    }
-}
-```
-
-**규칙:**
-- Service 레이어는 반드시 **Port 인터페이스**만 주입받음 — `JpaRepositoryModule` 직접 주입 금지
-- `JpaRepositoryModule`은 `Adapter` 내부에서만 사용
-
-### 실행 모듈에서 db 모듈 통합
-
-실행 모듈(`core` 등)이 `db` 모듈을 참조하려면 아래 세 가지 설정이 필요합니다.
-
-**1. settings.gradle — db 모듈 경로 포함**
-
-```gradle
-rootProject.name = 'core'
-include 'db'
-project(':db').projectDir = new File('../db')
-```
-
-**2. build.gradle — 의존성 추가**
-
-```gradle
-dependencies {
-    implementation project(':db')
-}
-```
-
-**3. @SpringBootApplication — 컴포넌트 스캔 범위 확장**
-
-```java
-@EnableJpaAuditing
-@EntityScan(basePackages = "com.mailsangja.db")
-@EnableJpaRepositories(basePackages = "com.mailsangja.db")
-@SpringBootApplication(scanBasePackages = {"com.mailsangja.{module}", "com.mailsangja.db"})
-public class {Module}Application {
-    public static void main(String[] args) {
-        SpringApplication.run({Module}Application.class, args);
-    }
-}
-```
-
-| 어노테이션 | 목적 |
-|-----------|------|
-| `@EnableJpaAuditing` | BaseEntity의 `@CreatedDate`, `@LastModifiedDate` 활성화 |
-| `@EntityScan` | db 모듈 Entity 클래스 인식 |
-| `@EnableJpaRepositories` | db 모듈 JpaRepository 빈 등록 |
-| `scanBasePackages` | db 모듈 `@Repository` Adapter 빈 등록 포함 |
-
----
-
-## Package Structure
-
-```
-com.mailsangja.{module}
-├── controller/
-│   ├── {Domain}Controller.java
-│   └── docs/                         # Swagger interface
-├── facade/{domain}/
-│   └── {Domain}Facade.java
-├── handler/{domain}/
-│   ├── *Classifier.java             # 외부 입력을 내부 이벤트/분기 기준으로 해석
-│   └── *Handler.java                # 해석된 이벤트를 적절한 service 호출로 연결
-├── service/{domain}/
-│   ├── {Domain}CommandService.java   # 쓰기 작업
-│   └── {Domain}QueryService.java     # 읽기 작업
-├── common/
-│   ├── dto/        # SliceResponse, PageResponse, ResponseDto
-│   ├── exception/
-│   └── util/
-├── config/
-│   ├── SecurityConfig.java
-│   ├── AsyncConfig.java
-│   ├── RabbitMqConfig.java
-│   └── properties/
-│       └── *RabbitProperties.java
-├── dto/{domain}/
-│   ├── *Result.java  # Service ↔ Facade 내부 전달 응답 DTO
-│   ├── *Command.java  # Service ↔ Facade 내부 전달 요청 DTO
-│   ├── *Request.java  # Controller ↔ Facade
-│   ├── *Response.java # Controller ↔ Facade
-│   └── properties/
-└── {domain}/
-    ├── exception/
-    └── config/     # 도메인 전용 Properties
-```
+| 모듈 | 규칙 파일 |
+|------|-----------|
+| db 모듈 (Entity, Repository 패턴) | `.claude/skills/db-conventions.md` |
+| core 모듈 (Controller, 인증, Handler/Classifier, Redis) | `.claude/skills/core-conventions.md` |
+| worker 모듈 (Listener, Handler, 큐 설계) | `.claude/skills/worker-conventions.md` |
+| 새 모듈 추가 절차 | `.claude/skills/new-module-guide.md` |
 
 ---
 
@@ -166,7 +31,7 @@ Controller → Facade → CommandService / QueryService → Repository
 | 규칙 | 내용 |
 |------|------|
 | Controller | Facade만 호출 — Service 직접 호출 금지 |
-| Facade만 | 같은 도메인 Command/QueryService 호출. 타 도메인은 Facade 레벨에서만 주입 |
+| Facade | 같은 도메인 Command/QueryService 호출. 타 도메인은 Facade 레벨에서만 주입 |
 | Facade → Facade | 금지 |
 | Service → 타 도메인 Service | 금지 — 반드시 팀 회의 후 결정 |
 
@@ -177,10 +42,8 @@ Controller → Facade → CommandService / QueryService → Repository
 - Validation 메서드는 검증 책임이 있는 계층 내부의 `private` 메서드로 작성한다
 - **Facade는 위에서 아래로 들어오는 입력을 검증한다**
 - Controller에서 전달받은 `*Request`, 쿼리 파라미터, path variable, 세션 값 등은 Facade에서 private validation 메서드로 검증한다
-- Facade는 외부 연동 호출 전, 상위 계층에서 내려온 값이 도메인 흐름에 들어가도 되는지 판단하는 역할을 가진다
 - **Service는 아래에서 위로 올라오는 결과를 검증한다**
 - Repository에서 조회한 Entity, 외부 API 호출 결과, 캐시 조회 결과 등은 Service에서 private validation 메서드로 검증한다
-- Service는 저장/조회 결과가 비즈니스 규칙에 맞는지, null 또는 비정상 상태가 아닌지 판단하는 역할을 가진다
 - 단순 `null` 체크라도 계층 책임에 맞는 위치에서 수행한다. 상위 입력 검증은 Facade, 하위 결과 검증은 Service에서 처리한다
 
 ```java
@@ -190,7 +53,6 @@ public class MailAccountFacade {
         validateAuthorizationCode(code);
         ...
     }
-
     private void validateAuthorizationCode(String code) { ... }
 }
 
@@ -198,13 +60,29 @@ public class MailAccountFacade {
 public class MailAccountCommandService {
     public MailAccount createGoogleMailAccount(User user, GoogleMailAccountResult result) {
         validateGoogleMailAccountResult(result);
-        MailAccountCreateCommand command = MailAccountCreateCommand.from(MailProvider.GMAIL, result);
-        validateCreateCommand(command);
         ...
     }
-
     private void validateGoogleMailAccountResult(GoogleMailAccountResult result) { ... }
-    private void validateCreateCommand(MailAccountCreateCommand command) { ... }
+}
+```
+
+**3. Java record의 self-validation은 compact constructor에서 수행한다**
+
+record 생성 시점에 유효성이 보장되므로, 호출 측에서 중복 검증하지 않는다.
+
+```java
+// ✅ compact constructor에서 self-validation
+public record SyncCommand(UUID mailAccountId, String provider) {
+    public SyncCommand {
+        Objects.requireNonNull(mailAccountId, "mailAccountId must not be null");
+        if (provider == null || provider.isBlank())
+            throw new IllegalArgumentException("provider must not be blank");
+    }
+}
+
+// ❌ 금지 — compact constructor가 이미 보장하는 것을 호출 측에서 중복 검증
+void doSomething(SyncCommand cmd) {
+    if (cmd.mailAccountId() == null || ...) { throw ...; }
 }
 ```
 
@@ -218,118 +96,22 @@ public class MailAccountCommandService {
 @RequiredArgsConstructor
 public class UserCommandService {
     // register(), update(), delete() 등 상태 변경 메서드
-    // @Transactional은 상태 변경이 있는 메서드에만 선언
 }
 
 // QueryService — 읽기 (SELECT)
 @Service
 @RequiredArgsConstructor
 public class UserQueryService {
-    // findById(), getList() 등 조회 전용 메서드 (@Transactional 불필요)
+    // findById(), getList() 등 조회 전용 메서드
 }
 ```
 
-- `find*`, `get*`, `read*`, `exists*`, 목록 조회, 상세 조회, 여부 확인 등 **읽기 성격의 메서드와 로직은 `QueryService`에서만 작성한다**
-- `save*`, `create*`, `register*`, `update*`, `delete*`, 상태 변경, 토큰/카운트 갱신 등 **쓰기 성격의 메서드와 로직은 `CommandService`에서만 작성한다**
-- Repository의 읽기 메서드 호출은 `QueryService`를 기본 위치로 한다. 단, 같은 도메인 내 상태 변경 흐름에서 필요한 읽기 검증은 `CommandService`가 같은 도메인의 `QueryService`를 호출해 재사용할 수 있다
-- **동일 도메인에서는 `CommandService -> QueryService` 호출을 허용한다**
-- **동일 도메인에서도 `QueryService -> CommandService` 호출은 금지한다**
-- QueryService는 상태 변경 메서드나 저장 메서드를 가지지 않는다
-- CommandService는 저장/수정/삭제 책임을 가지며, 필요한 읽기 검증은 직접 Repository를 다시 호출하기보다 같은 도메인의 QueryService를 우선 재사용한다
-
-메서드가 2개 이하이고 모두 같은 성격이면 단일 `{Domain}Service`로 유지 가능.
-
-### Handler / Classifier Rules
-
-- 외부 push, webhook, MQ payload처럼 입력 이벤트를 해석하거나 분기하는 컴포넌트는 `handler/{domain}/`에 둔다
-- `*Classifier`는 외부 입력을 내부 이벤트 타입이나 분기 기준으로 변환하는 책임만 가진다
-- `*Handler`는 분기된 이벤트를 받아 적절한 `CommandService` 또는 `QueryService` 호출로 연결한다
-- `Handler`와 `Classifier`는 상태 변경의 최종 책임을 가지지 않는다. 실제 DB 변경과 트랜잭션은 `service` 계층이 담당한다
-- `Handler`에서 Repository Port나 JPA Module을 직접 주입하지 않는다. 필요한 상태 변경은 service를 통해 수행한다
-- `Classifier`는 가능하면 순수 해석 로직으로 유지하고, 도메인 상태 변경이나 외부 I/O를 포함하지 않는다
-- 비동기 이벤트 기반 write 경로에서 동일한 집계 단위 상태를 갱신할 때는, 모든 handler가 동일한 동시성 규약을 공유해야 한다
-- 외부 API 조회가 필요한 경우, 외부 I/O는 트랜잭션과 DB 락 바깥에서 수행하고 실제 DB 반영만 락을 획득한 트랜잭션 안에서 처리한다
-- 락을 획득한 뒤에는 대상 message/thread 존재 여부와 집계값을 다시 검증한다. 락 밖에서 확인한 상태를 그대로 신뢰하지 않는다
-
-### Gmail Event Concurrency Rules
-
-- Gmail push 또는 Gmail 동기화 이벤트가 `Message`, `Thread` 상태를 변경할 때는 `mailAccountId + gmailThreadId` 단위로 작업을 직렬화한다
-- Gmail의 읽음/안읽음 처리, 신규 메시지 insert, thread 집계값 갱신처럼 같은 Gmail thread를 변경하는 모든 비동기 write 경로는 동일한 `gmail_thread_locks` 규약을 사용한다
-- Gmail 관련 비동기 write 경로는 account 전체 락이 아니라 Gmail thread 단위 락을 기본으로 사용한다
-- `gmail_thread_locks`를 획득한 뒤에만 `is_read`, `message_count`, latest subject/snippet/participant, historyId 같은 thread 집계 상태를 계산하고 반영한다
-- Gmail 원본 thread snapshot으로 DB를 보강할 때는 기존 row 전체를 무분별하게 overwrite하지 말고, 락 획득 이후 현재 DB 상태를 다시 확인한 뒤 필요한 최소 범위만 반영한다
-
----
-
-## Controller
-
-```java
-@RestController
-@RequiredArgsConstructor
-public class UserController implements UserControllerDocs {
-
-    private final UserFacade userFacade;
-
-    @PostMapping("/api/v1/users")
-    public ResponseEntity<Void> register(@RequestBody RegisterRequest request, @AuthUser User user) {
-        userFacade.register(request, user);
-        return ResponseEntity.ok().build();
-    }
-
-    @DeleteMapping("/api/v1/admin/users/{id}")
-    public ResponseEntity<Void> deleteUser(@AuthAdmin User admin, @PathVariable Long id) {
-        userFacade.deleteUser(admin, id);
-        return ResponseEntity.ok().build();
-    }
-}
-```
-
-- `@RequestMapping` 클래스 레벨 사용 금지 — 각 메서드에 **전체 경로** 작성 (예: `@PostMapping("/api/v1/users")`)
-- `@RequestBody`, `@CookieValue`, `@PathVariable`, `@RequestParam` 등 **파라미터 레벨 애노테이션은 Docs 인터페이스에서 상속되지 않음** — 구현체 메서드에도 반드시 중복 선언할 것
-- **모든 엔드포인트는 `/api/v1/`로 시작**
-- 반환 타입은 반드시 `ResponseEntity<T>`
-- Service 직접 호출 금지 — Facade만 호출
-- `Principal` 사용 금지 — 반드시 `@AuthUser` / `@AuthAdmin` 애노테이션으로 `User` 객체를 직접 주입받을 것
-
----
-
-## RabbitMQ / Worker 모듈
-
-Worker 모듈의 RabbitMQ 설정, Publisher/Listener/Handler 패턴, 큐 등록 절차, Message DTO 규칙은 모두 `.claude/skills/worker-conventions.md`에 정의되어 있습니다.
-
-Worker 모듈 관련 작업(새 큐 추가, Listener/Handler 작성, MQ 설정 변경 등)은 반드시 해당 파일을 참조하십시오.
-
-## 인증 파라미터 애노테이션
-
-컨트롤러에서 로그인 사용자를 `Principal`로 받지 않고, `@AuthUser` / `@AuthAdmin` 애노테이션으로 `User` 엔티티를 바로 주입받는다.
-내부적으로 `AuthArgumentResolver`가 `SecurityContextHolder`에서 이메일을 꺼내 DB 조회 후 반환한다.
-`AuthArgumentResolver`는 `SecurityConfig.addArgumentResolvers()`에 등록되어 있다.
-
-| 애노테이션 | 파일 | 비인증(Anonymous) | 비관리자 | 반환 |
-|-----------|------|------------------|---------|------|
-| `@AuthUser` | `config/auth/AuthUser.java` | `401` throw | — | `User` |
-| `@AuthAdmin` | `config/auth/AuthAdmin.java` | `401` throw | `403` throw | `User` |
-
-### 사용 기준
-
-| 엔드포인트 성격 | 사용 애노테이션 |
-|----------------|----------------|
-| 로그인 필수 (일반 사용자) | `@AuthUser` |
-| 로그인 필수 (관리자 전용) | `@AuthAdmin` |
-
-```java
-// ✅ 로그인 필수
-@GetMapping("/api/v1/users")
-public ResponseEntity<UserDetailResponse> getUserInfo(@AuthUser User user) { ... }
-
-// ✅ 관리자 전용
-@DeleteMapping("/api/v1/admin/users/{id}")
-public ResponseEntity<Void> deleteUser(@AuthAdmin User admin, @PathVariable Long id) { ... }
-
-// ❌ 금지 — Principal 직접 사용
-@GetMapping("/api/v1/users")
-public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ... }
-```
+- `find*`, `get*`, `read*`, `exists*` 등 **읽기 성격의 메서드와 로직은 `QueryService`에서만 작성한다**
+- `save*`, `create*`, `update*`, `delete*` 등 **쓰기 성격의 메서드와 로직은 `CommandService`에서만 작성한다**
+- **동일 도메인에서는 `CommandService → QueryService` 호출을 허용한다**
+- **동일 도메인에서도 `QueryService → CommandService` 호출은 금지한다**
+- Repository의 읽기 메서드 호출은 `QueryService`를 기본 위치로 한다
+- 메서드가 2개 이하이고 모두 같은 성격이면 단일 `{Domain}Service`로 유지 가능
 
 ---
 
@@ -343,27 +125,53 @@ public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ...
 |--------|------|------|
 | `*Request` | Controller 메서드 파라미터로 직접 사용 (HTTP 요청 입력) | `OauthRequest`, `UserUpdateRequest` |
 | `*Response` | Controller 메서드 반환 타입으로 직접 사용 (HTTP 응답 출력) | `LoginResponse`, `UserInfoResponse` |
-| `*Result` | Controller 메서드 시그니처에 등장하지 않는 내부 결과 전달 | `UserLoginResult`, `AuthTokenResult`, `GoogleUserInfoResult` |
+| `*Result` | Controller 메서드 시그니처에 등장하지 않는 내부 결과 전달 | `UserLoginResult`, `GoogleUserInfoResult` |
 | `*Command` | Controller 메서드 시그니처에 등장하지 않는 내부 명령 전달 | `SendNotificationCommand` |
 
-- **판단 기준: Controller 메서드의 파라미터/반환 타입에 직접 등장하면 `*Request` / `*Response`, 그 외 레이어 간 내부 전달이면 `*Result` / `*Command`**
-- Controller 내부 지역 변수로만 사용하더라도 HTTP I/O 목적이 아니면 `*Result` / `*Command`
+- **Controller 메서드의 파라미터/반환 타입에 직접 등장하면 `*Request` / `*Response`, 그 외 내부 전달이면 `*Result` / `*Command`**
 - `*Dto` 접미사 사용 금지
-- 외부 OAuth / 외부 API 응답은 먼저 `*Result`로 정리한 뒤, 저장/상태 변경 입력은 `*Command`로 변환한다
-
-### `*Result` 사용 기준
-
-- 외부 API 응답을 내부 표준 형태로 변환할 때 `*Result`를 우선 고려한다
-- Service 결과가 Entity와 동일한 의미를 가지지 않거나, Facade에서 추가 조합/가공이 필요하면 `*Result`를 사용한다
-- 단순히 Entity 하나를 조회해 바로 `*Response.from(entity)` 또는 `*Response.of(...)`로 변환하는 흐름은 `*Result`를 생략할 수 있다
-- 상태 변경 입력은 `*Command`, 내부 처리 결과는 `*Result`로 구분한다
 
 ### `*Result` / `*Command` 변환 규칙
 
 - `*Result`는 `*Command`를 직접 생성하거나 반환하지 않는다
 - 상태 변경 입력으로 변환이 필요하면 `*Command` 쪽에 `from(result, ...)` 정적 팩토리 메서드를 우선 둔다
-- 외부 연동 결과를 상태 변경 입력으로 바꿀 때는 `*Command.from(...)` 형식을 우선 사용한다
 - `from(...)` 메서드는 매핑과 조립 책임만 가지며, 복잡한 비즈니스 판단까지 포함하지 않는다
+
+### Record Self-Validation — compact constructor
+
+DTO는 Java record로 작성하므로 유효성 검증은 compact constructor에서 수행한다. record 생성 시점에 유효성이 보장된다.
+
+```java
+// ✅ MQ payload, Result, Command 모두 동일하게 적용
+public record UserCommand(String email, String name) {
+    public UserCommand {
+        if (email == null || email.isBlank())
+            throw new IllegalArgumentException("email must not be blank");
+        Objects.requireNonNull(name, "name must not be null");
+    }
+}
+```
+
+### HTTP 진입 DTO — decode() 위임
+
+복잡한 파싱과 검증이 필요한 HTTP 진입 DTO는 `decode()` 메서드로 변환 책임을 record 내부에 위임한다. Facade는 결과만 받는다.
+
+```java
+// ✅ DTO가 파싱 + 검증 + 변환을 모두 담당
+public record PushRequest(MessageData message, String subscription) {
+
+    public NotificationResult decode(ObjectMapper objectMapper) {
+        if (message == null || message.data() == null || message.data().isBlank())
+            throw new PushException(PushErrorCode.INVALID_DATA);
+        try {
+            byte[] decoded = Base64.getDecoder().decode(message.data());
+            return objectMapper.readValue(decoded, NotificationResult.class);
+        } catch (IllegalArgumentException | IOException e) {
+            throw new PushException(PushErrorCode.INVALID_DATA);
+        }
+    }
+}
+```
 
 ### Presentation DTO 조립 책임
 
@@ -373,11 +181,6 @@ public ResponseEntity<UserDetailResponse> getUserInfo(Principal principal) { ...
 |--------|------|
 | Service | 비즈니스 로직 수행, 도메인 객체(Entity / `*Result`) 반환 |
 | Facade | Service 결과를 받아 `*Response` DTO로 조립 후 Controller에 전달 |
-
-이유:
-1. **계층 간 책임 분리** — Service는 비즈니스 로직, Facade가 DTO 조립
-2. **의존성 방향 유지** — 하위 계층(Service)이 상위 계층의 API 응답 포맷(`*Response`)을 알아서는 안 됨
-3. **비즈니스 로직 재사용** — 동일한 Service를 여러 API(다른 응답 포맷)에서 재사용 가능
 
 ```java
 // ✅ Service — 도메인 객체 반환
@@ -394,9 +197,7 @@ public class UserFacade {
 
 // ❌ 금지 — Service가 Response DTO 생성
 public class UserService {
-    public UserInfoResponse getUserInfo(User user) {
-        return new UserInfoResponse(user.getName(), user.getEmail());
-    }
+    public UserInfoResponse getUserInfo(User user) { ... }
 }
 ```
 
@@ -429,27 +230,15 @@ public void register(RegisterRequest request) {
     User user = User.builder()
         .email(request.email())
         .password(passwordEncoder.encode(request.password()))
-        .name(request.name())
         .build();
     userRepository.save(user);
 }
 
 // ❌ 금지
-public record RegisterRequest(String email, String password, String name) {
-    public User toEntity() { ... }  // DTO가 Entity를 알아서는 안 됨
+public record RegisterRequest(String email, String password) {
+    public User toEntity() { ... }
 }
 ```
-
----
-
-## OAuth Integration Rules
-
-- 서비스 로그인 OAuth와 외부 메일 계정 연결 OAuth를 혼동하지 않는다
-- Gmail 계정 연결 플로우는 로그인된 사용자가 자신의 외부 메일 계정을 추가하는 시나리오로 설계한다
-- OAuth 인가 시작 단계에서는 Controller가 세션에 `state`와 시작 사용자 식별값을 저장한다
-- OAuth callback 단계에서는 Controller가 세션 `state`와 현재 사용자 식별값을 먼저 검증한 후 Facade를 호출한다
-- Facade는 Controller에서 내려온 입력을 검증하고, 외부 OAuth 응답을 `*Result`로 정리해 CommandService로 전달한다
-- CommandService는 외부 OAuth `*Result`, `*Command`, 동일 사용자 중복 연결, 타 사용자 선점, 저장 결과를 검증한 뒤 저장한다
 
 ---
 
@@ -468,132 +257,23 @@ public record RegisterRequest(String email, String password, String name) {
 
 ---
 
-## Entity
-
-모든 Entity는 `db` 모듈(`com.mailsangja.db.entity`) 에 위치하며 `BaseEntity`를 상속합니다.
-
-```java
-@Entity
-@Table(name = "users")
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Builder
-public class User extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    public void updateName(String name) { this.name = name; }  // Setter 금지
-}
-```
-
-- `@NoArgsConstructor(access = PROTECTED)` 필수
-- **ID 타입: `UUID`, 전략: `GenerationType.UUID`** — `Long` + `IDENTITY` 사용 금지
-- **Setter 전면 금지** — 상태 변경은 명시적 메서드
-
-### BaseEntity
-
-```java
-@MappedSuperclass
-@EntityListeners(AuditingEntityListener.class)
-@Getter
-public abstract class BaseEntity {
-
-    @CreatedDate
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    private LocalDateTime modifiedAt;
-
-    private LocalDateTime deletedAt;
-
-    public void delete() { this.deletedAt = LocalDateTime.now(); }
-    public boolean isDeleted() { return this.deletedAt != null; }
-    public void restore() { this.deletedAt = null; }
-}
-```
-
-- **Soft Delete**: 물리 삭제(`DELETE` SQL) 금지 — `delete()` 메서드로 `deletedAt` 설정
-- `@EnableJpaAuditing`은 실행 모듈의 `@SpringBootApplication` 클래스에 선언
-
----
-
-## Redis Key Naming Convention
-
-### 키 구조
-
-```
-{도메인} : {목적} : {entityId} : {식별자...}
-```
-
-예시:
-
-```
-MailEvent:views:{eventId}
-MailEvent:user:{eventId}:{email}
-MailEvent:anon:{eventId}:{ip}:{userAgent}
-```
-
-### 규칙
-
-**1. prefix 상수는 어댑터 클래스 상단에 모두 선언한다**
-
-```java
-private static final String VIEW_KEY_PREFIX     = "MailEvent:views:";
-private static final String USER_REQUEST_PREFIX = "MailEvent:user:";
-private static final String ANON_REQUEST_PREFIX = "MailEvent:anon:";
-private static final long   VIEW_COUNT_TTL_MINUTES = 4L;
-private static final long   VIEW_DEDUP_TTL_SECONDS = 86400L;
-```
-
-**2. 키에서 entityId를 파싱하는 로직은 Port 메서드로 제공한다**
-
-Service가 `split(":")[n]` 인덱스로 직접 파싱하면 키 형식이 바뀔 때 런타임에 버그가 발생한다.
-파싱 책임은 키를 정의한 어댑터가 갖고, Port 메서드로 노출한다.
-
-```java
-// ❌ 금지 — Service가 키 구조를 직접 알면 안 됨
-Long eventId = Long.parseLong(key.split(":")[2]);
-
-// ✅ Port 메서드로 추상화
-Long eventId = noticeCachePort.extractEventIdFromViewKey(key);
-
-// Adapter 구현 — prefix 상수로 파싱해 키 형식 변경에 자동 대응
-@Override
-public Long extractEventIdFromViewKey(String key) {
-    return Long.parseLong(key.substring(VIEW_KEY_PREFIX.length()));
-}
-```
-
-**3. SCAN은 스케줄러 flush 대상 키에만 허용한다**
-
-단순 존재 여부 확인은 `hasKey`(O(1))를 사용한다. SCAN은 O(N)이므로 남용하면 Redis 성능에 영향을 준다.
-
-**4. 모든 Redis 키에는 반드시 TTL을 설정한다**
-
-TTL 없는 키는 Redis 메모리를 영구 점유한다. `setIfAbsent`, `set` 호출 시 항상 TTL 파라미터를 포함한다.
-
----
-
 ## Exception Handling
 
 모든 예외 클래스는 **`common/exception/{subdomain}/`** 에 위치한다.
 
 ```
 common/exception/
-├── BaseException.java          # 추상 베이스
+├── BaseException.java
 ├── ErrorCode.java              # 인터페이스
 ├── ErrorResponse.java
 ├── GlobalExceptionHandler.java
-├── auth/                       # 인증 예외
+├── auth/
 │   ├── AuthErrorCode.java
 │   └── AuthException.java
-├── common/                     # 도메인 없는 인프라/공통 예외
+├── common/
 │   ├── CommonErrorCode.java
 │   └── CommonException.java
-└── {subdomain}/                # 도메인별 예외 추가 시 여기에
+└── {subdomain}/
     ├── {Domain}ErrorCode.java
     └── {Domain}Exception.java
 ```
@@ -647,13 +327,6 @@ public class UserCommandService { ... }  // 클래스 레벨 금지
 
 ---
 
-## @Async Rules
-
-- `@Async` 사용 가능 위치: **`PushFacade`만 허용**
-- `@EnableAsync`는 `config/AsyncConfig.java`에서 활성화
-
----
-
 ## Lombok Rules
 
 | 클래스 타입 | 어노테이션 |
@@ -699,3 +372,40 @@ private static final String DEFAULT_SENDER = "noreply@mailsangja.com";
 | `log.info()` | 정상 처리 흐름 |
 | `log.warn()` | 주의 필요 상황 |
 | `log.error()` | 예외 발생, 장애 |
+
+---
+
+## External API Integration Rules
+
+외부 API를 호출하는 서비스는 반드시 `*ApiService`로 명명한다. 내부 비즈니스 서비스(`*CommandService`, `*QueryService`)와 명확히 구분한다.
+
+- `*ApiService`는 외부 API를 호출하고 `*Response` → `*Result` 변환까지 담당한다
+- 호출 측은 `*Result`만 받는다. 원본 `*Response`를 직접 다루지 않는다
+
+```java
+// ✅ ApiService — 호출 + 변환 캡슐화
+public XxxResult fetchData(String token) {
+    XxxResponse response = apiClient.fetch(token);
+    return XxxResult.from(response);
+}
+
+// ✅ 호출 측은 Result만 사용
+XxxResult result = xxxApiService.fetchData(token);
+
+// ❌ 금지 — 호출 측이 Response를 직접 다룸
+XxxResponse raw = xxxApiService.fetchRaw(token);
+```
+
+---
+
+## OAuth 연동 규칙
+
+서비스 자체 로그인용 OAuth와 외부 계정 연결용 OAuth를 혼동하지 않는다.
+
+- 외부 계정 연결 OAuth는 로그인된 사용자가 자신의 외부 계정을 추가하는 시나리오로 설계한다
+- OAuth 인가 시작 단계: Controller가 세션에 `state`와 시작 사용자 식별값을 저장한다
+- OAuth callback 단계: Controller가 세션 `state`와 현재 사용자 식별값을 먼저 검증한 후 Facade를 호출한다
+- Facade: Controller에서 내려온 입력을 검증하고, 외부 OAuth 응답을 `*Result`로 정리해 CommandService로 전달한다
+- CommandService: 외부 OAuth `*Result`, `*Command`, 동일 사용자 중복 연결, 타 사용자 선점, 저장 결과를 검증한 뒤 저장한다
+
+> core 모듈에서 Gmail OAuth 계정 연결 흐름을 구현한다. Gmail API 호출(Access Token 갱신, History/Message API)은 Worker 모듈이 담당하며, 관련 규칙은 `worker-conventions.md`를 참조한다.
