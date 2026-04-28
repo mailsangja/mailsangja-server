@@ -30,6 +30,10 @@ com.mailsangja.core
 │   ├── {Domain}CommandService.java
 │   └── {Domain}QueryService.java
 ├── common/
+│   ├── auth/
+│   │   ├── AuthUser.java
+│   │   ├── AuthAdmin.java
+│   │   └── AuthArgumentResolver.java
 │   ├── dto/        # SliceResponse, PageResponse, ResponseDto
 │   ├── exception/
 │   └── util/
@@ -37,10 +41,6 @@ com.mailsangja.core
 │   ├── SecurityConfig.java
 │   ├── AsyncConfig.java
 │   ├── RabbitMqConfig.java
-│   ├── auth/
-│   │   ├── AuthUser.java
-│   │   ├── AuthAdmin.java
-│   │   └── AuthArgumentResolver.java
 │   └── properties/
 │       └── *Properties.java
 ├── dto/{domain}/
@@ -91,12 +91,12 @@ public class UserController implements UserControllerDocs {
 
 컨트롤러에서 로그인 사용자를 `Principal`로 받지 않고, `@AuthUser` / `@AuthAdmin` 애노테이션으로 `User` 엔티티를 바로 주입받는다.
 내부적으로 `AuthArgumentResolver`가 `SecurityContextHolder`에서 이메일을 꺼내 DB 조회 후 반환한다.
-`AuthArgumentResolver`는 `SecurityConfig.addArgumentResolvers()`에 등록되어 있다.
+`AuthArgumentResolver`는 `WebMvcConfig.addArgumentResolvers()`에 등록되어 있다.
 
 | 애노테이션 | 파일 | 비인증(Anonymous) | 비관리자 | 반환 |
 |-----------|------|------------------|---------|------|
-| `@AuthUser` | `config/auth/AuthUser.java` | `401` throw | — | `User` |
-| `@AuthAdmin` | `config/auth/AuthAdmin.java` | `401` throw | `403` throw | `User` |
+| `@AuthUser` | `common/auth/AuthUser.java` | `401` throw | — | `User` |
+| `@AuthAdmin` | `common/auth/AuthAdmin.java` | `401` throw | `403` throw | `User` |
 
 | 엔드포인트 성격 | 사용 애노테이션 |
 |----------------|----------------|
