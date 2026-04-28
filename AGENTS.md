@@ -13,9 +13,10 @@ Before changing code, read these files in order:
 5. `.claude/skills/db-conventions.md` — **db module or Entity/Repository work only**
 6. `.claude/skills/core-conventions.md` — **core module or OAuth/Redis/Controller work only**
 7. `.claude/skills/worker-conventions.md` — **worker module or RabbitMQ work only**
-8. `.claude/skills/new-module-guide.md` — **Adding a new Spring Boot module only**
-9. `.claude/agents/backend-developer.md`
-10. `.claude/agents/code-reviewer.md`
+8. `.claude/skills/rabbitmq-queue-registration.md` — **Adding a new RabbitMQ queue only**
+9. `.claude/skills/new-module-guide.md` — **Adding a new Spring Boot module only**
+10. `.claude/agents/backend-developer.md`
+11. `.claude/agents/code-reviewer.md`
 
 These references are not automatic imports. Treat them as required source documents for implementation and review.
 

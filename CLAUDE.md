@@ -10,7 +10,8 @@ Gmail OAuth는 서비스 로그인 수단이 아니라, 로그인된 사용자�
 | 공통 규칙 (Layer Dependency, Service 분리, DTO, Exception, Transactional 등) | `.claude/skills/spring-api-rules.md` |
 | **db 모듈** (Entity, Port/Adapter/JpaModule 패턴) | `.claude/skills/db-conventions.md` |
 | **core 모듈** (Controller, 인증, OAuth 연동, Redis) | `.claude/skills/core-conventions.md` |
-| **worker 모듈** (Listener, Handler, Publisher, 큐 설계·등록) | `.claude/skills/worker-conventions.md` |
+| **worker 모듈** (Listener, Handler, Publisher, 큐 아키텍처) | `.claude/skills/worker-conventions.md` |
+| **RabbitMQ 새 큐 등록 절차** (Properties, RabbitConfig, Listener 연결) | `.claude/skills/rabbitmq-queue-registration.md` |
 | **새 모듈 추가 절차** (Gradle 설정, Application 클래스, 패키지 구조) | `.claude/skills/new-module-guide.md` |
 | 기획서 (Epic, User Story) | `.claude/skills/product-requirements.md` |
 

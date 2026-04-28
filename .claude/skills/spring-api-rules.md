@@ -395,17 +395,3 @@ XxxResult result = xxxApiService.fetchData(token);
 // ❌ 금지 — 호출 측이 Response를 직접 다룸
 XxxResponse raw = xxxApiService.fetchRaw(token);
 ```
-
----
-
-## OAuth 연동 규칙
-
-서비스 자체 로그인용 OAuth와 외부 계정 연결용 OAuth를 혼동하지 않는다.
-
-- 외부 계정 연결 OAuth는 로그인된 사용자가 자신의 외부 계정을 추가하는 시나리오로 설계한다
-- OAuth 인가 시작 단계: Controller가 세션에 `state`와 시작 사용자 식별값을 저장한다
-- OAuth callback 단계: Controller가 세션 `state`와 현재 사용자 식별값을 먼저 검증한 후 Facade를 호출한다
-- Facade: Controller에서 내려온 입력을 검증하고, 외부 OAuth 응답을 `*Result`로 정리해 CommandService로 전달한다
-- CommandService: 외부 OAuth `*Result`, `*Command`, 동일 사용자 중복 연결, 타 사용자 선점, 저장 결과를 검증한 뒤 저장한다
-
-> core 모듈에서 Gmail OAuth 계정 연결 흐름을 구현한다. Gmail API 호출(Access Token 갱신, History/Message API)은 Worker 모듈이 담당하며, 관련 규칙은 `worker-conventions.md`를 참조한다.
