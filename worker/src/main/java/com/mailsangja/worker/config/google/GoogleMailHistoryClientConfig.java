@@ -1,4 +1,4 @@
-package com.mailsangja.worker.config;
+package com.mailsangja.worker.config.google;
 
 import com.mailsangja.worker.config.properties.GoogleMailHistoryProperties;
 import org.springframework.context.annotation.Bean;

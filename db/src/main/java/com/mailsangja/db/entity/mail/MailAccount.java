@@ -115,4 +115,8 @@ public class MailAccount extends BaseEntity {
     public void deactivate() {
         this.active = false;
     }
+
+    public String resolveStartHistoryId(String fallback) {
+        return (syncHistoryId != null && !syncHistoryId.isBlank()) ? syncHistoryId : fallback;
+    }
 }

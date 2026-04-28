@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class GooglePubsubOidcQueryService {
+public class GooglePubsubOidcApiService {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String EMAIL_CLAIM = "email";
@@ -22,7 +22,7 @@ public class GooglePubsubOidcQueryService {
     private final GooglePubsubOidcProperties googlePubsubOidcProperties;
     private final NimbusJwtDecoder jwtDecoder;
 
-    public GooglePubsubOidcQueryService(GooglePubsubOidcProperties googlePubsubOidcProperties) {
+    public GooglePubsubOidcApiService(GooglePubsubOidcProperties googlePubsubOidcProperties) {
         this.googlePubsubOidcProperties = googlePubsubOidcProperties;
         validateProperties(googlePubsubOidcProperties);
 

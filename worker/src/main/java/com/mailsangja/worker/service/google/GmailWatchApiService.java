@@ -19,14 +19,14 @@ import java.time.ZoneId;
 import java.util.List;
 
 @Service
-public class GoogleMailWatchQueryService {
+public class GmailWatchApiService {
 
     private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     private final GoogleMailWatchProperties googleMailWatchProperties;
     private final RestClient googleMailWatchRestClient;
 
-    public GoogleMailWatchQueryService(
+    public GmailWatchApiService(
             GoogleMailWatchProperties googleMailWatchProperties,
             @Qualifier("googleMailWatchRestClient") RestClient googleMailWatchRestClient
     ) {
