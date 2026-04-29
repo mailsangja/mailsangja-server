@@ -231,7 +231,7 @@ class MailFacadeTest {
                 .thenAnswer(invocation -> messages.stream()
                         .filter(message -> invocation.getArgument(0).equals(message.getId()))
                         .findFirst());
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -239,17 +239,16 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
         );
         MailFacade mailFacade = new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 new MailAttachmentQueryService(attachmentRepositoryPort),
                 new FakeGoogleMailAttachmentQueryService()
@@ -306,7 +305,7 @@ class MailFacadeTest {
                 .thenAnswer(invocation -> messages.stream()
                         .filter(message -> invocation.getArgument(0).equals(message.getId()))
                         .findFirst());
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -314,17 +313,16 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
         );
         MailFacade mailFacade = new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 new MailAttachmentQueryService(attachmentRepositoryPort),
                 new FakeGoogleMailAttachmentQueryService()
@@ -383,7 +381,7 @@ class MailFacadeTest {
                 .thenAnswer(invocation -> messages.stream()
                         .filter(message -> invocation.getArgument(0).equals(message.getId()))
                         .findFirst());
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -391,17 +389,16 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
         );
         MailFacade mailFacade = new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 new MailAttachmentQueryService(attachmentRepositoryPort),
                 new FakeGoogleMailAttachmentQueryService()
@@ -459,7 +456,7 @@ class MailFacadeTest {
                 .thenAnswer(invocation -> messages.stream()
                         .filter(message -> invocation.getArgument(0).equals(message.getId()))
                         .findFirst());
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -467,17 +464,16 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
         );
         MailFacade mailFacade = new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 new MailAttachmentQueryService(attachmentRepositoryPort),
                 new FakeGoogleMailAttachmentQueryService()
@@ -510,7 +506,10 @@ class MailFacadeTest {
         User user = createUser(UUID.randomUUID());
         MailFacade mailFacade = new MailFacade(
                 mock(MailAccountQueryService.class),
+                mock(MailQueryService.class),
                 mock(GoogleAccessTokenEnsureService.class),
+                mock(GoogleMailSendCommandService.class),
+                mock(GoogleMailMessageQueryService.class),
                 mock(MailCommandService.class),
                 mock(MailAttachmentQueryService.class),
                 mock(GoogleMailAttachmentQueryService.class)
@@ -566,7 +565,7 @@ class MailFacadeTest {
                 .thenAnswer(invocation -> messages.stream()
                         .filter(message -> invocation.getArgument(0).equals(message.getId()))
                         .findFirst());
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -574,17 +573,16 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
         );
         MailFacade mailFacade = new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 new MailAttachmentQueryService(attachmentRepositoryPort),
                 new FakeGoogleMailAttachmentQueryService()
@@ -647,7 +645,7 @@ class MailFacadeTest {
         when(messageRepositoryPort.findByThreadIdAndGmailMessageIdAndDeletedAtIsNull(any(), anyString()))
                 .thenReturn(Optional.empty());
         when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -655,17 +653,16 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
         );
         MailFacade mailFacade = new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 new MailAttachmentQueryService(attachmentRepositoryPort),
                 new FakeGoogleMailAttachmentQueryService()
@@ -783,7 +780,7 @@ class MailFacadeTest {
                 .thenReturn(Optional.empty());
         when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort);
+        MailQueryService mailQueryService = new MailQueryService(mailAccountRepositoryPort, messageRepositoryPort);
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
@@ -791,10 +788,6 @@ class MailFacadeTest {
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
-                mailQueryService,
-                googleAccessTokenEnsureService,
-                new FakeGoogleMailSendCommandService(),
-                new FakeGoogleMailMessageQueryService(),
                 threadRepositoryPort,
                 messageRepositoryPort,
                 gmailThreadLockRepositoryPort
@@ -802,7 +795,10 @@ class MailFacadeTest {
         MailAttachmentQueryService mailAttachmentQueryService = new MailAttachmentQueryService(attachmentRepositoryPort);
         return new MailFacade(
                 mailAccountQueryService,
+                mailQueryService,
                 googleAccessTokenEnsureService,
+                new FakeGoogleMailSendCommandService(),
+                new FakeGoogleMailMessageQueryService(),
                 mailCommandService,
                 mailAttachmentQueryService,
                 new FakeGoogleMailAttachmentQueryService()

@@ -30,7 +30,7 @@ class MailSendRequestTest {
                 List.of(new MockMultipartFile("attachments", "file.txt", "text/plain", "hello".getBytes()))
         );
 
-        assertDoesNotThrow(request::validate);
+        assertDoesNotThrow(() -> request.validate());
     }
 
     @Test

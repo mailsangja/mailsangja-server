@@ -41,6 +41,13 @@ public record MailSendRequest(
     private static final long MAX_ATTACHMENT_SIZE = 10L * 1024 * 1024;
     private static final long MAX_TOTAL_ATTACHMENT_SIZE = 20L * 1024 * 1024;
 
+    public static void validate(MailSendRequest request) {
+        if (request == null) {
+            throw new MailSendException(MailSendErrorCode.INVALID_MAIL_REQUEST);
+        }
+        request.validate();
+    }
+
     public void validate() {
         validateSender(from);
         validateReplyTo(replyTo);

@@ -1,5 +1,9 @@
 package com.mailsangja.core.dto.mail;
 
+import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
+import com.mailsangja.core.common.exception.mail.MailSendException;
+import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.user.User;
 
 import java.util.List;
@@ -37,5 +41,22 @@ public record MailSendCommand(
                         .map(MailAttachmentCommand::from)
                         .toList()
         );
+    }
+
+    public void validateReplyTargetAccess(Message replyTargetMessage) {
+        MailAccount replyTargetMailAccount = replyTargetMessage.getThread().getMailAccount();
+        if (userId == null
+                || replyTargetMailAccount == null
+                || replyTargetMailAccount.getUser() == null
+                || !userId.equals(replyTargetMailAccount.getUser().getId())) {
+            throw new MailSendException(MailSendErrorCode.REPLY_TARGET_MESSAGE_ACCESS_DENIED);
+        }
+    }
+
+    public void validateReplySender(MailAccount senderMailAccount, Message replyTargetMessage) {
+        MailAccount replyTargetMailAccount = replyTargetMessage.getThread().getMailAccount();
+        if (replyTargetMailAccount == null || !senderMailAccount.getId().equals(replyTargetMailAccount.getId())) {
+            throw new MailSendException(MailSendErrorCode.REPLY_SENDER_ACCOUNT_MISMATCH);
+        }
     }
 }

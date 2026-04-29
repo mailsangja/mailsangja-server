@@ -3,14 +3,8 @@ package com.mailsangja.core.service.mail;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
-import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
-import com.mailsangja.core.dto.mail.GoogleMailReplyContextResult;
-import com.mailsangja.core.dto.mail.GoogleMailSendResult;
-import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendPersistCommand;
 import com.mailsangja.db.entity.mail.Attachment;
-import com.mailsangja.core.service.google.GoogleMailMessageQueryService;
-import com.mailsangja.core.service.google.GoogleMailSendCommandService;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -23,102 +17,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class MailCommandService {
 
-    private final MailQueryService mailQueryService;
-    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
-    private final GoogleMailSendCommandService googleMailSendCommandService;
-    private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
-
-    public MailSendPersistCommand sendMail(MailSendCommand command) {
-        MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(
-                command.userId(),
-                command.from().address()
-        );
-        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(senderMailAccount);
-
-        var sendResult = googleMailSendCommandService.send(ensuredMailAccount, command);
-        validateSendResult(sendResult);
-        GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
-                ensuredMailAccount.getAccessToken(),
-                sendResult.gmailMessageId()
-        );
-        validateMessageResult(sendResult.gmailMessageId(), sendResult.gmailThreadId(), messageResult);
-
-        return new MailSendPersistCommand(ensuredMailAccount, messageResult, command);
-    }
-
-    public Message findReplyTargetMessage(UUID messageId) {
-        if (messageId == null) {
-            throw new MailSendException(MailSendErrorCode.REPLY_TARGET_MESSAGE_NOT_FOUND);
-        }
-
-        Message message = messageRepositoryPort.findByIdIncludingDeleted(messageId)
-                .orElseThrow(() -> new MailSendException(MailSendErrorCode.REPLY_TARGET_MESSAGE_NOT_FOUND));
-        if (message.isDeleted()) {
-            throw new MailSendException(MailSendErrorCode.REPLY_TARGET_MESSAGE_NOT_FOUND);
-        }
-
-        return message;
-    }
-
-    public MailSendPersistCommand replyMail(MailSendCommand command, Message replyTargetMessage) {
-        MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(
-                command.userId(),
-                command.from().address()
-        );
-        validateReplySender(senderMailAccount, replyTargetMessage);
-
-        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(senderMailAccount);
-        GoogleMailReplyContextResult replyContext = createReplyContext(replyTargetMessage);
-        var sendResult = googleMailSendCommandService.reply(ensuredMailAccount, command, replyContext);
-        validateSendResult(sendResult);
-
-        GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
-                ensuredMailAccount.getAccessToken(),
-                sendResult.gmailMessageId()
-        );
-        validateMessageResult(sendResult.gmailMessageId(), sendResult.gmailThreadId(), messageResult);
-
-        return new MailSendPersistCommand(ensuredMailAccount, messageResult, command);
-    }
-
-    private void validateSendResult(GoogleMailSendResult sendResult) {
-        if (sendResult == null
-                || isBlank(sendResult.gmailMessageId())
-                || isBlank(sendResult.gmailThreadId())) {
-            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_RESULT_INVALID);
-        }
-    }
-
-    private void validateReplySender(MailAccount senderMailAccount, Message replyTargetMessage) {
-        MailAccount replyTargetMailAccount = replyTargetMessage.getThread().getMailAccount();
-        if (replyTargetMailAccount == null || !senderMailAccount.getId().equals(replyTargetMailAccount.getId())) {
-            throw new MailSendException(MailSendErrorCode.REPLY_SENDER_ACCOUNT_MISMATCH);
-        }
-    }
-
-    private GoogleMailReplyContextResult createReplyContext(Message replyTargetMessage) {
-        if (replyTargetMessage.getThread() == null
-                || isBlank(replyTargetMessage.getThread().getGmailThreadId())
-                || isBlank(replyTargetMessage.getRfcMessageId())) {
-            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
-        }
-
-        return new GoogleMailReplyContextResult(
-                replyTargetMessage.getThread().getGmailThreadId(),
-                replyTargetMessage.getRfcMessageId(),
-                replyTargetMessage.getReferencesHeader(),
-                replyTargetMessage.getSubject()
-        );
-    }
 
     @Transactional
     public void saveSentMail(MailSendPersistCommand command) {
@@ -140,16 +46,6 @@ public class MailCommandService {
 
         if (inserted) {
             thread.updateMessageCount(thread.getMessageCount() + 1);
-        }
-    }
-
-    private void validateMessageResult(String gmailMessageId, String gmailThreadId, GoogleMailMessageResult messageResult) {
-        if (messageResult == null
-                || isBlank(messageResult.gmailMessageId())
-                || isBlank(messageResult.gmailThreadId())
-                || !gmailMessageId.equals(messageResult.gmailMessageId())
-                || !gmailThreadId.equals(messageResult.gmailThreadId())) {
-            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
         }
     }
 
