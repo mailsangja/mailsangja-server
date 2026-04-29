@@ -9,6 +9,11 @@ import java.util.List;
 public record InitialMailSyncMessageSaveCommand(
         String gmailMessageId,
         String historyId,
+        String rfcMessageId,
+        String referencesHeader,
+        String inReplyToHeader,
+        String replyToAddress,
+        String replyToName,
         Direction direction,
         String subject,
         String fromAddress,
@@ -28,6 +33,11 @@ public record InitialMailSyncMessageSaveCommand(
         return new InitialMailSyncMessageSaveCommand(
                 result.gmailMessageId(),
                 result.historyId(),
+                result.rfcMessageId(),
+                result.referencesHeader(),
+                result.inReplyToHeader(),
+                result.replyToAddress(),
+                result.replyToName(),
                 result.direction(),
                 result.subject(),
                 result.fromAddress(),
@@ -48,6 +58,11 @@ public record InitialMailSyncMessageSaveCommand(
     public Message.CreateValues toCreateValues() {
         return new Message.CreateValues(
                 gmailMessageId,
+                rfcMessageId,
+                referencesHeader,
+                inReplyToHeader,
+                replyToAddress,
+                replyToName,
                 direction,
                 subject,
                 fromAddress,

@@ -42,6 +42,8 @@ public interface MailControllerDocs {
     })
     ResponseEntity<Void> sendMail(
             @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "답장 대상 메시지 ID. 없으면 일반 전송으로 처리합니다.", required = false)
+            UUID messageId,
             @RequestBody(
                     description = "메일 전송 요청 정보",
                     required = true,

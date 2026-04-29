@@ -3,13 +3,8 @@ package com.mailsangja.core.service.mail;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
-import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
-import com.mailsangja.core.dto.mail.GoogleMailSendResult;
-import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.dto.mail.MailSendPersistCommand;
 import com.mailsangja.db.entity.mail.Attachment;
-import com.mailsangja.core.service.google.GoogleMailMessageQueryService;
-import com.mailsangja.core.service.google.GoogleMailSendCommandService;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -27,39 +22,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MailCommandService {
 
-    private final MailQueryService mailQueryService;
-    private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
-    private final GoogleMailSendCommandService googleMailSendCommandService;
-    private final GoogleMailMessageQueryService googleMailMessageQueryService;
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
     private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
-
-    public MailSendPersistCommand sendMail(MailSendCommand command) {
-        MailAccount senderMailAccount = mailQueryService.findActiveSenderMailAccount(
-                command.userId(),
-                command.from().address()
-        );
-        MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(senderMailAccount);
-
-        var sendResult = googleMailSendCommandService.send(ensuredMailAccount, command);
-        validateSendResult(sendResult);
-        GoogleMailMessageResult messageResult = googleMailMessageQueryService.getMessage(
-                ensuredMailAccount.getAccessToken(),
-                sendResult.gmailMessageId()
-        );
-        validateMessageResult(sendResult.gmailMessageId(), sendResult.gmailThreadId(), messageResult);
-
-        return new MailSendPersistCommand(ensuredMailAccount, messageResult, command);
-    }
-
-    private void validateSendResult(GoogleMailSendResult sendResult) {
-        if (sendResult == null
-                || isBlank(sendResult.gmailMessageId())
-                || isBlank(sendResult.gmailThreadId())) {
-            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_RESULT_INVALID);
-        }
-    }
 
     @Transactional
     public void saveSentMail(MailSendPersistCommand command) {
@@ -81,16 +46,6 @@ public class MailCommandService {
 
         if (inserted) {
             thread.updateMessageCount(thread.getMessageCount() + 1);
-        }
-    }
-
-    private void validateMessageResult(String gmailMessageId, String gmailThreadId, GoogleMailMessageResult messageResult) {
-        if (messageResult == null
-                || isBlank(messageResult.gmailMessageId())
-                || isBlank(messageResult.gmailThreadId())
-                || !gmailMessageId.equals(messageResult.gmailMessageId())
-                || !gmailThreadId.equals(messageResult.gmailThreadId())) {
-            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
         }
     }
 

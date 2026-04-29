@@ -21,6 +21,11 @@ class MailSendPersistCommandTest {
                         "gmail-message-id",
                         "gmail-thread-id",
                         "history-id",
+                        "<rfc-message-id@example.com>",
+                        "<older-message-id@example.com>",
+                        "<parent-message-id@example.com>",
+                        "reply@example.com",
+                        "Reply",
                         "제목",
                         "sender@example.com",
                         null,
@@ -37,6 +42,7 @@ class MailSendPersistCommandTest {
                 new MailSendCommand(
                         UUID.randomUUID(),
                         new MailAddressCommand("보내는사람", "sender@example.com"),
+                        null,
                         List.of(new MailAddressCommand("받는사람", "to@example.com")),
                         List.of(new MailAddressCommand("참조사람", "cc@example.com")),
                         List.of(),
@@ -49,12 +55,16 @@ class MailSendPersistCommandTest {
         Message.CreateValues values = command.toCreateValues();
 
         assertEquals(Direction.OUTBOUND, values.direction());
+        assertEquals("<rfc-message-id@example.com>", values.rfcMessageId());
+        assertEquals("<older-message-id@example.com>", values.referencesHeader());
+        assertEquals("<parent-message-id@example.com>", values.inReplyToHeader());
+        assertEquals("reply@example.com", values.replyToAddress());
+        assertEquals("Reply", values.replyToName());
         assertEquals("보내는사람", values.fromName());
         assertEquals(List.of("받는사람"), values.toNames());
         assertEquals(List.of("참조사람"), values.ccNames());
     }
 
-    @Test
     void fromRaw_이름이없으면이메일주소를이름으로채운다() {
         MailAddressCommand command = MailAddressCommand.fromRaw("user@example.com");
 
@@ -70,6 +80,11 @@ class MailSendPersistCommandTest {
                         "gmail-message-id",
                         "gmail-thread-id",
                         "history-id",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         "제목",
                         "sender@example.com",
                         "sender@example.com",
@@ -86,6 +101,7 @@ class MailSendPersistCommandTest {
                 new MailSendCommand(
                         UUID.randomUUID(),
                         new MailAddressCommand("sender@example.com", "sender@example.com"),
+                        null,
                         List.of(),
                         List.of(new MailAddressCommand("참조사람", "cc@example.com")),
                         List.of(),
@@ -106,6 +122,11 @@ class MailSendPersistCommandTest {
                         "gmail-message-id",
                         "gmail-thread-id",
                         "history-id",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         "제목",
                         "sender@example.com",
                         "sender@example.com",
@@ -122,6 +143,7 @@ class MailSendPersistCommandTest {
                 new MailSendCommand(
                         UUID.randomUUID(),
                         new MailAddressCommand("sender@example.com", "sender@example.com"),
+                        null,
                         List.of(),
                         List.of(new MailAddressCommand("참조사람", "cc@example.com")),
                         List.of(),

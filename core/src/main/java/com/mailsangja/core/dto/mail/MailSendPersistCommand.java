@@ -15,9 +15,24 @@ public record MailSendPersistCommand(
         MailSendCommand sendCommand
 ) {
 
+    public static MailSendPersistCommand of(
+            MailAccount mailAccount,
+            MailSendCommand sendCommand,
+            GoogleMailSendResult sendResult,
+            GoogleMailMessageResult messageResult
+    ) {
+        GoogleMailMessageResult.validateAgainst(messageResult, sendResult);
+        return new MailSendPersistCommand(mailAccount, messageResult, sendCommand);
+    }
+
     public Message.CreateValues toCreateValues() {
         return new Message.CreateValues(
                 messageResult.gmailMessageId(),
+                messageResult.rfcMessageId(),
+                messageResult.referencesHeader(),
+                messageResult.inReplyToHeader(),
+                messageResult.replyToAddress(),
+                messageResult.replyToName(),
                 Direction.OUTBOUND,
                 messageResult.subject(),
                 messageResult.fromAddress(),

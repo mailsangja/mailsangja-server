@@ -35,6 +35,21 @@ public class Message extends BaseEntity {
     @Column(name = "gmail_message_id", nullable = false, length = 255)
     private String gmailMessageId;
 
+    @Column(name = "rfc_message_id", length = 998)
+    private String rfcMessageId;
+
+    @Column(name = "references_header", columnDefinition = "text")
+    private String referencesHeader;
+
+    @Column(name = "in_reply_to_header", columnDefinition = "text")
+    private String inReplyToHeader;
+
+    @Column(name = "reply_to_address", length = 255)
+    private String replyToAddress;
+
+    @Column(name = "reply_to_name", length = 255)
+    private String replyToName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "direction", nullable = false, length = 20)
     private Direction direction;
@@ -102,6 +117,11 @@ public class Message extends BaseEntity {
         return Message.builder()
                 .thread(thread)
                 .gmailMessageId(normalizedValues.gmailMessageId())
+                .rfcMessageId(normalizedValues.rfcMessageId())
+                .referencesHeader(normalizedValues.referencesHeader())
+                .inReplyToHeader(normalizedValues.inReplyToHeader())
+                .replyToAddress(normalizedValues.replyToAddress())
+                .replyToName(normalizedValues.replyToName())
                 .direction(normalizedValues.direction())
                 .subject(normalizedValues.subject())
                 .fromAddress(normalizedValues.fromAddress())
@@ -122,6 +142,11 @@ public class Message extends BaseEntity {
 
     public record CreateValues(
             String gmailMessageId,
+            String rfcMessageId,
+            String referencesHeader,
+            String inReplyToHeader,
+            String replyToAddress,
+            String replyToName,
             Direction direction,
             String subject,
             String fromAddress,
@@ -139,6 +164,11 @@ public class Message extends BaseEntity {
         public CreateValues normalizeNames() {
             return new CreateValues(
                     gmailMessageId,
+                    rfcMessageId,
+                    referencesHeader,
+                    inReplyToHeader,
+                    replyToAddress,
+                    normalizeSingleName(replyToName, replyToAddress),
                     direction,
                     subject,
                     fromAddress,
@@ -167,6 +197,11 @@ public class Message extends BaseEntity {
     public void updateFrom(CreateValues values) {
         CreateValues normalizedValues = values.normalizeNames();
         updateBasicContent(
+                normalizedValues.rfcMessageId(),
+                normalizedValues.referencesHeader(),
+                normalizedValues.inReplyToHeader(),
+                normalizedValues.replyToAddress(),
+                normalizedValues.replyToName(),
                 normalizedValues.subject(),
                 normalizedValues.fromAddress(),
                 normalizedValues.fromName(),
@@ -182,6 +217,11 @@ public class Message extends BaseEntity {
     }
 
     public void updateBasicContent(
+            String rfcMessageId,
+            String referencesHeader,
+            String inReplyToHeader,
+            String replyToAddress,
+            String replyToName,
             String subject,
             String fromAddress,
             String fromName,
@@ -193,6 +233,11 @@ public class Message extends BaseEntity {
             boolean read,
             LocalDateTime sentAt
     ) {
+        this.rfcMessageId = rfcMessageId;
+        this.referencesHeader = referencesHeader;
+        this.inReplyToHeader = inReplyToHeader;
+        this.replyToAddress = replyToAddress;
+        this.replyToName = replyToName;
         this.subject = subject;
         this.fromAddress = fromAddress;
         this.fromName = fromName;

@@ -21,6 +21,8 @@ public record MessageResponse(
         Direction direction,
         @Schema(description = "발신자")
         MailAddressResponse from,
+        @Schema(description = "Reply-To 주소", nullable = true)
+        MailAddressResponse replyTo,
         @Schema(description = "수신자 목록")
         List<MailAddressResponse> to,
         @Schema(description = "CC 수신자 목록")
@@ -61,6 +63,7 @@ public record MessageResponse(
                 message.getSubject(),
                 message.getDirection(),
                 MailAddressResponse.of(message.getFromName(), message.getFromAddress(), contactNameByEmail),
+                toReplyToResponse(message, contactNameByEmail),
                 toAddresses,
                 ccAddresses,
                 message.getSnippet(),
@@ -88,6 +91,14 @@ public record MessageResponse(
                         contactNameByEmail
                 ))
                 .toList();
+    }
+
+    private static MailAddressResponse toReplyToResponse(Message message, Map<String, String> contactNameByEmail) {
+        if (message.getReplyToAddress() == null || message.getReplyToAddress().isBlank()) {
+            return null;
+        }
+
+        return MailAddressResponse.of(message.getReplyToName(), message.getReplyToAddress(), contactNameByEmail);
     }
 
     private static String resolveName(List<String> names, int index) {

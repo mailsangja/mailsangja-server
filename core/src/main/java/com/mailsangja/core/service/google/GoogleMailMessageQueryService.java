@@ -6,6 +6,7 @@ import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResponse;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
+import com.mailsangja.core.dto.mail.GoogleMailReplyContextResult;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -59,6 +60,30 @@ public class GoogleMailMessageQueryService {
         }
     }
 
+    public GoogleMailReplyContextResult getReplyContext(String accessToken, String gmailMessageId) {
+        validateInput(accessToken, gmailMessageId);
+
+        try {
+            GoogleMailMessageResponse response = googleMailRestClient
+                    .get()
+                    .uri(buildMessageUri(gmailMessageId))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(GoogleMailMessageResponse.class);
+
+            GoogleMailMessageResponse validatedResponse = validateResponse(response);
+            return new GoogleMailReplyContextResult(
+                    validatedResponse.threadId(),
+                    extractHeaderValue(validatedResponse, "Message-ID"),
+                    extractHeaderValue(validatedResponse, "References"),
+                    extractHeaderValue(validatedResponse, "Subject")
+            );
+        } catch (RestClientException e) {
+            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_FETCH_FAILED);
+        }
+    }
+
     private void validateInput(String accessToken, String gmailMessageId) {
         if (isBlank(accessToken)
                 || isBlank(gmailMessageId)
@@ -88,11 +113,17 @@ public class GoogleMailMessageQueryService {
         ParsedMailAddresses from = extractRequiredMailAddresses(response, "From");
         ParsedMailAddresses to = extractMailAddresses(response, "To");
         ParsedMailAddresses cc = extractMailAddresses(response, "Cc");
+        ParsedMailAddresses replyTo = extractMailAddresses(response, "Reply-To");
 
         return new GoogleMailMessageResult(
                 response.id(),
                 response.threadId(),
                 response.historyId(),
+                extractHeaderValue(response, "Message-ID"),
+                extractHeaderValue(response, "References"),
+                extractHeaderValue(response, "In-Reply-To"),
+                firstOrNull(replyTo.addresses()),
+                firstOrNull(replyTo.names()),
                 extractHeaderValue(response, "Subject"),
                 from.addresses().getFirst(),
                 from.names().getFirst(),
@@ -266,6 +297,10 @@ public class GoogleMailMessageQueryService {
             return address;
         }
         return personalName.trim();
+    }
+
+    private String firstOrNull(List<String> values) {
+        return values == null || values.isEmpty() ? null : values.getFirst();
     }
 
     private record MimeBodyContent(
