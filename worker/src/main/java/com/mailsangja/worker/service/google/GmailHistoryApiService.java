@@ -22,12 +22,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.List;
 
 @Service
-public class GoogleMailHistoryQueryService {
+public class GmailHistoryApiService {
 
     private final GoogleMailHistoryProperties googleMailHistoryProperties;
     private final RestClient googleMailHistoryRestClient;
 
-    public GoogleMailHistoryQueryService(
+    public GmailHistoryApiService(
             GoogleMailHistoryProperties googleMailHistoryProperties,
             @Qualifier("googleMailHistoryRestClient") RestClient googleMailHistoryRestClient
     ) {

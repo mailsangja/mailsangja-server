@@ -5,7 +5,7 @@ import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import com.mailsangja.worker.config.properties.GoogleOAuthProperties;
 import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
-import com.mailsangja.worker.service.google.GoogleOAuthQueryService;
+import com.mailsangja.worker.service.google.GoogleOAuthApiService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -121,7 +121,7 @@ class GoogleAccessTokenEnsureServiceTest {
                 .build();
     }
 
-    private static final class FakeGoogleOAuthQueryService extends GoogleOAuthQueryService {
+    private static final class FakeGoogleOAuthQueryService extends GoogleOAuthApiService {
         private int refreshCallCount;
 
         private FakeGoogleOAuthQueryService() {

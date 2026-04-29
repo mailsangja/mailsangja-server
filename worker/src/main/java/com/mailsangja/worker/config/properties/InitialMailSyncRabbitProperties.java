@@ -1,25 +1,23 @@
 package com.mailsangja.worker.config.properties;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@Getter
-@Setter
 @Component
-@ConfigurationProperties(prefix = "mailsangja.rabbitmq.initial-mail-sync")
 public class InitialMailSyncRabbitProperties {
 
-    private String taskName;
-    private String threadBatchTaskName;
+    private static final String TASK_NAME = "sync.gmail.initial";
+    private static final String THREAD_BATCH_TASK_NAME = "sync.gmail.initial.thread-batch";
+
+    public String getTaskName() {
+        return TASK_NAME;
+    }
 
     public String getQueueName() {
-        return "mailsangja." + taskName;
+        return "mailsangja." + TASK_NAME;
     }
 
     public String getRoutingKey() {
-        return "mail." + taskName;
+        return "mail." + TASK_NAME;
     }
 
     public String getDeadLetterQueueName() {
@@ -30,12 +28,16 @@ public class InitialMailSyncRabbitProperties {
         return getRoutingKey() + ".dlq";
     }
 
+    public String getThreadBatchTaskName() {
+        return THREAD_BATCH_TASK_NAME;
+    }
+
     public String getThreadBatchQueueName() {
-        return "mailsangja." + threadBatchTaskName;
+        return "mailsangja." + THREAD_BATCH_TASK_NAME;
     }
 
     public String getThreadBatchRoutingKey() {
-        return "mail." + threadBatchTaskName;
+        return "mail." + THREAD_BATCH_TASK_NAME;
     }
 
     public String getThreadBatchDeadLetterQueueName() {
