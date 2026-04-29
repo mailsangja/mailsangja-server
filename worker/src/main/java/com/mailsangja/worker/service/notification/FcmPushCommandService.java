@@ -1,7 +1,12 @@
 package com.mailsangja.worker.service.notification;
 
 import com.google.firebase.FirebaseApp;
-import com.google.firebase.messaging.*;
+import com.google.firebase.messaging.BatchResponse;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.MessagingErrorCode;
+import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.SendResponse;
 import com.mailsangja.worker.config.properties.FcmProperties;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import lombok.RequiredArgsConstructor;
@@ -32,22 +37,20 @@ public class FcmPushCommandService {
         String title = StringUtils.hasText(context.subject()) ? context.subject() : DEFAULT_NOTIFICATION_TITLE;
         String threadDetailUrl = buildThreadDetailUrl(context);
 
-        Notification.Builder notificationBuilder = Notification.builder()
-                .setTitle(title)
-                .setBody(context.snippet());
-        if (StringUtils.hasText(fcmProperties.getLogoImageUrl())) {
-            notificationBuilder.setImage(fcmProperties.getLogoImageUrl());
-        }
-
-        MulticastMessage message = MulticastMessage.builder()
-                .setNotification(notificationBuilder.build())
+        MulticastMessage.Builder messageBuilder = MulticastMessage.builder()
+                .putData("title", title)
+                .putData("body", context.snippet() != null ? context.snippet() : "")
                 .putData("mailAccountId", context.mailAccountId().toString())
                 .putData("alias", context.alias())
                 .putData("threadId", context.threadId() != null ? context.threadId().toString() : "")
                 .putData("messageId", context.messageId() != null ? context.messageId().toString() : "")
                 .putData("threadDetailUrl", threadDetailUrl)
-                .addAllTokens(tokens)
-                .build();
+                .addAllTokens(tokens);
+        if (StringUtils.hasText(fcmProperties.getLogoImageUrl())) {
+            messageBuilder.putData("image", fcmProperties.getLogoImageUrl());
+        }
+
+        MulticastMessage message = messageBuilder.build();
 
         try {
             BatchResponse response = FirebaseMessaging.getInstance(firebaseApp).sendEachForMulticast(message);
