@@ -1,6 +1,8 @@
 package com.mailsangja.worker.service.mail;
 
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,8 +24,13 @@ public class GmailNewMessageSyncCommandService {
 
     private final GmailMessageApiService gmailMessageApiService;
     private final GmailNewMessageApplyCommandService gmailNewMessageApplyCommandService;
+    private final MessageRepositoryPort messageRepositoryPort;
 
-    public NewMailPushContext syncNewMessage(MailAccount mailAccount, GmailHistoryEvent event) {
+    public Optional<NewMailPushContext> syncNewMessage(MailAccount mailAccount, GmailHistoryEvent event) {
+        boolean isNewMessage = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
+                mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
+        ).isEmpty();
+
         List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
                 mailAccount.getAccessToken(),
                 List.of(event.gmailThreadId())
@@ -34,27 +42,31 @@ public class GmailNewMessageSyncCommandService {
 
         InitialMailSyncThreadSaveCommand syncCommand = InitialMailSyncThreadSaveCommand.from(threadResults.getFirst());
         gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
+
+        if (!isNewMessage) {
+            return Optional.empty();
+        }
+
         NewMessageApplyResult applyResult = gmailNewMessageApplyCommandService.findNewMessageApplyResult(
                 mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
         );
 
-        String subject = null;
-        String snippet = null;
         for (InitialMailSyncMessageSaveCommand message : syncCommand.messages()) {
             if (event.gmailMessageId().equals(message.gmailMessageId())) {
-                subject = message.subject();
-                snippet = message.snippet();
-                break;
+                if (message.direction() != Direction.INBOUND) {
+                    return Optional.empty();
+                }
+                return Optional.of(new NewMailPushContext(
+                        mailAccount.getId(),
+                        mailAccount.getAlias(),
+                        message.subject(),
+                        message.snippet(),
+                        applyResult.threadId(),
+                        applyResult.messageId()
+                ));
             }
         }
 
-        return new NewMailPushContext(
-                mailAccount.getId(),
-                mailAccount.getAlias(),
-                subject,
-                snippet,
-                applyResult.threadId(),
-                applyResult.messageId()
-        );
+        return Optional.empty();
     }
 }
