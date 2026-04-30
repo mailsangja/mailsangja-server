@@ -3,6 +3,7 @@ package com.mailsangja.db.adapter.mail;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
 import com.mailsangja.db.port.MessageRepositoryPort;
+import com.mailsangja.db.port.ThreadLabelView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -131,5 +132,36 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public List<Message> findAllByUserIdAndDeletedAtIsNullWithLabels(UUID userId) {
+        return messageJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNullWithLabels(userId);
+    }
+
+    @Override
+    public List<Message> findAllByUserIdAndDeletedAtIsNullWithAttachments(UUID userId) {
+        return messageJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNullWithAttachments(userId);
+    }
+
+    @Override
+    public List<Message> saveAll(List<Message> messages) {
+        return messageJpaRepositoryModule.saveAll(messages);
+    }
+
+    @Override
+    public List<ThreadLabelView> findLabelsByThreadIdIn(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepositoryModule.findLabelsByThreadIdIn(threadIds)
+                .stream()
+                .map(p -> new ThreadLabelView(p.getThreadId(), p.getLabelId(), p.getLabelName(), p.getLabelColorCode()))
+                .toList();
+    }
+
+    @Override
+    public int deleteMessageLabelsByLabelId(UUID labelId) {
+        return messageJpaRepositoryModule.deleteMessageLabelsByLabelId(labelId);
     }
 }

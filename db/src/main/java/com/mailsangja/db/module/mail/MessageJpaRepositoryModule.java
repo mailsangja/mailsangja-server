@@ -130,4 +130,37 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("mailAccountId") UUID mailAccountId,
             @Param("gmailThreadId") String gmailThreadId
     );
+
+    @EntityGraph(attributePaths = {"messageLabels", "messageLabels.label", "thread", "thread.mailAccount"})
+    @Query("""
+            SELECT DISTINCT m FROM Message m
+            WHERE m.thread.mailAccount.user.id = :userId
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+            """)
+    List<Message> findAllByUserIdAndDeletedAtIsNullWithLabels(@Param("userId") UUID userId);
+
+    @EntityGraph(attributePaths = {"attachments"})
+    @Query("""
+            SELECT DISTINCT m FROM Message m
+            WHERE m.thread.mailAccount.user.id = :userId
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+            """)
+    List<Message> findAllByUserIdAndDeletedAtIsNullWithAttachments(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT DISTINCT tl.thread.id AS threadId,
+                            tl.label.id  AS labelId,
+                            tl.label.name AS labelName,
+                            tl.label.colorCode AS labelColorCode
+            FROM ThreadLabel tl
+            WHERE tl.thread.id IN :threadIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    List<ThreadLabelProjection> findLabelsByThreadIdIn(@Param("threadIds") List<UUID> threadIds);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM MessageLabel ml WHERE ml.label.id = :labelId")
+    int deleteMessageLabelsByLabelId(@Param("labelId") UUID labelId);
 }
