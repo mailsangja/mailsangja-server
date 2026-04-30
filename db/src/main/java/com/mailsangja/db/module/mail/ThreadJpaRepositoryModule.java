@@ -102,6 +102,8 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             AND tl.label.deletedAt IS NULL
             AND (:markerId IS NULL OR t.lastMessageAt < (
                 SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId
+                AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL)
+                AND m.direction = 'INBOUND'
             ))
             ORDER BY t.lastMessageAt DESC
             """)

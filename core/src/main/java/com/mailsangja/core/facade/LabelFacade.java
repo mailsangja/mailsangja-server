@@ -15,6 +15,7 @@ import com.mailsangja.core.service.label.LabelReclassifyPublisher;
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -46,7 +47,12 @@ public class LabelFacade {
 
     public LabelDetailResponse createLabel(User user, LabelCreateRequest request) {
         validateCreateRequest(user, request);
-        Label label = labelCommandService.create(user, request);
+        Label label;
+        try {
+            label = labelCommandService.create(user, request);
+        } catch (DataIntegrityViolationException e) {
+            throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
+        }
         if (request.rule() != null) {
             labelReclassifyPublisher.publish(new LabelReclassifyMessage(user.getId(), Set.of(label.getId())));
         }
@@ -56,7 +62,12 @@ public class LabelFacade {
     public LabelDetailResponse updateLabel(User user, UUID labelId, LabelUpdateRequest request) {
         Label label = labelQueryService.findActiveByIdAndUserId(labelId, user.getId());
         validateUpdateRequest(user, label, request);
-        Label updated = labelCommandService.update(label, request);
+        Label updated;
+        try {
+            updated = labelCommandService.update(label, request);
+        } catch (DataIntegrityViolationException e) {
+            throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
+        }
         return toDetailResponse(updated);
     }
 
