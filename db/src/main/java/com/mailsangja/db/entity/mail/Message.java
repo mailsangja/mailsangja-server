@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -260,6 +261,13 @@ public class Message extends BaseEntity {
         this.messageLabels.clear();
         if (newMessageLabels != null) {
             this.messageLabels.addAll(newMessageLabels);
+        }
+    }
+
+    public void applyTargetLabels(Set<UUID> removeIds, List<MessageLabel> newEntries) {
+        this.messageLabels.removeIf(ml -> removeIds.contains(ml.getLabel().getId()));
+        if (newEntries != null) {
+            this.messageLabels.addAll(newEntries);
         }
     }
 

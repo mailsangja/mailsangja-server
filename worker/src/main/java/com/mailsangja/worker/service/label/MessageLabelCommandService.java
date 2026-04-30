@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,8 +52,10 @@ public class MessageLabelCommandService {
             Set<UUID> desiredTargetLabelIds = toIdSet(targetLabels);
 
             if (!currentTargetLabelIds.equals(desiredTargetLabelIds)) {
-                List<MessageLabel> newMessageLabels = mergeMessageLabels(message, targetLabels, targetLabelIds);
-                message.replaceMessageLabels(newMessageLabels);
+                List<MessageLabel> newTargetEntries = targetLabels.stream()
+                        .map(label -> MessageLabel.of(message, label))
+                        .toList();
+                message.applyTargetLabels(targetLabelIds, newTargetEntries);
                 changed.add(message);
             }
         }
@@ -63,24 +64,6 @@ public class MessageLabelCommandService {
             messageRepositoryPort.saveAll(changed);
             log.info("Applied label reclassification to {} messages", changed.size());
         }
-    }
-
-    private List<MessageLabel> mergeMessageLabels(Message message, List<Label> targetLabels, Set<UUID> targetLabelIds) {
-        Map<UUID, Label> mergedLabels = new LinkedHashMap<>();
-        if (message.getMessageLabels() != null) {
-            for (MessageLabel messageLabel : message.getMessageLabels()) {
-                UUID existingLabelId = messageLabel.getLabel().getId();
-                if (!targetLabelIds.contains(existingLabelId)) {
-                    mergedLabels.put(existingLabelId, messageLabel.getLabel());
-                }
-            }
-        }
-        for (Label targetLabel : targetLabels) {
-            mergedLabels.put(targetLabel.getId(), targetLabel);
-        }
-        return mergedLabels.values().stream()
-                .map(label -> MessageLabel.of(message, label))
-                .toList();
     }
 
     private Set<UUID> toLabelIdSet(List<MessageLabel> messageLabels) {
