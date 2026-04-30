@@ -10,3 +10,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_gmail_thread_locks_account_thread
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_messages_thread_gmail
     ON messages (thread_id, gmail_message_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
+    ON labels (user_id, lower(name))
+    WHERE deleted_at IS NULL;

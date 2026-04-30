@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS labels (
     name                 VARCHAR(100) NOT NULL,
     color_code           VARCHAR(7)   NOT NULL,
     notification_enabled BOOLEAN      NOT NULL DEFAULT FALSE,
+    display_order        INT          NOT NULL DEFAULT 0,
     rule                 JSONB        NULL,
     created_at           TIMESTAMP    NOT NULL,
     modified_at          TIMESTAMP    NOT NULL,
@@ -149,6 +150,10 @@ CREATE TABLE IF NOT EXISTS labels (
     PRIMARY KEY (id),
     CONSTRAINT fk_labels_user FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
+    ON labels (user_id, lower(name))
+    WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS thread_labels (
     thread_id CHAR(36) NOT NULL,

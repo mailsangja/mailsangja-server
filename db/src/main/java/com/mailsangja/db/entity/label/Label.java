@@ -11,7 +11,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -41,10 +40,12 @@ public class Label extends BaseEntity {
     @Column(name = "notification_enabled", nullable = false)
     private boolean notificationEnabled;
 
-    // 자동 분류 규칙 (e.g. {"from": "noreply@github.com", "subject_contains": "PR"})
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
+
     @Column(name = "rule", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String, Object> rule;
+    private String rule;
 
     @Builder.Default
     @ManyToMany(mappedBy = "labels", fetch = FetchType.LAZY)
@@ -66,7 +67,11 @@ public class Label extends BaseEntity {
         this.notificationEnabled = notificationEnabled;
     }
 
-    public void updateRule(Map<String, Object> rule) {
+    public void updateDisplayOrder(int displayOrder) {
+        this.displayOrder = displayOrder;
+    }
+
+    public void updateRule(String rule) {
         this.rule = rule;
     }
 }
