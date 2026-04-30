@@ -1,28 +1,22 @@
 package com.mailsangja.worker.config.properties;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@Getter
-@Setter
 @Component
-@ConfigurationProperties(prefix = "mailsangja.rabbitmq.label-reclassify")
 public class LabelReclassifyRabbitProperties {
 
-    private String taskName;
+    private static final String TASK_NAME = "label.reclassify";
 
     public String getTaskName() {
-        return taskName;
+        return TASK_NAME;
     }
 
     public String getQueueName() {
-        return "mailsangja." + taskName;
+        return "mailsangja." + TASK_NAME;
     }
 
     public String getRoutingKey() {
-        return "mail." + taskName;
+        return "mail." + TASK_NAME;
     }
 
     public String getDeadLetterQueueName() {
