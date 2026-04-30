@@ -63,6 +63,7 @@ public class LabelRuleCompiler {
         Map<String, List<ConditionRef>> equalsIndex = new HashMap<>();
         Map<String, List<ConditionRef>> containsIndex = new HashMap<>();
         List<ConditionRef> notContainsRefs = new ArrayList<>();
+        Set<UUID> notContainsLabelIds = new HashSet<>();
         Map<UUID, List<ParsedGroup>> parsedGroupsByLabel = new HashMap<>();
 
         AhoCorasickAutomaton subjectAutomaton = new AhoCorasickAutomaton();
@@ -102,7 +103,10 @@ public class LabelRuleCompiler {
                                         fromAddressAutomaton, fromDomainAutomaton, toAddressAutomaton, ccAddressAutomaton);
                             }
                         }
-                        case "NOT_CONTAINS" -> notContainsRefs.add(ref);
+                        case "NOT_CONTAINS" -> {
+                            notContainsRefs.add(ref);
+                            notContainsLabelIds.add(label.getId());
+                        }
                         default -> { /* validated upstream */ }
                     }
                 }
@@ -120,6 +124,7 @@ public class LabelRuleCompiler {
                 equalsIndex,
                 containsIndex,
                 notContainsRefs,
+                notContainsLabelIds,
                 parsedGroupsByLabel,
                 subjectAutomaton,
                 bodyTextAutomaton,
@@ -163,7 +168,9 @@ public class LabelRuleCompiler {
         collectEqualsMatches(features, compiled, matchedCondIdsByLabelByGroup);
         collectContainsMatches(features, compiled, matchedCondIdsByLabelByGroup);
 
-        if (matchedCondIdsByLabelByGroup.isEmpty()) {
+        Set<UUID> candidateLabelIds = new HashSet<>(matchedCondIdsByLabelByGroup.keySet());
+        candidateLabelIds.addAll(compiled.notContainsLabelIds());
+        if (candidateLabelIds.isEmpty()) {
             return List.of();
         }
 
@@ -173,7 +180,7 @@ public class LabelRuleCompiler {
         }
 
         List<Label> matched = new ArrayList<>();
-        for (UUID candidateLabelId : matchedCondIdsByLabelByGroup.keySet()) {
+        for (UUID candidateLabelId : candidateLabelIds) {
             Label label = labelById.get(candidateLabelId);
             if (label == null) {
                 continue;
@@ -322,8 +329,12 @@ public class LabelRuleCompiler {
             case "SUBJECT"        -> evaluateString(features.subject(), operator, value);
             case "BODY_TEXT"      -> evaluateString(features.bodyText(), operator, value);
             case "HAS_ATTACHMENT" -> evaluateBoolean(features.hasAttachment(), value);
-            case "TO_ADDRESS"     -> features.toAddresses().stream().anyMatch(addr -> evaluateString(addr, operator, value));
-            case "CC_ADDRESS"     -> features.ccAddresses().stream().anyMatch(addr -> evaluateString(addr, operator, value));
+            case "TO_ADDRESS"     -> "NOT_CONTAINS".equals(operator)
+                    ? features.toAddresses().stream().allMatch(addr -> evaluateString(addr, operator, value))
+                    : features.toAddresses().stream().anyMatch(addr -> evaluateString(addr, operator, value));
+            case "CC_ADDRESS"     -> "NOT_CONTAINS".equals(operator)
+                    ? features.ccAddresses().stream().allMatch(addr -> evaluateString(addr, operator, value))
+                    : features.ccAddresses().stream().anyMatch(addr -> evaluateString(addr, operator, value));
             default               -> false;
         };
     }
@@ -451,6 +462,7 @@ public class LabelRuleCompiler {
             Map<String, List<ConditionRef>> equalsIndex,
             Map<String, List<ConditionRef>> containsIndex,
             List<ConditionRef> notContainsRefs,
+            Set<UUID> notContainsLabelIds,
             Map<UUID, List<ParsedGroup>> parsedGroupsByLabel,
             AhoCorasickAutomaton subjectAutomaton,
             AhoCorasickAutomaton bodyTextAutomaton,
