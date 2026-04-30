@@ -1,16 +1,13 @@
 package com.mailsangja.db.entity.label;
 
+import com.mailsangja.db.common.label.LabelRule;
 import com.mailsangja.db.entity.common.BaseEntity;
-import com.mailsangja.db.entity.mail.Message;
-import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -45,15 +42,7 @@ public class Label extends BaseEntity {
 
     @Column(name = "rule", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
-    private String rule;
-
-    @Builder.Default
-    @ManyToMany(mappedBy = "labels", fetch = FetchType.LAZY)
-    private List<Thread> threads = new ArrayList<>();
-
-    @Builder.Default
-    @ManyToMany(mappedBy = "labels", fetch = FetchType.LAZY)
-    private List<Message> messages = new ArrayList<>();
+    private LabelRule rule;
 
     public void updateName(String name) {
         this.name = name;
@@ -71,7 +60,7 @@ public class Label extends BaseEntity {
         this.displayOrder = displayOrder;
     }
 
-    public void updateRule(String rule) {
+    public void updateRule(LabelRule rule) {
         this.rule = rule;
     }
 }
