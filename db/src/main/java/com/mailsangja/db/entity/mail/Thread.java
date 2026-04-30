@@ -1,7 +1,7 @@
 package com.mailsangja.db.entity.mail;
 
 import com.mailsangja.db.entity.common.BaseEntity;
-import com.mailsangja.db.entity.label.Label;
+import com.mailsangja.db.entity.label.ThreadLabel;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -70,13 +70,8 @@ public class Thread extends BaseEntity {
     private List<Message> messages = new ArrayList<>();
 
     @Builder.Default
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "thread_labels",
-            joinColumns = @JoinColumn(name = "thread_id"),
-            inverseJoinColumns = @JoinColumn(name = "label_id")
-    )
-    private List<Label> labels = new ArrayList<>();
+    @OneToMany(mappedBy = "thread", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ThreadLabel> threadLabels = new ArrayList<>();
 
     public void updateLatestMessageInfo(
             String subject,
@@ -115,6 +110,7 @@ public class Thread extends BaseEntity {
     public void updateReadStatus(boolean read) {
         this.read = read;
     }
+
     public void updateMessageCount(int messageCount) {
         this.messageCount = Math.max(messageCount, 0);
     }
