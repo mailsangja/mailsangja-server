@@ -1,5 +1,6 @@
 package com.mailsangja.db.entity.label;
 
+import com.mailsangja.db.entity.common.BaseEntity;
 import com.mailsangja.db.entity.mail.Thread;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "thread_labels")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ThreadLabel {
+public class ThreadLabel extends BaseEntity {
 
     @EmbeddedId
     private ThreadLabelId id;

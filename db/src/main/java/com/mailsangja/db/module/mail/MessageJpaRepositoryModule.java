@@ -156,6 +156,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
                             tl.label.colorCode AS labelColorCode
             FROM ThreadLabel tl
             WHERE tl.thread.id IN :threadIds
+              AND tl.deletedAt IS NULL
               AND tl.label.deletedAt IS NULL
             """)
     List<ThreadLabelProjection> findLabelsByThreadIdIn(@Param("threadIds") List<UUID> threadIds);

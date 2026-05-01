@@ -1,5 +1,6 @@
 package com.mailsangja.db.entity.label;
 
+import com.mailsangja.db.entity.common.BaseEntity;
 import com.mailsangja.db.entity.mail.Message;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "message_labels")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MessageLabel {
+public class MessageLabel extends BaseEntity {
 
     @EmbeddedId
     private MessageLabelId id;

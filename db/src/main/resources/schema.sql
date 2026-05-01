@@ -156,8 +156,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
     WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS thread_labels (
-    thread_id CHAR(36) NOT NULL,
-    label_id  CHAR(36) NOT NULL,
+    thread_id   CHAR(36)  NOT NULL,
+    label_id    CHAR(36)  NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
 
     PRIMARY KEY (thread_id, label_id),
     CONSTRAINT fk_thread_labels_thread FOREIGN KEY (thread_id) REFERENCES threads (id),
@@ -165,8 +168,11 @@ CREATE TABLE IF NOT EXISTS thread_labels (
 );
 
 CREATE TABLE IF NOT EXISTS message_labels (
-    message_id CHAR(36) NOT NULL,
-    label_id   CHAR(36) NOT NULL,
+    message_id  CHAR(36)  NOT NULL,
+    label_id    CHAR(36)  NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
 
     PRIMARY KEY (message_id, label_id),
     CONSTRAINT fk_message_labels_message FOREIGN KEY (message_id) REFERENCES messages (id),
