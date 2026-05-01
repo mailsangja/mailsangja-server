@@ -1,6 +1,7 @@
 package com.mailsangja.core.dto.label;
 
 import com.mailsangja.db.common.label.LabelRule;
+import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.label.Label;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -20,8 +21,8 @@ public record LabelDetailResponse(
         @Schema(description = "표시 순서", example = "0")
         int order,
 
-        @Schema(description = "알림 활성화 여부", example = "true")
-        boolean notificationEnabled,
+        @Schema(description = "알림 정책 (URGENT/INHERIT/SILENT)", example = "INHERIT")
+        NotificationPolicy notificationPolicy,
 
         @Schema(description = "라벨 자동 분류 규칙")
         LabelRule rule
@@ -33,7 +34,7 @@ public record LabelDetailResponse(
                 label.getName(),
                 label.getColorCode(),
                 label.getDisplayOrder(),
-                label.isNotificationEnabled(),
+                label.getNotificationPolicy(),
                 rule
         );
     }

@@ -1,6 +1,6 @@
 package com.mailsangja.core.dto.label;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.mailsangja.db.common.label.NotificationPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "라벨 수정 요청 (null 필드는 변경하지 않음)")
@@ -11,8 +11,8 @@ public record LabelUpdateRequest(
         @Schema(description = "HEX 색상 코드", example = "#3366FF")
         String colorCode,
 
-        @Schema(description = "알림 활성화 여부", example = "false")
-        @JsonProperty("notificationEnabled") Boolean notificationEnabled,
+        @Schema(description = "알림 정책 (URGENT/INHERIT/SILENT)", example = "SILENT")
+        NotificationPolicy notificationPolicy,
 
         @Schema(description = "표시 순서", example = "1")
         Integer order

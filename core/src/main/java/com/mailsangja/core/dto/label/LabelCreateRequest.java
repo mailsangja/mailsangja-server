@@ -1,7 +1,7 @@
 package com.mailsangja.core.dto.label;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mailsangja.db.common.label.LabelRule;
+import com.mailsangja.db.common.label.NotificationPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "라벨 생성 요청")
@@ -12,8 +12,8 @@ public record LabelCreateRequest(
         @Schema(description = "HEX 색상 코드", example = "#3366FF")
         String colorCode,
 
-        @Schema(description = "알림 활성화 여부", example = "true")
-        @JsonProperty("notificationEnabled") boolean notificationEnabled,
+        @Schema(description = "알림 정책 (URGENT/INHERIT/SILENT)", example = "INHERIT")
+        NotificationPolicy notificationPolicy,
 
         @Schema(description = "표시 순서", example = "0")
         int order,
