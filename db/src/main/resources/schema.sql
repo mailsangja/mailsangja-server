@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS labels (
     user_id              CHAR(36)     NOT NULL,
     name                 VARCHAR(100) NOT NULL,
     color_code           VARCHAR(7)   NOT NULL,
-    notification_enabled BOOLEAN      NOT NULL DEFAULT FALSE,
+    notification_policy  VARCHAR(10)  NOT NULL DEFAULT 'INHERIT',
     display_order        INT          NOT NULL DEFAULT 0,
     rule                 JSONB        NULL,
     created_at           TIMESTAMP    NOT NULL,
