@@ -208,6 +208,8 @@ public class LabelRuleCompiler {
         checkEqualsField("MAIL_ACCOUNT", features.mailAccountId(), equalsIndex, result);
         checkEqualsField("FROM_DOMAIN", features.fromDomain(), equalsIndex, result);
         checkEqualsField("FROM_ADDRESS", features.fromAddress(), equalsIndex, result);
+        checkEqualsField("SUBJECT", features.subject(), equalsIndex, result);
+        checkEqualsField("BODY_TEXT", features.bodyText(), equalsIndex, result);
 
         if (features.hasAttachment()) {
             collectFromIndex("HAS_ATTACHMENT:true", equalsIndex, result);

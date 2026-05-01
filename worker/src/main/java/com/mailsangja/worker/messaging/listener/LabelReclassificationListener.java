@@ -45,6 +45,11 @@ public class LabelReclassificationListener {
         UUID userId = message.userId();
         Set<UUID> targetLabelIds = message.labelIds();
 
+        if (targetLabelIds == null || targetLabelIds.isEmpty()) {
+            log.info("LabelReclassification skipped — empty target labels for userId={}", userId);
+            return;
+        }
+
         log.info("LabelReclassification started for userId={} targetLabelCount={}", userId, targetLabelIds.size());
 
         List<Label> activeLabels = labelQueryService.findAllActiveByUserId(userId);

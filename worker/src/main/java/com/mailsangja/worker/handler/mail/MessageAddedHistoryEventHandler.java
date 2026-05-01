@@ -28,7 +28,11 @@ public class MessageAddedHistoryEventHandler {
         gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event).ifPresent(context -> {
             Set<UUID> activeLabelIds = labelQueryService.findActiveLabelIdsByUserId(mailAccount.getUser().getId());
             if (!activeLabelIds.isEmpty()) {
-                labelReclassifyPublisher.publish(new LabelReclassifyMessage(mailAccount.getUser().getId(), activeLabelIds));
+                try {
+                    labelReclassifyPublisher.publish(new LabelReclassifyMessage(mailAccount.getUser().getId(), activeLabelIds));
+                } catch (Exception e) {
+                    log.warn("Label reclassify publish skipped: userId={} error={}", mailAccount.getUser().getId(), e.getMessage());
+                }
             }
 
             try {

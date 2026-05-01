@@ -42,6 +42,9 @@ class AhoCorasickAutomaton {
      * 패턴을 추가한다. build() 호출 전에만 사용 가능.
      */
     void addPattern(String pattern) {
+        if (built) {
+            throw new IllegalStateException("Cannot add patterns after build()");
+        }
         if (pattern == null || pattern.isBlank()) {
             return;
         }

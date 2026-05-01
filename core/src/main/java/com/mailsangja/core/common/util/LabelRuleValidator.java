@@ -44,6 +44,9 @@ public class LabelRuleValidator {
     }
 
     private void validateCondition(LabelRule.Condition condition) {
+        if (condition == null) {
+            throw new LabelException(LabelErrorCode.LABEL_RULE_INVALID_FIELD);
+        }
         LabelRule.Field field = condition.field();
         LabelRule.Operator operator = condition.operator();
         String value = condition.value();

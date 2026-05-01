@@ -40,6 +40,7 @@ public interface LabelJpaRepositoryModule extends JpaRepository<Label, UUID> {
             SELECT tl.label.id as labelId, COUNT(DISTINCT tl.thread.id) as unreadCount
             FROM ThreadLabel tl
             WHERE tl.label.user.id = :userId
+              AND tl.deletedAt IS NULL
               AND tl.label.deletedAt IS NULL
               AND tl.thread.deletedAt IS NULL
               AND tl.thread.read = false
