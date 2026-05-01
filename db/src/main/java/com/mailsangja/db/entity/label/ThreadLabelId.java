@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.io.Serializable;
 import java.util.UUID;
@@ -18,8 +20,10 @@ import java.util.UUID;
 public class ThreadLabelId implements Serializable {
 
     @Column(name = "thread_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private UUID threadId;
 
     @Column(name = "label_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
     private UUID labelId;
 }
