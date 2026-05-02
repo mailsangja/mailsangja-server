@@ -10,15 +10,19 @@ import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.trash.TrashCommandService;
 import com.mailsangja.core.service.trash.TrashQueryService;
+import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
+import com.mailsangja.db.port.MessageLabelView;
+import com.mailsangja.db.port.ThreadLabelView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +59,6 @@ public class TrashFacade {
     public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(User user, UUID marker, int size) {
         Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size);
 
-        // (mailAccountId + gmailThreadId) 기준으로 메시지를 그룹핑 (삽입 순서 유지)
         Map<String, List<Message>> grouped = messages.getContent().stream()
                 .collect(Collectors.groupingBy(
                         m -> m.getThread().getMailAccount().getId() + ":" + m.getThread().getGmailThreadId(),
@@ -63,15 +66,37 @@ public class TrashFacade {
                         Collectors.toList()
                 ));
 
+        List<UUID> representativeThreadIds = grouped.values().stream()
+                .map(msgs -> msgs.stream()
+                        .map(Message::getThread)
+                        .filter(t -> t.getDirection() == Direction.INBOUND)
+                        .findFirst()
+                        .orElse(msgs.get(0).getThread()))
+                .map(Thread::getId)
+                .toList();
+
+        Map<UUID, List<ThreadLabelView>> labelsByThreadId =
+                trashQueryService.findLabelsByThreadIds(representativeThreadIds);
+
+        List<String> participantEmails = grouped.values().stream()
+                .map(msgs -> resolveRepresentative(msgs).getLatestParticipantAddress())
+                .filter(email -> email != null && !email.isBlank())
+                .distinct()
+                .toList();
+        Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(participantEmails);
+
+        List<UUID> allMessageIds = messages.getContent().stream().map(Message::getId).toList();
+        Map<UUID, List<Attachment>> attachmentsByMessageId = trashQueryService.findAttachmentsByMessageIds(allMessageIds);
+
         List<TrashThreadSummaryResponse> content = grouped.values().stream()
                 .map(msgs -> {
-                    // INBOUND Thread를 대표로 우선 사용, 없으면 첫 번째 Thread 사용
-                    Thread representative = msgs.stream()
-                            .map(Message::getThread)
-                            .filter(t -> t.getDirection() == Direction.INBOUND)
-                            .findFirst()
-                            .orElse(msgs.get(0).getThread());
-                    return TrashThreadSummaryResponse.from(representative, msgs);
+                    Thread representative = resolveRepresentative(msgs);
+                    List<ThreadLabelView> labelViews =
+                            labelsByThreadId.getOrDefault(representative.getId(), List.of());
+                    List<Attachment> groupAttachments = msgs.stream()
+                            .flatMap(m -> attachmentsByMessageId.getOrDefault(m.getId(), List.of()).stream())
+                            .toList();
+                    return TrashThreadSummaryResponse.from(representative, groupAttachments, msgs.size(), contactNameByEmail, labelViews);
                 })
                 .toList();
 
@@ -84,7 +109,14 @@ public class TrashFacade {
         validateThreadAccess(user, thread);
         List<Message> deletedMessages = trashQueryService.findDeletedMessagesByMailAccountIdAndGmailThreadId(
                 thread.getMailAccount().getId(), thread.getGmailThreadId());
-        return TrashThreadDetailResponse.from(thread, deletedMessages);
+
+        List<String> emails = collectEmailsFromMessages(deletedMessages);
+        Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(emails);
+
+        List<UUID> messageIds = deletedMessages.stream().map(Message::getId).toList();
+        Map<UUID, List<MessageLabelView>> messageLabelsByMessageId =
+                trashQueryService.findMessageLabelsByMessageIds(messageIds);
+        return TrashThreadDetailResponse.from(thread, deletedMessages, contactNameByEmail, messageLabelsByMessageId);
     }
 
     public void restoreThread(User user, UUID threadId) {
@@ -101,6 +133,28 @@ public class TrashFacade {
         trashCommandService.restoreMessage(message);
         MailAccount ensuredMailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(message.getThread().getMailAccount());
         googleGmailApiService.untrashMessage(ensuredMailAccount.getAccessToken(), message.getGmailMessageId());
+    }
+
+    private Thread resolveRepresentative(List<Message> msgs) {
+        return msgs.stream()
+                .map(Message::getThread)
+                .filter(t -> t.getDirection() == Direction.INBOUND)
+                .findFirst()
+                .orElse(msgs.get(0).getThread());
+    }
+
+    private List<String> collectEmailsFromMessages(List<Message> messages) {
+        return messages.stream()
+                .flatMap(m -> {
+                    List<String> addrs = new ArrayList<>();
+                    if (m.getFromAddress() != null) addrs.add(m.getFromAddress());
+                    if (m.getToAddresses() != null) addrs.addAll(m.getToAddresses());
+                    if (m.getCcAddresses() != null) addrs.addAll(m.getCcAddresses());
+                    return addrs.stream();
+                })
+                .filter(email -> email != null && !email.isBlank())
+                .distinct()
+                .toList();
     }
 
     private void validateThreadAccess(User user, Thread thread) {

@@ -2,6 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.port.MessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -26,9 +27,18 @@ public record ThreadDetailResponse(
         @Schema(description = "스레드 내 메시지 목록 (sentAt ASC 정렬)")
         List<MessageResponse> messages
 ) {
-    public static ThreadDetailResponse from(Thread thread, List<Message> messages, Map<String, String> contactNameByEmail) {
+    public static ThreadDetailResponse from(
+            Thread thread,
+            List<Message> messages,
+            Map<String, String> contactNameByEmail,
+            Map<UUID, List<MessageLabelView>> messageLabelsByMessageId
+    ) {
         List<MessageResponse> messageResponses = messages.stream()
-                .map(message -> MessageResponse.from(message, contactNameByEmail))
+                .map(message -> MessageResponse.from(
+                        message,
+                        contactNameByEmail,
+                        messageLabelsByMessageId.getOrDefault(message.getId(), List.of())
+                ))
                 .toList();
 
         return new ThreadDetailResponse(

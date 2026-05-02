@@ -50,7 +50,7 @@ public class InboxFacade {
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         ThreadDetailResult result = inboxQueryService.findThreadDetailResult(thread);
-        return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail());
+        return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail(), result.messageLabelsByMessageId());
     }
 
     public void markThreadAsRead(User user, UUID threadId) {

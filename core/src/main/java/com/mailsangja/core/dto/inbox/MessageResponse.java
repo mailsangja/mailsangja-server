@@ -2,6 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.port.MessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -38,9 +39,17 @@ public record MessageResponse(
         @Schema(description = "본문 HTML")
         String bodyHtml,
         @Schema(description = "첨부파일 목록")
-        List<AttachmentResponse> attachments
+        List<AttachmentResponse> attachments,
+        @Schema(description = "메시지에 적용된 라벨 목록")
+        List<LabelSummary> labels
 ) {
-    public static MessageResponse from(Message message, Map<String, String> contactNameByEmail) {
+    public record LabelSummary(
+            @Schema(description = "라벨 ID") UUID labelId,
+            @Schema(description = "라벨 이름") String name,
+            @Schema(description = "라벨 색상 코드", example = "#FF5733") String colorCode
+    ) {}
+
+    public static MessageResponse from(Message message, Map<String, String> contactNameByEmail, List<MessageLabelView> labelViews) {
         List<AttachmentResponse> attachmentResponses = message.getAttachments().stream()
                 .map(AttachmentResponse::from)
                 .toList();
@@ -57,6 +66,10 @@ public record MessageResponse(
                 contactNameByEmail
         );
 
+        List<LabelSummary> labels = labelViews.stream()
+                .map(v -> new LabelSummary(v.labelId(), v.labelName(), v.colorCode()))
+                .toList();
+
         return new MessageResponse(
                 message.getId(),
                 message.getGmailMessageId(),
@@ -71,7 +84,8 @@ public record MessageResponse(
                 message.getSentAt(),
                 message.getBodyText(),
                 message.getBodyHtml(),
-                attachmentResponses
+                attachmentResponses,
+                labels
         );
     }
 
