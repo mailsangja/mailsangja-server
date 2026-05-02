@@ -2,7 +2,9 @@ package com.mailsangja.worker.service.label;
 
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.label.MessageLabel;
+import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.port.GmailThreadLockRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,29 @@ import java.util.UUID;
 public class MessageLabelCommandService {
 
     private final MessageRepositoryPort messageRepositoryPort;
+    private final GmailThreadLockRepositoryPort gmailThreadLockRepositoryPort;
+
+    /**
+     * GmailThread 락을 획득한 뒤, 해당 스레드의 메시지에 라벨을 idempotent하게 반영한다.
+     * 락은 트랜잭션 종료 시점에 해제된다.
+     *
+     * @param mailAccount       락 획득 대상 메일 계정
+     * @param gmailThreadId     락 획득 대상 Gmail 스레드 ID
+     * @param messages          업데이트 대상 메시지 목록 (messageLabels 컬렉션이 초기화된 상태여야 함)
+     * @param labelsByMessageId 메시지 ID → 대상 라벨 중 적용할 Label 목록
+     * @param targetLabelIds    재분류 대상 Label ID 목록
+     */
+    @Transactional
+    public void applyLabelsWithLock(
+            MailAccount mailAccount,
+            String gmailThreadId,
+            List<Message> messages,
+            Map<UUID, List<Label>> labelsByMessageId,
+            Set<UUID> targetLabelIds
+    ) {
+        gmailThreadLockRepositoryPort.acquireThreadLock(mailAccount, gmailThreadId);
+        applyLabelsInternal(messages, labelsByMessageId, targetLabelIds);
+    }
 
     /**
      * 각 메시지에 적용할 라벨 목록을 idempotent하게 반영한다.
@@ -33,6 +58,14 @@ public class MessageLabelCommandService {
      */
     @Transactional
     public void applyLabels(
+            List<Message> messages,
+            Map<UUID, List<Label>> labelsByMessageId,
+            Set<UUID> targetLabelIds
+    ) {
+        applyLabelsInternal(messages, labelsByMessageId, targetLabelIds);
+    }
+
+    private void applyLabelsInternal(
             List<Message> messages,
             Map<UUID, List<Label>> labelsByMessageId,
             Set<UUID> targetLabelIds
