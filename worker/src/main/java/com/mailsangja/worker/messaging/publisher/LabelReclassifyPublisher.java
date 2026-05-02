@@ -3,6 +3,8 @@ package com.mailsangja.worker.messaging.publisher;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.worker.config.properties.LabelReclassifyRabbitProperties;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
+import com.mailsangja.worker.common.exception.mq.MqErrorCode;
+import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.dto.label.LabelReclassifyMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,9 @@ public class LabelReclassifyPublisher {
 
     private void publishWithThreadIds(UUID userId, Set<UUID> labelIds, List<UUID> threadIds) {
         int batchSize = labelReclassifyRabbitProperties.getThreadBatchSize();
+        if (batchSize <= 0) {
+            throw new MqException(MqErrorCode.INVALID_LABEL_RECLASSIFY_CONFIG);
+        }
         int batchCount = 0;
         for (int start = 0; start < threadIds.size(); start += batchSize) {
             int end = Math.min(start + batchSize, threadIds.size());

@@ -90,10 +90,6 @@ public class TrashCommandService {
                 .max(Comparator.comparing(Message::getSentAt))
                 .orElse(null);
 
-        if (latest == null) {
-            return;
-        }
-
         List<Thread> threads = threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
                 mailAccountId, gmailThreadId
         );
@@ -102,13 +98,15 @@ public class TrashCommandService {
         int activeCount = activeMessages.size();
 
         for (Thread thread : threads) {
-            thread.updateLatestMessageInfo(
-                    latest.getSubject(),
-                    latest.getSnippet(),
-                    resolveParticipantAddress(thread.getDirection(), latest),
-                    resolveParticipantName(thread.getDirection(), latest),
-                    latest.getSentAt()
-            );
+            if (latest != null) {
+                thread.updateLatestMessageInfo(
+                        latest.getSubject(),
+                        latest.getSnippet(),
+                        resolveParticipantAddress(thread.getDirection(), latest),
+                        resolveParticipantName(thread.getDirection(), latest),
+                        latest.getSentAt()
+                );
+            }
             thread.updateReadStatus(allRead);
             thread.updateMessageCount(activeCount);
         }
