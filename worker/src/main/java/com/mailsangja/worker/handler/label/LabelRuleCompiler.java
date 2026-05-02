@@ -3,16 +3,21 @@ package com.mailsangja.worker.handler.label;
 import com.mailsangja.db.common.label.LabelRule;
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.worker.dto.label.MessageBatch;
 import lombok.extern.slf4j.Slf4j;
+import org.ahocorasick.trie.Emit;
+import org.ahocorasick.trie.Trie;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 라벨 규칙을 컴파일하고 메시지 목록에 대해 라벨을 평가하는 컴포넌트.
@@ -33,12 +38,14 @@ public class LabelRuleCompiler {
     /**
      * 라벨 규칙을 컴파일하여 메시지별 적용 라벨 맵을 반환한다.
      *
-     * @param labels                    사용자의 활성 라벨 목록
-     * @param messages                  평가 대상 메시지 목록 (messageLabels 컬렉션 초기화 필요)
-     * @param messageIdsWithAttachments 첨부파일이 있는 메시지 ID 집합 (별도 쿼리로 조회)
+     * @param labels 사용자의 활성 라벨 목록
+     * @param batch  평가 대상 메시지 배치 (messages + messageIdsWithAttachments)
      * @return 메시지 ID → 적용할 Label 목록
      */
-    public Map<UUID, List<Label>> compile(List<Label> labels, List<Message> messages, Set<UUID> messageIdsWithAttachments) {
+    public Map<UUID, List<Label>> compile(List<Label> labels, MessageBatch batch) {
+        List<Message> messages = batch.messages();
+        Set<UUID> messageIdsWithAttachments = batch.messageIdsWithAttachments();
+
         if (labels.isEmpty() || messages.isEmpty()) {
             return Map.of();
         }
@@ -66,12 +73,12 @@ public class LabelRuleCompiler {
         Set<UUID> notContainsLabelIds = new HashSet<>();
         Map<UUID, List<ParsedGroup>> parsedGroupsByLabel = new HashMap<>();
 
-        AhoCorasickAutomaton subjectAutomaton = new AhoCorasickAutomaton();
-        AhoCorasickAutomaton bodyTextAutomaton = new AhoCorasickAutomaton();
-        AhoCorasickAutomaton fromAddressAutomaton = new AhoCorasickAutomaton();
-        AhoCorasickAutomaton fromDomainAutomaton = new AhoCorasickAutomaton();
-        AhoCorasickAutomaton toAddressAutomaton = new AhoCorasickAutomaton();
-        AhoCorasickAutomaton ccAddressAutomaton = new AhoCorasickAutomaton();
+        Set<String> subjectKeywords = new HashSet<>();
+        Set<String> bodyTextKeywords = new HashSet<>();
+        Set<String> fromAddressKeywords = new HashSet<>();
+        Set<String> fromDomainKeywords = new HashSet<>();
+        Set<String> toAddressKeywords = new HashSet<>();
+        Set<String> ccAddressKeywords = new HashSet<>();
 
         for (Label label : labels) {
             if (label.getRule() == null) {
@@ -99,8 +106,8 @@ public class LabelRuleCompiler {
                         case "CONTAINS" -> {
                             if (value != null && !value.isBlank()) {
                                 containsIndex.computeIfAbsent(value, k -> new ArrayList<>()).add(ref);
-                                addKeywordToAutomaton(field, value, subjectAutomaton, bodyTextAutomaton,
-                                        fromAddressAutomaton, fromDomainAutomaton, toAddressAutomaton, ccAddressAutomaton);
+                                addKeywordToSet(field, value, subjectKeywords, bodyTextKeywords,
+                                        fromAddressKeywords, fromDomainKeywords, toAddressKeywords, ccAddressKeywords);
                             }
                         }
                         case "NOT_CONTAINS" -> {
@@ -113,12 +120,12 @@ public class LabelRuleCompiler {
             }
         }
 
-        subjectAutomaton.build();
-        bodyTextAutomaton.build();
-        fromAddressAutomaton.build();
-        fromDomainAutomaton.build();
-        toAddressAutomaton.build();
-        ccAddressAutomaton.build();
+        Trie subjectTrie = buildTrie(subjectKeywords);
+        Trie bodyTextTrie = buildTrie(bodyTextKeywords);
+        Trie fromAddressTrie = buildTrie(fromAddressKeywords);
+        Trie fromDomainTrie = buildTrie(fromDomainKeywords);
+        Trie toAddressTrie = buildTrie(toAddressKeywords);
+        Trie ccAddressTrie = buildTrie(ccAddressKeywords);
 
         return new CompiledRules(
                 equalsIndex,
@@ -126,33 +133,48 @@ public class LabelRuleCompiler {
                 notContainsRefs,
                 notContainsLabelIds,
                 parsedGroupsByLabel,
-                subjectAutomaton,
-                bodyTextAutomaton,
-                fromAddressAutomaton,
-                fromDomainAutomaton,
-                toAddressAutomaton,
-                ccAddressAutomaton
+                subjectTrie,
+                subjectKeywords,
+                bodyTextTrie,
+                bodyTextKeywords,
+                fromAddressTrie,
+                fromAddressKeywords,
+                fromDomainTrie,
+                fromDomainKeywords,
+                toAddressTrie,
+                toAddressKeywords,
+                ccAddressTrie,
+                ccAddressKeywords
         );
     }
 
-    private void addKeywordToAutomaton(
+    private Trie buildTrie(Set<String> keywords) {
+        if (keywords.isEmpty()) {
+            return null;
+        }
+        return Trie.builder()
+                .addKeywords(keywords)
+                .build();
+    }
+
+    private void addKeywordToSet(
             String field,
             String keyword,
-            AhoCorasickAutomaton subjectAutomaton,
-            AhoCorasickAutomaton bodyTextAutomaton,
-            AhoCorasickAutomaton fromAddressAutomaton,
-            AhoCorasickAutomaton fromDomainAutomaton,
-            AhoCorasickAutomaton toAddressAutomaton,
-            AhoCorasickAutomaton ccAddressAutomaton
+            Set<String> subjectKeywords,
+            Set<String> bodyTextKeywords,
+            Set<String> fromAddressKeywords,
+            Set<String> fromDomainKeywords,
+            Set<String> toAddressKeywords,
+            Set<String> ccAddressKeywords
     ) {
         switch (field) {
-            case "SUBJECT"       -> subjectAutomaton.addPattern(keyword);
-            case "BODY_TEXT"     -> bodyTextAutomaton.addPattern(keyword);
-            case "FROM_ADDRESS"  -> fromAddressAutomaton.addPattern(keyword);
-            case "FROM_DOMAIN"   -> fromDomainAutomaton.addPattern(keyword);
-            case "TO_ADDRESS"    -> toAddressAutomaton.addPattern(keyword);
-            case "CC_ADDRESS"    -> ccAddressAutomaton.addPattern(keyword);
-            default              -> { /* not used for automaton */ }
+            case "SUBJECT"       -> subjectKeywords.add(keyword);
+            case "BODY_TEXT"     -> bodyTextKeywords.add(keyword);
+            case "FROM_ADDRESS"  -> fromAddressKeywords.add(keyword);
+            case "FROM_DOMAIN"   -> fromDomainKeywords.add(keyword);
+            case "TO_ADDRESS"    -> toAddressKeywords.add(keyword);
+            case "CC_ADDRESS"    -> ccAddressKeywords.add(keyword);
+            default              -> { /* not used for trie */ }
         }
     }
 
@@ -260,31 +282,34 @@ public class LabelRuleCompiler {
     ) {
         Map<String, List<ConditionRef>> containsIndex = compiled.containsIndex();
 
-        scanFieldWithAutomaton("SUBJECT", features.subject(), compiled.subjectAutomaton(), containsIndex, result);
-        scanFieldWithAutomaton("BODY_TEXT", features.bodyText(), compiled.bodyTextAutomaton(), containsIndex, result);
-        scanFieldWithAutomaton("FROM_ADDRESS", features.fromAddress(), compiled.fromAddressAutomaton(), containsIndex, result);
-        scanFieldWithAutomaton("FROM_DOMAIN", features.fromDomain(), compiled.fromDomainAutomaton(), containsIndex, result);
+        scanFieldWithTrie("SUBJECT", features.subject(), compiled.subjectTrie(), compiled.subjectKeywords(), containsIndex, result);
+        scanFieldWithTrie("BODY_TEXT", features.bodyText(), compiled.bodyTextTrie(), compiled.bodyTextKeywords(), containsIndex, result);
+        scanFieldWithTrie("FROM_ADDRESS", features.fromAddress(), compiled.fromAddressTrie(), compiled.fromAddressKeywords(), containsIndex, result);
+        scanFieldWithTrie("FROM_DOMAIN", features.fromDomain(), compiled.fromDomainTrie(), compiled.fromDomainKeywords(), containsIndex, result);
 
         for (String toAddress : features.toAddresses()) {
-            scanFieldWithAutomaton("TO_ADDRESS", toAddress, compiled.toAddressAutomaton(), containsIndex, result);
+            scanFieldWithTrie("TO_ADDRESS", toAddress, compiled.toAddressTrie(), compiled.toAddressKeywords(), containsIndex, result);
         }
         for (String ccAddress : features.ccAddresses()) {
-            scanFieldWithAutomaton("CC_ADDRESS", ccAddress, compiled.ccAddressAutomaton(), containsIndex, result);
+            scanFieldWithTrie("CC_ADDRESS", ccAddress, compiled.ccAddressTrie(), compiled.ccAddressKeywords(), containsIndex, result);
         }
     }
 
-    private void scanFieldWithAutomaton(
+    private void scanFieldWithTrie(
             String field,
             String text,
-            AhoCorasickAutomaton automaton,
+            Trie trie,
+            Set<String> keywords,
             Map<String, List<ConditionRef>> containsIndex,
             Map<UUID, Map<String, Set<String>>> result
     ) {
-        if (text == null || text.isBlank() || !automaton.hasPatterns()) {
+        if (text == null || text.isBlank() || trie == null || keywords.isEmpty()) {
             return;
         }
 
-        Set<String> matchedKeywords = automaton.search(text);
+        Collection<Emit> emits = trie.parseText(text);
+        Set<String> matchedKeywords = emits.stream().map(Emit::getKeyword).collect(Collectors.toSet());
+
         for (String keyword : matchedKeywords) {
             List<ConditionRef> refs = containsIndex.get(keyword);
             if (refs == null) {
@@ -466,11 +491,17 @@ public class LabelRuleCompiler {
             List<ConditionRef> notContainsRefs,
             Set<UUID> notContainsLabelIds,
             Map<UUID, List<ParsedGroup>> parsedGroupsByLabel,
-            AhoCorasickAutomaton subjectAutomaton,
-            AhoCorasickAutomaton bodyTextAutomaton,
-            AhoCorasickAutomaton fromAddressAutomaton,
-            AhoCorasickAutomaton fromDomainAutomaton,
-            AhoCorasickAutomaton toAddressAutomaton,
-            AhoCorasickAutomaton ccAddressAutomaton
+            Trie subjectTrie,
+            Set<String> subjectKeywords,
+            Trie bodyTextTrie,
+            Set<String> bodyTextKeywords,
+            Trie fromAddressTrie,
+            Set<String> fromAddressKeywords,
+            Trie fromDomainTrie,
+            Set<String> fromDomainKeywords,
+            Trie toAddressTrie,
+            Set<String> toAddressKeywords,
+            Trie ccAddressTrie,
+            Set<String> ccAddressKeywords
     ) {}
 }
