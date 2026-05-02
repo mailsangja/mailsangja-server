@@ -18,9 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,14 +31,16 @@ public class InitialMailSyncCommandService {
     private final MessageRepositoryPort messageRepositoryPort;
 
     @Transactional
-    public void saveThreadBatch(MailAccount mailAccount, List<InitialMailSyncThreadSaveCommand> commands) {
+    public List<UUID> saveThreadBatch(MailAccount mailAccount, List<InitialMailSyncThreadSaveCommand> commands) {
         if (mailAccount == null || commands == null || commands.isEmpty()) {
             throw new MailPushException(MailPushErrorCode.INVALID_INITIAL_MAIL_SYNC_COMMAND);
         }
 
+        List<UUID> savedThreadIds = new ArrayList<>();
         for (InitialMailSyncThreadSaveCommand command : commands) {
-            saveThread(mailAccount, command);
+            savedThreadIds.addAll(saveThread(mailAccount, command));
         }
+        return savedThreadIds;
     }
 
     @Transactional
@@ -57,17 +59,19 @@ public class InitialMailSyncCommandService {
                 ));
     }
 
-    private void saveThread(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
+    private List<UUID> saveThread(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
         if (command == null || isBlank(command.gmailThreadId()) || command.messages() == null) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
-        command.messages().stream()
+        return command.messages().stream()
                 .collect(Collectors.groupingBy(InitialMailSyncMessageSaveCommand::direction))
-                .forEach((direction, messageCommands) -> saveThreadDirection(mailAccount, command, direction, messageCommands));
+                .entrySet().stream()
+                .map(entry -> saveThreadDirection(mailAccount, command, entry.getKey(), entry.getValue()))
+                .toList();
     }
 
-    private void saveThreadDirection(
+    private UUID saveThreadDirection(
             MailAccount mailAccount,
             InitialMailSyncThreadSaveCommand threadCommand,
             Direction direction,
@@ -94,6 +98,7 @@ public class InitialMailSyncCommandService {
                 aggregate.read()
         );
         thread.updateMessageCount(aggregate.messageCount());
+        return thread.getId();
     }
 
     private void saveMissingMessagesByDirection(
