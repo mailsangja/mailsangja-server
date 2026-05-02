@@ -2,6 +2,7 @@ package com.mailsangja.db.adapter.mail;
 
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
+import com.mailsangja.db.port.MessageLabelView;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadLabelView;
 import lombok.RequiredArgsConstructor;
@@ -163,5 +164,39 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public int deleteMessageLabelsByLabelId(UUID labelId) {
         return messageJpaRepositoryModule.deleteMessageLabelsByLabelId(labelId);
+    }
+
+    @Override
+    public Optional<Message> findByIdWithLabelsAndDeletedAtIsNull(UUID id) {
+        return messageJpaRepositoryModule.findByIdWithLabelsAndDeletedAtIsNull(id);
+    }
+
+    @Override
+    public List<Message> findActiveMessagesWithLabelsByUserIdPaged(UUID userId, Pageable pageable) {
+        return messageJpaRepositoryModule.findActiveMessagesWithLabelsByUserIdPaged(userId, pageable);
+    }
+
+    @Override
+    public List<MessageLabelView> findMessageLabelsByMessageIds(List<UUID> messageIds) {
+        if (messageIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepositoryModule.findMessageLabelsByMessageIdIn(messageIds)
+                .stream()
+                .map(p -> new MessageLabelView(p.getMessageId(), p.getLabelId(), p.getLabelName(), p.getColorCode()))
+                .toList();
+    }
+
+    @Override
+    public List<UUID> findActiveThreadIdsByUserId(UUID userId) {
+        return messageJpaRepositoryModule.findActiveThreadIdsByUserId(userId);
+    }
+
+    @Override
+    public List<Message> findActiveMessagesWithLabelsByThreadIdIn(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepositoryModule.findActiveMessagesWithLabelsByThreadIdIn(threadIds);
     }
 }
