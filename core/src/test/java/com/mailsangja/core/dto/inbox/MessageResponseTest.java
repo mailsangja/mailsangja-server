@@ -39,7 +39,8 @@ class MessageResponseTest {
                         "first@example.com", "Contact First",
                         "second@example.com", "Contact Second",
                         "cc@example.com", "Contact Cc"
-                )
+                ),
+                List.of()
         );
 
         assertEquals("Gmail Sender", response.from().name());
