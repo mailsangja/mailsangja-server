@@ -17,7 +17,7 @@ public interface AttachmentJpaRepositoryModule extends JpaRepository<Attachment,
 
     List<Attachment> findAllByMessageIdAndDeletedAtIsNull(UUID messageId);
 
-    @Query("SELECT DISTINCT a.message.id FROM Attachment a WHERE a.message.id IN :messageIds")
+    @Query("SELECT DISTINCT a.message.id FROM Attachment a WHERE a.message.id IN :messageIds AND a.deletedAt IS NULL")
     Set<UUID> findMessageIdsHavingAttachments(@Param("messageIds") Set<UUID> messageIds);
 
     @EntityGraph(attributePaths = {"message"})

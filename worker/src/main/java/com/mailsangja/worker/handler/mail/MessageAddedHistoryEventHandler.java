@@ -2,6 +2,7 @@ package com.mailsangja.worker.handler.mail;
 
 import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.label.Label;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.port.AttachmentRepositoryPort;
@@ -38,16 +39,18 @@ public class MessageAddedHistoryEventHandler {
         gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event).ifPresent(context -> {
             List<Label> activeLabels = labelQueryService.findAllActiveByUserId(mailAccount.getUser().getId());
 
+            boolean isOutbound = context.direction() == Direction.OUTBOUND;
+
             if (activeLabels.isEmpty()) {
-                // 활성 라벨 없음 — 기존과 동일하게 FCM push 전송
-                sendFcmPush(context);
+                if (!isOutbound) {
+                    sendFcmPush(context);
+                }
                 return;
             }
 
-            // 동기 라벨링 수행
             boolean notificationShouldSend = applyLabelsAndCheckNotification(context, activeLabels);
 
-            if (notificationShouldSend) {
+            if (!isOutbound && notificationShouldSend) {
                 sendFcmPush(context);
             }
         });

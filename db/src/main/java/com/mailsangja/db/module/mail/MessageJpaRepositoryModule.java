@@ -138,6 +138,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             WHERE m.thread.mailAccount.user.id = :userId
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
             """)
     List<Message> findAllByUserIdAndDeletedAtIsNullWithLabels(@Param("userId") UUID userId);
 
@@ -147,6 +148,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             WHERE m.thread.mailAccount.user.id = :userId
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
             """)
     List<Message> findAllByUserIdAndDeletedAtIsNullWithAttachments(@Param("userId") UUID userId);
 
@@ -178,7 +180,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     List<MessageLabelProjection> findMessageLabelsByMessageIdIn(@Param("messageIds") List<UUID> messageIds);
 
     @EntityGraph(attributePaths = {"messageLabels", "messageLabels.label", "thread", "thread.mailAccount"})
-    @Query("SELECT m FROM Message m WHERE m.id = :id AND m.deletedAt IS NULL")
+    @Query("SELECT m FROM Message m WHERE m.id = :id AND m.deletedAt IS NULL AND m.thread.deletedAt IS NULL AND m.thread.mailAccount.deletedAt IS NULL")
     Optional<Message> findByIdWithLabelsAndDeletedAtIsNull(@Param("id") UUID id);
 
     @Query("""
@@ -186,11 +188,12 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             WHERE m.thread.mailAccount.user.id = :userId
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
             """)
     List<UUID> findActiveThreadIdsByUserId(@Param("userId") UUID userId);
 
     @EntityGraph(attributePaths = {"messageLabels", "messageLabels.label", "thread", "thread.mailAccount"})
-    @Query("SELECT DISTINCT m FROM Message m WHERE m.thread.id IN :threadIds AND m.deletedAt IS NULL")
+    @Query("SELECT DISTINCT m FROM Message m WHERE m.thread.id IN :threadIds AND m.deletedAt IS NULL AND m.thread.deletedAt IS NULL AND m.thread.mailAccount.deletedAt IS NULL")
     List<Message> findActiveMessagesWithLabelsByThreadIdIn(@Param("threadIds") List<UUID> threadIds);
 
     @EntityGraph(attributePaths = {"messageLabels", "messageLabels.label", "thread", "thread.mailAccount"})
@@ -199,6 +202,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             WHERE m.thread.mailAccount.user.id = :userId
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
             ORDER BY m.id ASC
             """)
     List<Message> findActiveMessagesWithLabelsByUserIdPaged(@Param("userId") UUID userId, Pageable pageable);
