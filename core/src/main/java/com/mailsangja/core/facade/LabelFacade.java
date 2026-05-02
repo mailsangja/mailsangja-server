@@ -6,7 +6,6 @@ import com.mailsangja.core.common.util.LabelRuleValidator;
 import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
-import com.mailsangja.core.dto.label.LabelReclassifyMessage;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.service.label.LabelCommandService;
@@ -54,7 +53,7 @@ public class LabelFacade {
             throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
         }
         if (request.rule() != null) {
-            labelReclassifyPublisher.publish(new LabelReclassifyMessage(user.getId(), Set.of(label.getId())));
+            labelReclassifyPublisher.publish(user.getId(), Set.of(label.getId()));
         }
         return toDetailResponse(label);
     }
@@ -75,7 +74,7 @@ public class LabelFacade {
         validateRuleRequest(request);
         Label label = labelQueryService.findActiveByIdAndUserId(labelId, user.getId());
         Label updated = labelCommandService.updateRule(label, request.rule());
-        labelReclassifyPublisher.publish(new LabelReclassifyMessage(user.getId(), Set.of(updated.getId())));
+        labelReclassifyPublisher.publish(user.getId(), Set.of(updated.getId()));
         return toDetailResponse(updated);
     }
 
