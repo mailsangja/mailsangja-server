@@ -439,6 +439,7 @@ public class LabelRuleCompiler {
             String groupId = "g" + result.size();
 
             List<ParsedCondition> conditions = new ArrayList<>();
+            boolean invalidGroup = false;
             int condIdx = 0;
             for (LabelRule.Condition condition : group.conditions()) {
                 if (condition == null || condition.field() == null || condition.operator() == null) {
@@ -451,13 +452,14 @@ public class LabelRuleCompiler {
                 String conditionId = groupId + "_c" + condIdx++;
 
                 if (normalizedValue != null && normalizedValue.length() > MAX_VALUE_LENGTH) {
-                    log.warn("Label condition value too long, skipping. labelId={} field={}", label.getId(), field);
-                    continue;
+                    log.warn("Label condition value too long, skipping group. labelId={} field={}", label.getId(), field);
+                    invalidGroup = true;
+                    break;
                 }
 
                 conditions.add(new ParsedCondition(conditionId, field, operator, normalizedValue));
             }
-            if (!conditions.isEmpty()) {
+            if (!invalidGroup && !conditions.isEmpty()) {
                 result.add(new ParsedGroup(groupId, conditions));
             }
         }

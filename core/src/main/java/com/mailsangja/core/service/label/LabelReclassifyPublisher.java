@@ -1,5 +1,7 @@
 package com.mailsangja.core.service.label;
 
+import com.mailsangja.core.common.exception.label.LabelErrorCode;
+import com.mailsangja.core.common.exception.label.LabelException;
 import com.mailsangja.core.config.properties.LabelReclassifyRabbitProperties;
 import com.mailsangja.core.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.core.dto.label.LabelReclassifyMessage;
@@ -33,6 +35,9 @@ public class LabelReclassifyPublisher {
         }
 
         int batchSize = labelReclassifyRabbitProperties.getThreadBatchSize();
+        if (batchSize <= 0) {
+            throw new LabelException(LabelErrorCode.LABEL_RECLASSIFY_INVALID_CONFIG);
+        }
         int batchCount = 0;
         for (int start = 0; start < allThreadIds.size(); start += batchSize) {
             int end = Math.min(start + batchSize, allThreadIds.size());

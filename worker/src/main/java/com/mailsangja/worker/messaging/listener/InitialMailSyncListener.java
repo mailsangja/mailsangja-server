@@ -92,14 +92,9 @@ public class InitialMailSyncListener {
 
         List<UUID> savedThreadIds = initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
 
-        try {
-            Set<UUID> activeLabelIds = labelQueryService.findActiveLabelIdsByUserId(message.userId());
-            if (!activeLabelIds.isEmpty() && !savedThreadIds.isEmpty()) {
-                labelReclassifyPublisher.publish(message.userId(), activeLabelIds, savedThreadIds);
-            }
-        } catch (Exception e) {
-            log.warn("Label reclassify publish skipped after thread batch sync: userId={} error={}",
-                    message.userId(), e.getMessage());
+        Set<UUID> activeLabelIds = labelQueryService.findActiveLabelIdsByUserId(message.userId());
+        if (!activeLabelIds.isEmpty() && !savedThreadIds.isEmpty()) {
+            labelReclassifyPublisher.publish(message.userId(), activeLabelIds, savedThreadIds);
         }
 
         log.info(

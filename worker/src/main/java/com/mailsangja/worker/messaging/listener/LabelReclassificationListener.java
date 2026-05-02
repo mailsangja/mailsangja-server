@@ -88,9 +88,14 @@ public class LabelReclassificationListener {
         for (List<Message> threadMessages : byThread.values()) {
             MailAccount mailAccount = threadMessages.get(0).getThread().getMailAccount();
             String gmailThreadId = threadMessages.get(0).getThread().getGmailThreadId();
-            messageLabelCommandService.applyLabelsWithLock(
-                    mailAccount, gmailThreadId, threadMessages, labelsByMessageId, targetLabelIds
-            );
+            try {
+                messageLabelCommandService.applyLabelsWithLock(
+                        mailAccount, gmailThreadId, threadMessages, labelsByMessageId, targetLabelIds
+                );
+            } catch (Exception e) {
+                log.warn("Failed to apply labels for gmailThreadId={} mailAccountId={}, skipping thread",
+                        gmailThreadId, mailAccount.getId(), e);
+            }
         }
     }
 }
