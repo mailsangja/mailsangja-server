@@ -178,3 +178,23 @@ CREATE TABLE IF NOT EXISTS message_labels (
     CONSTRAINT fk_message_labels_message FOREIGN KEY (message_id) REFERENCES messages (id),
     CONSTRAINT fk_message_labels_label   FOREIGN KEY (label_id)   REFERENCES labels (id)
 );
+
+-- webhookId: 포트원 V2 웹훅 루트 레벨 식별자. UNIQUE 제약으로 멱등성 보장
+-- status: PENDING(결제 전 Pre-Order) / COMPLETED(결제 완료)
+-- webhook_id: PENDING 상태에서는 null 허용. 결제 완료(COMPLETED) 후 webhook_id 설정
+CREATE TABLE IF NOT EXISTS orders (
+    id          CHAR(36)     NOT NULL,
+    webhook_id  VARCHAR(255) NULL,
+    payment_id  VARCHAR(255) NULL,
+    user_id     CHAR(36)     NOT NULL,
+    plan        VARCHAR(20)  NOT NULL,
+    amount      INT          NOT NULL,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    created_at  TIMESTAMP    NOT NULL,
+    modified_at TIMESTAMP    NOT NULL,
+    deleted_at  TIMESTAMP    NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT uq_orders_webhook_id UNIQUE (webhook_id),
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
