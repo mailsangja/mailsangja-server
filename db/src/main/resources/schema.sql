@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS labels (
     name                 VARCHAR(100) NOT NULL,
     color_code           VARCHAR(7)   NOT NULL,
     notification_enabled BOOLEAN      NOT NULL DEFAULT FALSE,
+    display_order        INT          NOT NULL DEFAULT 0,
     rule                 JSONB        NULL,
     created_at           TIMESTAMP    NOT NULL,
     modified_at          TIMESTAMP    NOT NULL,
@@ -150,9 +151,16 @@ CREATE TABLE IF NOT EXISTS labels (
     CONSTRAINT fk_labels_user FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
+    ON labels (user_id, lower(name))
+    WHERE deleted_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS thread_labels (
-    thread_id CHAR(36) NOT NULL,
-    label_id  CHAR(36) NOT NULL,
+    thread_id   CHAR(36)  NOT NULL,
+    label_id    CHAR(36)  NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
 
     PRIMARY KEY (thread_id, label_id),
     CONSTRAINT fk_thread_labels_thread FOREIGN KEY (thread_id) REFERENCES threads (id),
@@ -160,8 +168,11 @@ CREATE TABLE IF NOT EXISTS thread_labels (
 );
 
 CREATE TABLE IF NOT EXISTS message_labels (
-    message_id CHAR(36) NOT NULL,
-    label_id   CHAR(36) NOT NULL,
+    message_id  CHAR(36)  NOT NULL,
+    label_id    CHAR(36)  NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
 
     PRIMARY KEY (message_id, label_id),
     CONSTRAINT fk_message_labels_message FOREIGN KEY (message_id) REFERENCES messages (id),

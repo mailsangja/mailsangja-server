@@ -94,4 +94,17 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
         List<Thread> threads = threadJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
         threadJpaRepositoryModule.deleteAll(threads);
     }
+
+    @Override
+    public Slice<Thread> findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(UUID userId, List<UUID> labelIds, UUID markerId, Pageable pageable) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+        }
+        return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(userId, labelIds, markerId, pageable);
+    }
+
+    @Override
+    public int deleteThreadLabelsByLabelId(UUID labelId) {
+        return threadJpaRepositoryModule.deleteThreadLabelsByLabelId(labelId);
+    }
 }

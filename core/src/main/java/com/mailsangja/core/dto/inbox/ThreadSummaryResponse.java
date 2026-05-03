@@ -2,6 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.port.ThreadLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -30,13 +31,22 @@ public record ThreadSummaryResponse(
         @Schema(description = "스레드 내 첨부파일 목록")
         List<AttachmentResponse> attachments,
         @Schema(description = "스레드 내 메시지 수", example = "3")
-        int messageCount
+        int messageCount,
+        @Schema(description = "스레드에 적용된 라벨 목록")
+        List<LabelSummary> labels
 ) {
-    public static ThreadSummaryResponse from(Thread thread, List<Attachment> attachments, Map<String, String> contactNameByEmail) {
-        List<AttachmentResponse> attachmentResponses = attachments.stream()
-                .map(AttachmentResponse::from)
-                .toList();
+    public record LabelSummary(
+            @Schema(description = "라벨 ID") UUID labelId,
+            @Schema(description = "라벨 이름") String name,
+            @Schema(description = "라벨 색상 코드", example = "#FF5733") String colorCode
+    ) {}
 
+    public static ThreadSummaryResponse from(
+            Thread thread,
+            List<Attachment> attachments,
+            Map<String, String> contactNameByEmail,
+            List<ThreadLabelView> labelViews
+    ) {
         return new ThreadSummaryResponse(
                 thread.getId(),
                 thread.getGmailThreadId(),
@@ -46,8 +56,11 @@ public record ThreadSummaryResponse(
                 thread.getLatestSnippet(),
                 thread.isRead(),
                 thread.getLastMessageAt(),
-                attachmentResponses,
-                thread.getMessageCount()
+                attachments.stream().map(AttachmentResponse::from).toList(),
+                thread.getMessageCount(),
+                labelViews.stream()
+                        .map(v -> new LabelSummary(v.labelId(), v.labelName(), v.colorCode()))
+                        .toList()
         );
     }
 }

@@ -7,7 +7,6 @@ import org.springframework.data.domain.Slice;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,4 +25,8 @@ public interface ThreadRepositoryPort {
     int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
     int bulkRestoreAndResetMessageCountByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
     void hardDeleteAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
+
+    Slice<Thread> findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(UUID userId, List<UUID> labelIds, UUID markerId, Pageable pageable);
+
+    int deleteThreadLabelsByLabelId(UUID labelId);
 }

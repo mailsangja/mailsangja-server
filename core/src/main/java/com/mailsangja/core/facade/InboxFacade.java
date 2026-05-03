@@ -110,7 +110,8 @@ public class InboxFacade {
                 .map(thread -> ThreadSummaryResponse.from(
                         thread,
                         result.attachmentsByThreadId().getOrDefault(thread.getId(), List.of()),
-                        result.contactNameByEmail()))
+                        result.contactNameByEmail(),
+                        result.labelsByThreadId().getOrDefault(thread.getId(), List.of())))
                 .toList();
         UUID nextMarker = result.threads().hasNext() ? result.threads().getContent().getLast().getId() : null;
         return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext());

@@ -1,7 +1,7 @@
 package com.mailsangja.db.entity.mail;
 
 import com.mailsangja.db.entity.common.BaseEntity;
-import com.mailsangja.db.entity.label.Label;
+import com.mailsangja.db.entity.label.MessageLabel;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -89,7 +90,6 @@ public class Message extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
-
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
@@ -104,13 +104,8 @@ public class Message extends BaseEntity {
     private List<Attachment> attachments = new ArrayList<>();
 
     @Builder.Default
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "message_labels",
-            joinColumns = @JoinColumn(name = "message_id"),
-            inverseJoinColumns = @JoinColumn(name = "label_id")
-    )
-    private List<Label> labels = new ArrayList<>();
+    @OneToMany(mappedBy = "message", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MessageLabel> messageLabels = new ArrayList<>();
 
     public static Message from(Thread thread, CreateValues values) {
         CreateValues normalizedValues = values.normalizeNames();
@@ -136,7 +131,7 @@ public class Message extends BaseEntity {
                 .bodyText(normalizedValues.bodyText())
                 .bodyHtml(normalizedValues.bodyHtml())
                 .attachments(new ArrayList<>())
-                .labels(Collections.emptyList())
+                .messageLabels(new ArrayList<>())
                 .build();
     }
 
@@ -259,6 +254,20 @@ public class Message extends BaseEntity {
         this.attachments.clear();
         if (attachments != null) {
             this.attachments.addAll(attachments);
+        }
+    }
+
+    public void replaceMessageLabels(List<MessageLabel> newMessageLabels) {
+        this.messageLabels.clear();
+        if (newMessageLabels != null) {
+            this.messageLabels.addAll(newMessageLabels);
+        }
+    }
+
+    public void applyTargetLabels(Set<UUID> removeIds, List<MessageLabel> newEntries) {
+        this.messageLabels.removeIf(ml -> removeIds.contains(ml.getLabel().getId()));
+        if (newEntries != null) {
+            this.messageLabels.addAll(newEntries);
         }
     }
 

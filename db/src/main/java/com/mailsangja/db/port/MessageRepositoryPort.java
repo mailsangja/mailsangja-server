@@ -40,4 +40,14 @@ public interface MessageRepositoryPort {
     int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
     void hardDelete(Message message);
     boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
+
+    List<Message> findAllByUserIdAndDeletedAtIsNullWithLabels(UUID userId);
+
+    List<Message> findAllByUserIdAndDeletedAtIsNullWithAttachments(UUID userId);
+
+    List<Message> saveAll(List<Message> messages);
+
+    List<ThreadLabelView> findLabelsByThreadIdIn(List<UUID> threadIds);
+
+    int deleteMessageLabelsByLabelId(UUID labelId);
 }

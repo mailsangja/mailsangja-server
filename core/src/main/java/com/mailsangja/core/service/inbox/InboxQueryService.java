@@ -10,6 +10,7 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
+import com.mailsangja.db.port.ThreadLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -69,6 +70,7 @@ public class InboxQueryService {
     private ThreadListResult buildThreadListResult(Slice<Thread> threads) {
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = findAttachmentsByThreadIds(threadIds);
+        Map<UUID, List<ThreadLabelView>> labelsByThreadId = findLabelsByThreadIds(threadIds);
 
         List<String> participantEmails = threads.getContent().stream()
                 .map(Thread::getLatestParticipantAddress)
@@ -77,7 +79,16 @@ public class InboxQueryService {
                 .toList();
         Map<String, String> contactNameByEmail = findContactNamesByEmails(participantEmails);
 
-        return new ThreadListResult(threads, attachmentsByThreadId, contactNameByEmail);
+        return new ThreadListResult(threads, attachmentsByThreadId, contactNameByEmail, labelsByThreadId);
+    }
+
+    private Map<UUID, List<ThreadLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return Map.of();
+        }
+        return messageRepositoryPort.findLabelsByThreadIdIn(threadIds)
+                .stream()
+                .collect(Collectors.groupingBy(ThreadLabelView::threadId));
     }
 
     private Map<UUID, List<Attachment>> findAttachmentsByThreadIds(List<UUID> threadIds) {

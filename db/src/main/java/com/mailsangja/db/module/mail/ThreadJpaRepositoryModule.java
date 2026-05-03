@@ -87,4 +87,35 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             @Param("markerId") UUID markerId,
             Pageable pageable
     );
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT DISTINCT t FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+             AND t.direction = 'INBOUND'
+             AND t.deletedAt IS NULL
+             AND tl.deletedAt IS NULL
+             AND tl.label.id IN :labelIds
+             AND tl.label.deletedAt IS NULL
+             AND (:markerId IS NULL OR t.lastMessageAt < (
+                SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId
+                AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL)
+                AND m.direction = 'INBOUND'
+            ))
+            ORDER BY t.lastMessageAt DESC
+            """)
+    Slice<Thread> findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("markerId") UUID markerId,
+            Pageable pageable
+    );
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ThreadLabel tl WHERE tl.label.id = :labelId")
+    int deleteThreadLabelsByLabelId(@Param("labelId") UUID labelId);
 }
