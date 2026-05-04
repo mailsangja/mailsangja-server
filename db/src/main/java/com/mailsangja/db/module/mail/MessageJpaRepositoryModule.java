@@ -94,7 +94,23 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     List<Message> findAllByThreadIdIncludingDeleted(@Param("threadId") UUID threadId);
 
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
-    @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND m.deletedAt IS NOT NULL AND (:markerId IS NULL OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)) ORDER BY m.deletedAt DESC")
+    @Query("""
+            SELECT m FROM Message m
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND (
+                :markerId IS NULL
+                OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
+                OR (
+                  m.deletedAt = (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
+                  AND m.id < :markerId
+                )
+              )
+            ORDER BY m.deletedAt DESC, m.id DESC
+            """)
     Slice<Message> findDeletedByUserId(
             @Param("userId") UUID userId,
             @Param("markerId") UUID markerId,
@@ -110,8 +126,15 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             )
               AND m.deletedAt IS NOT NULL
               AND (:read IS NULL OR m.read = :read)
-              AND (:markerId IS NULL OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId))
-            ORDER BY m.deletedAt DESC
+              AND (
+                :markerId IS NULL
+                OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
+                OR (
+                  m.deletedAt = (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
+                  AND m.id < :markerId
+                )
+              )
+            ORDER BY m.deletedAt DESC, m.id DESC
             """)
     Slice<Message> findDeletedByUserIdAndReadFilter(
             @Param("userId") UUID userId,
@@ -133,8 +156,15 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND tl.deletedAt IS NULL
               AND tl.label.id IN :labelIds
               AND tl.label.deletedAt IS NULL
-              AND (:markerId IS NULL OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId))
-            ORDER BY m.deletedAt DESC
+              AND (
+                :markerId IS NULL
+                OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
+                OR (
+                  m.deletedAt = (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
+                  AND m.id < :markerId
+                )
+              )
+            ORDER BY m.deletedAt DESC, m.id DESC
             """)
     Slice<Message> findDeletedByUserIdAndLabelIdsAndReadFilter(
             @Param("userId") UUID userId,

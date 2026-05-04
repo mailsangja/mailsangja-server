@@ -119,6 +119,9 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
             Pageable pageable
     ) {
         if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return messageJpaRepositoryModule.findDeletedByUserId(userId, markerId, pageable);
+            }
             return messageJpaRepositoryModule.findDeletedByUserIdAndReadFilter(userId, markerId, read, pageable);
         }
         return messageJpaRepositoryModule.findDeletedByUserIdAndLabelIdsAndReadFilter(userId, markerId, labelIds, read, pageable);

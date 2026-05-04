@@ -63,6 +63,9 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
             Pageable pageable
     ) {
         if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return threadJpaRepositoryModule.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+            }
             return threadJpaRepositoryModule.findInboxByUserIdAndReadFilter(userId, markerId, read, pageable);
         }
         return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
@@ -82,6 +85,9 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
             Pageable pageable
     ) {
         if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return threadJpaRepositoryModule.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+            }
             return threadJpaRepositoryModule.findSentByUserIdAndReadFilter(userId, markerId, read, pageable);
         }
         return threadJpaRepositoryModule.findSentByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
