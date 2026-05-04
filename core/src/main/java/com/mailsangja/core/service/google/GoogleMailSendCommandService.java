@@ -8,8 +8,10 @@ import com.mailsangja.core.dto.mail.GoogleMailSendResponse;
 import com.mailsangja.core.dto.mail.GoogleMailSendResult;
 import com.mailsangja.core.dto.mail.MailAddressCommand;
 import com.mailsangja.core.dto.mail.MailAttachmentCommand;
+import com.mailsangja.core.dto.mail.MailInlineImageCommand;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.db.entity.mail.MailAccount;
+import jakarta.activation.DataHandler;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
@@ -166,31 +168,84 @@ public class GoogleMailSendCommandService {
             mimeMessage.setSubject(normalizedSubject, StandardCharsets.UTF_8.name());
         }
 
-        if (command.attachments() == null || command.attachments().isEmpty()) {
-            mimeMessage.setText(command.content() == null ? "" : command.content(), StandardCharsets.UTF_8.name());
-        } else {
-            MimeMultipart multipart = new MimeMultipart();
-
-            MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setText(command.content() == null ? "" : command.content(), StandardCharsets.UTF_8.name());
-            multipart.addBodyPart(textPart);
-
-            for (MailAttachmentCommand attachment : command.attachments()) {
-                MimeBodyPart attachmentPart = new MimeBodyPart();
-                attachmentPart.setDataHandler(new jakarta.activation.DataHandler(
-                        new ByteArrayDataSource(
-                                attachment.bytes(),
-                                attachment.contentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : attachment.contentType()
-                        )
-                ));
-                attachmentPart.setFileName(attachment.filename());
-                multipart.addBodyPart(attachmentPart);
-            }
-
-            mimeMessage.setContent(multipart);
-        }
+        setMessageContent(mimeMessage, command);
 
         return mimeMessage;
+    }
+
+    private void setMessageContent(MimeMessage mimeMessage, MailSendCommand command) throws MessagingException {
+        boolean hasAttachments = command.attachments() != null && !command.attachments().isEmpty();
+        boolean hasInlineImages = command.inlineImages() != null && !command.inlineImages().isEmpty();
+
+        if (!hasAttachments && !hasInlineImages) {
+            mimeMessage.setContent(normalizeContent(command.content()), "text/html; charset=UTF-8");
+            return;
+        }
+
+        if (!hasAttachments) {
+            mimeMessage.setContent(createRelatedMultipart(command));
+            return;
+        }
+
+        MimeMultipart mixedMultipart = new MimeMultipart("mixed");
+        if (hasInlineImages) {
+            MimeBodyPart relatedPart = new MimeBodyPart();
+            relatedPart.setContent(createRelatedMultipart(command));
+            mixedMultipart.addBodyPart(relatedPart);
+        } else {
+            mixedMultipart.addBodyPart(createHtmlBodyPart(command.content()));
+        }
+
+        for (MailAttachmentCommand attachment : command.attachments()) {
+            mixedMultipart.addBodyPart(createAttachmentBodyPart(attachment));
+        }
+        mimeMessage.setContent(mixedMultipart);
+    }
+
+    private MimeMultipart createRelatedMultipart(MailSendCommand command) throws MessagingException {
+        MimeMultipart relatedMultipart = new MimeMultipart("related");
+        relatedMultipart.addBodyPart(createHtmlBodyPart(command.content()));
+
+        for (MailInlineImageCommand inlineImage : command.inlineImages()) {
+            relatedMultipart.addBodyPart(createInlineImageBodyPart(inlineImage));
+        }
+        return relatedMultipart;
+    }
+
+    private MimeBodyPart createHtmlBodyPart(String content) throws MessagingException {
+        MimeBodyPart htmlPart = new MimeBodyPart();
+        htmlPart.setContent(normalizeContent(content), "text/html; charset=UTF-8");
+        return htmlPart;
+    }
+
+    private MimeBodyPart createInlineImageBodyPart(MailInlineImageCommand inlineImage) throws MessagingException {
+        MimeBodyPart inlineImagePart = new MimeBodyPart();
+        inlineImagePart.setDataHandler(new DataHandler(
+                new ByteArrayDataSource(
+                        inlineImage.bytes(),
+                        inlineImage.contentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : inlineImage.contentType()
+                )
+        ));
+        inlineImagePart.setFileName(inlineImage.filename());
+        inlineImagePart.setDisposition(MimeBodyPart.INLINE);
+        inlineImagePart.setHeader("Content-ID", "<" + inlineImage.cid() + ">");
+        return inlineImagePart;
+    }
+
+    private MimeBodyPart createAttachmentBodyPart(MailAttachmentCommand attachment) throws MessagingException {
+        MimeBodyPart attachmentPart = new MimeBodyPart();
+        attachmentPart.setDataHandler(new DataHandler(
+                new ByteArrayDataSource(
+                        attachment.bytes(),
+                        attachment.contentType() == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : attachment.contentType()
+                )
+        ));
+        attachmentPart.setFileName(attachment.filename());
+        return attachmentPart;
+    }
+
+    private String normalizeContent(String content) {
+        return content == null ? "" : content;
     }
 
     private String encodeMimeMessage(MimeMessage mimeMessage) throws MessagingException, java.io.IOException {

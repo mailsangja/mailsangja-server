@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS attachments (
     gmail_attachment_id VARCHAR(1024) NULL,
     filename            VARCHAR(255) NOT NULL,
     mime_type           VARCHAR(255) NOT NULL,
+    content_id          VARCHAR(255) NULL,
+    disposition         VARCHAR(20)  NOT NULL DEFAULT 'ATTACHMENT',
     size                INT          NULL,
     created_at          TIMESTAMP    NOT NULL,
     modified_at         TIMESTAMP    NOT NULL,

@@ -8,6 +8,7 @@ import com.mailsangja.db.entity.user.User;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 public record MailSendCommand(
         UUID userId,
@@ -18,8 +19,23 @@ public record MailSendCommand(
         List<MailAddressCommand> bcc,
         String subject,
         String content,
-        List<MailAttachmentCommand> attachments
+        List<MailAttachmentCommand> attachments,
+        List<MailInlineImageCommand> inlineImages
 ) {
+
+    public MailSendCommand(
+            UUID userId,
+            MailAddressCommand from,
+            MailAddressCommand replyTo,
+            List<MailAddressCommand> to,
+            List<MailAddressCommand> cc,
+            List<MailAddressCommand> bcc,
+            String subject,
+            String content,
+            List<MailAttachmentCommand> attachments
+    ) {
+        this(userId, from, replyTo, to, cc, bcc, subject, content, attachments, List.of());
+    }
 
     public static MailSendCommand from(User user, MailSendRequest request) {
         return new MailSendCommand(
@@ -39,6 +55,12 @@ public record MailSendCommand(
                 request.content(),
                 request.attachments() == null ? List.of() : request.attachments().stream()
                         .map(MailAttachmentCommand::from)
+                        .toList(),
+                request.inlineImages() == null ? List.of() : IntStream.range(0, request.inlineImages().size())
+                        .mapToObj(index -> MailInlineImageCommand.from(
+                                request.inlineImages().get(index),
+                                request.inlineImageCids().get(index)
+                        ))
                         .toList()
         );
     }
