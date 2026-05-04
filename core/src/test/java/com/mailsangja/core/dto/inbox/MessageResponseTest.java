@@ -97,4 +97,40 @@ class MessageResponseTest {
                 response.bodyHtml()
         );
     }
+
+    @Test
+    void from_cid가다른cid의접두사여도부분치환하지않는다() {
+        UUID inlineAttachmentId = UUID.randomUUID();
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .gmailMessageId("gmail-message-id")
+                .direction(Direction.INBOUND)
+                .subject("subject")
+                .fromAddress("sender@example.com")
+                .fromName("sender@example.com")
+                .toAddresses(List.of("to@example.com"))
+                .toNames(List.of("to@example.com"))
+                .snippet("snippet")
+                .read(true)
+                .bodyHtml("<p>본문</p><img src=\"cid:abc\"><img src=\"cid:a\">")
+                .attachments(List.of(
+                        Attachment.builder()
+                                .id(inlineAttachmentId)
+                                .gmailAttachmentId("inline-gmail-attachment-id")
+                                .filename("image.png")
+                                .mimeType("image/png")
+                                .contentId("a")
+                                .disposition(AttachmentDisposition.INLINE)
+                                .size(5)
+                                .build()
+                ))
+                .build();
+
+        MessageResponse response = MessageResponse.from(message, Map.of(), List.of());
+
+        assertEquals(
+                "<p>본문</p><img src=\"cid:abc\"><img src=\"/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                response.bodyHtml()
+        );
+    }
 }

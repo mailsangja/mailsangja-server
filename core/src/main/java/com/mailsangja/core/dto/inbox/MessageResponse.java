@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Schema(description = "메일 메시지 상세 정보")
 public record MessageResponse(
@@ -139,11 +141,21 @@ public record MessageResponse(
                 continue;
             }
 
-            renderedBodyHtml = renderedBodyHtml.replace(
-                    "cid:" + attachment.getContentId(),
+            renderedBodyHtml = replaceInlineImageSrc(
+                    renderedBodyHtml,
+                    attachment.getContentId(),
                     "/api/v1/mail/attachments/" + attachment.getId()
             );
         }
         return renderedBodyHtml;
+    }
+
+    private static String replaceInlineImageSrc(String bodyHtml, String contentId, String attachmentUrl) {
+        Pattern cidSrcPattern = Pattern.compile(
+                "(\\bsrc\\s*=\\s*)([\"'])cid:" + Pattern.quote(contentId) + "\\2",
+                Pattern.CASE_INSENSITIVE
+        );
+        Matcher matcher = cidSrcPattern.matcher(bodyHtml);
+        return matcher.replaceAll("$1$2" + Matcher.quoteReplacement(attachmentUrl) + "$2");
     }
 }
