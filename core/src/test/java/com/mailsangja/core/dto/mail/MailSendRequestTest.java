@@ -239,6 +239,27 @@ class MailSendRequestTest {
     }
 
     @Test
+    void validate_첨부파일과본문이미지합산크기가제한을초과하면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                List.of(
+                        new MockMultipartFile("attachments", "a.bin", "application/octet-stream", new byte[7 * MB]),
+                        new MockMultipartFile("attachments", "b.bin", "application/octet-stream", new byte[7 * MB])
+                ),
+                List.of(new MockMultipartFile("inlineImages", "image.png", "image/png", new byte[7 * MB])),
+                List.of("inline-1")
+        );
+
+        assertError(request, MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
+    }
+
+    @Test
     void validate_본문이미지와cid가정상매칭되면통과한다() {
         MailSendRequest request = new MailSendRequest(
                 "sender@example.com",

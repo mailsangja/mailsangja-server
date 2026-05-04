@@ -78,8 +78,9 @@ public record MailSendRequest(
         validateRecipients(to, cc, bcc);
         validateSubject(subject);
         validateSubjectAndContent(subject, content);
-        validateAttachments(attachments);
-        validateInlineImages(content, inlineImages, inlineImageCids);
+        long totalAttachmentSize = validateAttachments(attachments);
+        long totalInlineImageSize = validateInlineImages(content, inlineImages, inlineImageCids);
+        validateTotalAttachmentSize(totalAttachmentSize + totalInlineImageSize);
     }
 
     private void validateSender(String from) {
@@ -145,9 +146,9 @@ public record MailSendRequest(
         }
     }
 
-    private void validateAttachments(List<MultipartFile> attachments) {
+    private long validateAttachments(List<MultipartFile> attachments) {
         if (attachments == null || attachments.isEmpty()) {
-            return;
+            return 0L;
         }
 
         if (attachments.size() > MAX_ATTACHMENT_COUNT) {
@@ -171,18 +172,16 @@ public record MailSendRequest(
             totalAttachmentSize += attachment.getSize();
         }
 
-        if (totalAttachmentSize > MAX_TOTAL_ATTACHMENT_SIZE) {
-            throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
-        }
+        return totalAttachmentSize;
     }
 
-    private void validateInlineImages(String content, List<MultipartFile> inlineImages, List<String> inlineImageCids) {
+    private long validateInlineImages(String content, List<MultipartFile> inlineImages, List<String> inlineImageCids) {
         Set<String> referencedCids = extractReferencedCids(content);
         if ((inlineImages == null || inlineImages.isEmpty()) && (inlineImageCids == null || inlineImageCids.isEmpty())) {
             if (!referencedCids.isEmpty()) {
                 throw new MailSendException(MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
             }
-            return;
+            return 0L;
         }
 
         if (inlineImages == null
@@ -208,12 +207,16 @@ public record MailSendRequest(
             totalInlineImageSize += inlineImage.getSize();
         }
 
-        if (totalInlineImageSize > MAX_TOTAL_ATTACHMENT_SIZE) {
-            throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
-        }
-
         if (!uploadedCids.containsAll(referencedCids)) {
             throw new MailSendException(MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+        }
+
+        return totalInlineImageSize;
+    }
+
+    private void validateTotalAttachmentSize(long totalFileSize) {
+        if (totalFileSize > MAX_TOTAL_ATTACHMENT_SIZE) {
+            throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
         }
     }
 
