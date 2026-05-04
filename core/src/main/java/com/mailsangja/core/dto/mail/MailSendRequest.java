@@ -30,7 +30,10 @@ public record MailSendRequest(
         @Schema(description = "메일 제목", example = "회의 자료 전달드립니다.")
         String subject,
 
-        @Schema(description = "메일 본문", example = "안녕하세요.\n회의 자료 전달드립니다.")
+        @Schema(
+                description = "메일 본문 HTML. 본문 이미지는 `<img src=\"cid:{cid}\">`로 참조합니다.",
+                example = "<p>안녕하세요.</p><p>회의 자료 전달드립니다.</p><img src=\"cid:inline-1\" alt=\"회의 자료 이미지\">"
+        )
         String content,
 
         @Schema(description = "첨부파일 목록. multipart/form-data 에서는 attachments 필드를 반복 전달합니다.")

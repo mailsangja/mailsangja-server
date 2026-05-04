@@ -1,6 +1,7 @@
 package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Attachment;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.UUID;
@@ -15,6 +16,10 @@ public record AttachmentResponse(
         String filename,
         @Schema(description = "MIME 타입", example = "application/pdf")
         String mimeType,
+        @Schema(description = "MIME Content-ID. 본문 인라인 이미지 cid 치환 시 사용", example = "inline-1")
+        String contentId,
+        @Schema(description = "첨부 표시 방식", example = "ATTACHMENT")
+        AttachmentDisposition disposition,
         @Schema(description = "파일 크기 (bytes)", example = "102400")
         Integer size
 ) {
@@ -24,6 +29,8 @@ public record AttachmentResponse(
                 attachment.getGmailAttachmentId(),
                 attachment.getFilename(),
                 attachment.getMimeType(),
+                attachment.getContentId(),
+                attachment.getDisposition(),
                 attachment.getSize()
         );
     }

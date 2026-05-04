@@ -23,6 +23,7 @@ import com.mailsangja.core.service.mail.MailAttachmentQueryService;
 import com.mailsangja.core.service.mail.MailCommandService;
 import com.mailsangja.core.service.mail.MailQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -953,7 +954,14 @@ class MailFacadeTest {
                     LocalDateTime.now(),
                     "본문",
                     null,
-                    List.of(new GoogleMailAttachmentResult("gmail-attachment-id", "file.txt", "text/plain", 5))
+                    List.of(new GoogleMailAttachmentResult(
+                            "gmail-attachment-id",
+                            "file.txt",
+                            "text/plain",
+                            null,
+                            AttachmentDisposition.ATTACHMENT,
+                            5
+                    ))
             );
         }
     }

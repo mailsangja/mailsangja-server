@@ -1,6 +1,8 @@
 package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Direction;
+import com.mailsangja.db.entity.mail.Attachment;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.dto.MessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -83,7 +85,7 @@ public record MessageResponse(
                 message.isRead(),
                 message.getSentAt(),
                 message.getBodyText(),
-                message.getBodyHtml(),
+                renderInlineImages(message.getBodyHtml(), message.getAttachments()),
                 attachmentResponses,
                 labels
         );
@@ -120,5 +122,28 @@ public record MessageResponse(
             return null;
         }
         return names.get(index);
+    }
+
+    private static String renderInlineImages(String bodyHtml, List<Attachment> attachments) {
+        if (bodyHtml == null || bodyHtml.isBlank() || attachments == null || attachments.isEmpty()) {
+            return bodyHtml;
+        }
+
+        String renderedBodyHtml = bodyHtml;
+        for (Attachment attachment : attachments) {
+            if (attachment == null
+                    || attachment.getId() == null
+                    || attachment.getDisposition() != AttachmentDisposition.INLINE
+                    || attachment.getContentId() == null
+                    || attachment.getContentId().isBlank()) {
+                continue;
+            }
+
+            renderedBodyHtml = renderedBodyHtml.replace(
+                    "cid:" + attachment.getContentId(),
+                    "/api/v1/mail/attachments/" + attachment.getId()
+            );
+        }
+        return renderedBodyHtml;
     }
 }
