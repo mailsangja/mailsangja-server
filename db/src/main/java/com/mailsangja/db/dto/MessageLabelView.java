@@ -1,4 +1,4 @@
-package com.mailsangja.db.port;
+package com.mailsangja.db.dto;
 
 import java.util.UUID;
 

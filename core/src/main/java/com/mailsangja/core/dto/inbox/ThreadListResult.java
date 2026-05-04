@@ -2,7 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Thread;
-import com.mailsangja.db.port.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadLabelView;
 import org.springframework.data.domain.Slice;
 
 import java.util.List;

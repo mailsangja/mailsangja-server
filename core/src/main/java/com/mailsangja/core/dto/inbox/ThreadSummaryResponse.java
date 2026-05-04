@@ -2,7 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Thread;
-import com.mailsangja.db.port.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;

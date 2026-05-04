@@ -1,5 +1,6 @@
 package com.mailsangja.db.module.label;
 
+import com.mailsangja.db.dto.LabelUnreadCountProjection;
 import com.mailsangja.db.entity.label.Label;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

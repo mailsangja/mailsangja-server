@@ -1,5 +1,7 @@
 package com.mailsangja.db.module.mail;
 
+import com.mailsangja.db.dto.MessageLabelProjection;
+import com.mailsangja.db.dto.ThreadLabelProjection;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
