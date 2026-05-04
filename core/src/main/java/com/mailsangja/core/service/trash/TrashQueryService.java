@@ -35,6 +35,26 @@ public class TrashQueryService {
         return messageRepositoryPort.findDeletedByUserId(userId, markerId, PageRequest.of(0, size));
     }
 
+    public Slice<Message> findDeletedMessagesByUserId(
+            UUID userId,
+            UUID markerId,
+            int size,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        return messageRepositoryPort.findDeletedByUserIdAndFilters(
+                userId,
+                markerId,
+                normalizeLabelIds(labelIds),
+                read,
+                PageRequest.of(0, size)
+        );
+    }
+
+    public long countUnreadDeletedMessagesByUserId(UUID userId, List<UUID> labelIds, Boolean read) {
+        return messageRepositoryPort.countUnreadDeletedByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
     public List<Message> findDeletedMessagesByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageRepositoryPort.findAllDeletedByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
@@ -110,5 +130,15 @@ public class TrashQueryService {
         return attachmentRepositoryPort.findAllByMessageIdIn(messageIds)
                 .stream()
                 .collect(Collectors.groupingBy(a -> a.getMessage().getId()));
+    }
+
+    private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return List.of();
+        }
+        return labelIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
     }
 }

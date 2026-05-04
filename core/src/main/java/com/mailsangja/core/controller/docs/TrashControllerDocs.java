@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Trash", description = "메일 삭제 및 휴지통 API")
@@ -68,6 +69,8 @@ public interface TrashControllerDocs {
             summary = "휴지통 목록 조회",
             description = "로그인한 사용자의 모든 메일 계정에서 삭제된 메시지를 조회합니다. "
                     + "같은 gmailThreadId의 메시지는 하나의 항목으로 묶여 반환됩니다. "
+                    + "labelId는 여러 번 전달할 수 있으며, 전달된 라벨 중 하나라도 부착된 항목을 조회합니다. "
+                    + "read는 읽음 여부 필터이며 생략하면 전체를 조회합니다. "
                     + "페이지네이션은 메시지 기준(deletedAt DESC)으로 적용됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
@@ -79,7 +82,11 @@ public interface TrashControllerDocs {
     ResponseEntity<MarkerSliceResponse<TrashThreadSummaryResponse>> getTrashThreads(
             @Parameter(hidden = true) @AuthUser User user,
             @Parameter(description = "마커 (이전 응답의 nextMarker — 메시지 ID)", required = false) @RequestParam(required = false) UUID marker,
-            @Parameter(description = "페이지 크기", example = "50") @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+            @Parameter(description = "페이지 크기", example = "50") @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
+            @Parameter(description = "필터링할 라벨 ID 목록. 여러 labelId 중 하나라도 부착되어 있으면 포함", example = "550e8400-e29b-41d4-a716-446655440000")
+            @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
+            @Parameter(description = "읽음 여부 필터. 생략 시 전체 조회", example = "false")
+            @RequestParam(required = false) Boolean read
     );
 
     @Operation(

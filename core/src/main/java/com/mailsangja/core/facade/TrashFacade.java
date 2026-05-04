@@ -56,8 +56,15 @@ public class TrashFacade {
         googleGmailApiService.trashMessage(ensuredMailAccount.getAccessToken(), message.getGmailMessageId());
     }
 
-    public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(User user, UUID marker, int size) {
-        Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size);
+    public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(
+            User user,
+            UUID marker,
+            int size,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size, labelIds, read);
+        long unreadCount = trashQueryService.countUnreadDeletedMessagesByUserId(user.getId(), labelIds, read);
 
         Map<String, List<Message>> grouped = messages.getContent().stream()
                 .collect(Collectors.groupingBy(
@@ -101,7 +108,7 @@ public class TrashFacade {
                 .toList();
 
         UUID nextMarker = messages.hasNext() ? messages.getContent().getLast().getId() : null;
-        return MarkerSliceResponse.of(content, nextMarker, messages.hasNext());
+        return MarkerSliceResponse.of(content, nextMarker, messages.hasNext(), unreadCount);
     }
 
     public TrashThreadDetailResponse getTrashThreadDetail(User user, UUID threadId) {
