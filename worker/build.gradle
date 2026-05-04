@@ -34,6 +34,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-jackson2'
     implementation 'org.springframework.security:spring-security-oauth2-jose'
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai-embedding'
     implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
     implementation 'com.sun.mail:jakarta.mail:2.0.1'
     implementation 'ai.philterd:phileas:3.3.0'

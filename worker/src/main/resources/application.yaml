@@ -11,7 +11,8 @@ spring:
         speech: none
         transcription: none
       chat: none
-      embedding: openai
+      embedding: ${AI_EMBEDDING_PROVIDER:openai}
+      embedding.text: ${AI_EMBEDDING_PROVIDER:openai}
       image: none
       moderation: none
     vectorstore:
@@ -30,6 +31,15 @@ spring:
       embedding:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+          dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
+    google:
+      genai:
+        embedding:
+          api-key: ${GOOGLE_GENAI_API_KEY:unused-google-genai-api-key}
+          text:
+            options:
+              model: ${GOOGLE_GENAI_EMBEDDING_MODEL:text-embedding-004}
+              dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
 
   config:
     import: "classpath:application-mq.yaml"

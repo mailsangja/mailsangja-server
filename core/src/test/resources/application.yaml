@@ -6,12 +6,17 @@ spring:
         transcription: none
       chat: none
       embedding: none
+      embedding.text: none
       image: none
       moderation: none
     vectorstore:
       type: none
       pgvector:
         initialize-schema: false
+    google:
+      genai:
+        embedding:
+          api-key: unused-google-genai-api-key
 
   datasource:
     url: jdbc:h2:mem:core-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
