@@ -34,12 +34,13 @@ class MailEmbeddingDocumentServiceTest {
     @Test
     void build_usesMessageIdAndRequiredMetadata() {
         Message message = createMessage("본문입니다.");
+        UUID documentId = UUID.randomUUID();
 
-        Document document = service.build(message);
+        Document document = service.build(message, documentId, "마스킹된 본문입니다.");
         Map<String, Object> metadata = document.getMetadata();
 
-        assertEquals(message.getId().toString(), document.getId());
-        assertEquals("본문입니다.", document.getText());
+        assertEquals(documentId.toString(), document.getId());
+        assertEquals("마스킹된 본문입니다.", document.getText());
         assertRequiredMetadata(message, metadata);
     }
 

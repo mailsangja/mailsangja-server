@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class MailEmbeddingDocumentService {
@@ -23,6 +24,10 @@ public class MailEmbeddingDocumentService {
                 .text(message.getBodyText())
                 .metadata(buildMetadata(message))
                 .build();
+    }
+
+    public Document build(Message message, UUID documentId, String maskedText) {
+        return null;
     }
 
     private Map<String, Object> buildMetadata(Message message) {
