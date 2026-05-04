@@ -2,6 +2,7 @@ package com.mailsangja.core.controller;
 
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.PaymentControllerDocs;
+import com.mailsangja.core.dto.payment.CompletePaymentRequest;
 import com.mailsangja.core.dto.payment.CreateOrderRequest;
 import com.mailsangja.core.dto.payment.CreateOrderResponse;
 import com.mailsangja.core.facade.PaymentFacade;
@@ -26,5 +27,15 @@ public class PaymentController implements PaymentControllerDocs {
     ) {
         CreateOrderResponse response = paymentFacade.createOrder(user, request);
         return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @PostMapping("/api/v1/payments/complete")
+    public ResponseEntity<Void> completePayment(
+            @AuthUser User user,
+            @RequestBody CompletePaymentRequest request
+    ) {
+        paymentFacade.completePayment(user, request);
+        return ResponseEntity.ok().build();
     }
 }

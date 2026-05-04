@@ -1,6 +1,7 @@
 package com.mailsangja.core.controller.docs;
 
 import com.mailsangja.core.common.auth.AuthUser;
+import com.mailsangja.core.dto.payment.CompletePaymentRequest;
 import com.mailsangja.core.dto.payment.CreateOrderRequest;
 import com.mailsangja.core.dto.payment.CreateOrderResponse;
 import com.mailsangja.db.entity.user.User;
@@ -21,7 +22,7 @@ public interface PaymentControllerDocs {
             description = """
                     결제 시작 전 서버에 PENDING 상태의 Pre-Order를 생성합니다.
 
-                    클라이언트는 plan(PRO)과 amount(결제 예정 금액)를 전달합니다.
+                    클라이언트는 plan(PRO)을 전달합니다.
                     서버는 PENDING Order를 생성하고 PK(UUID)를 merchantUid로 반환합니다.
                     클라이언트는 이 merchantUid를 포트원 결제 요청의 merchant_uid 필드에 그대로 사용합니다.
                     """
@@ -46,10 +47,52 @@ public interface PaymentControllerDocs {
     ResponseEntity<CreateOrderResponse> createOrder(
             @AuthUser User user,
             @RequestBody(
-                    description = "Pre-Order 생성 요청 (plan, amount)",
+                    description = "Pre-Order 생성 요청 (plan)",
                     required = true,
                     content = @Content(schema = @Schema(implementation = CreateOrderRequest.class))
             )
             CreateOrderRequest request
+    );
+
+    @Operation(
+            summary = "결제 완료 처리",
+            description = """
+                    포트원 결제 완료 후 클라이언트가 호출하는 결제 확정 API입니다.
+
+                    클라이언트는 포트원으로부터 받은 paymentId를 전달합니다.
+                    서버는 포트원 API로 결제 정보를 검증한 뒤 주문 상태를 COMPLETED로 전환하고 사용자 플랜을 업그레이드합니다.
+                    웹훅이 먼저 처리된 경우 멱등성 처리되어 정상 응답합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "결제 완료 처리 성공",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "결제 상태 또는 금액 불일치",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "주문 또는 결제 정보를 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true))
+            )
+    })
+    ResponseEntity<Void> completePayment(
+            @AuthUser User user,
+            @RequestBody(
+                    description = "결제 완료 요청 (paymentId)",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = CompletePaymentRequest.class))
+            )
+            CompletePaymentRequest request
     );
 }

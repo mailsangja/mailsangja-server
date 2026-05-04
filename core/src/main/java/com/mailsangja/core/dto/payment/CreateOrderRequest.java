@@ -1,5 +1,7 @@
 package com.mailsangja.core.dto.payment;
 
+import com.mailsangja.core.common.exception.payment.PaymentErrorCode;
+import com.mailsangja.core.common.exception.payment.PaymentException;
 import com.mailsangja.db.entity.user.Plan;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -7,17 +9,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record CreateOrderRequest(
 
         @Schema(description = "업그레이드 대상 플랜", example = "PRO", allowableValues = {"FREE", "PRO"})
-        Plan plan,
-
-        @Schema(description = "결제 예정 금액 (원)", example = "9900")
-        int amount
+        Plan plan
 ) {
     public CreateOrderRequest {
         if (plan == null) {
-            throw new IllegalArgumentException("plan must not be null");
-        }
-        if (amount <= 0) {
-            throw new IllegalArgumentException("amount must be positive");
+            throw new PaymentException(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN);
         }
     }
 }

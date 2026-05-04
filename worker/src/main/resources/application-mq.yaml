@@ -17,4 +17,3 @@ mailsangja:
       publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
     label-reclassify:
       message-batch-size: ${LABEL_RECLASSIFY_MESSAGE_BATCH_SIZE:50}
-    payment-webhook: {}

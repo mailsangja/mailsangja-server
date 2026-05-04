@@ -1,5 +1,8 @@
 package com.mailsangja.core.service.payment;
 
+import com.mailsangja.core.common.exception.payment.PaymentErrorCode;
+import com.mailsangja.core.common.exception.payment.PaymentException;
+import com.mailsangja.core.config.properties.PortOnePlanPriceProperties;
 import com.mailsangja.core.dto.payment.CreateOrderRequest;
 import com.mailsangja.db.entity.payment.Order;
 import com.mailsangja.db.entity.user.User;
@@ -21,18 +24,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentCommandService {
 
     private final OrderRepositoryPort orderRepositoryPort;
+    private final PortOnePlanPriceProperties portOnePlanPriceProperties;
 
     @Transactional
     public Order createPendingOrder(User user, CreateOrderRequest request) {
+        String planKey = request.plan().name().toLowerCase();
+        Integer amount = portOnePlanPriceProperties.getPlanPrices().get(planKey);
+        if (amount == null) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN);
+        }
+
         Order order = Order.builder()
                 .userId(user.getId())
                 .plan(request.plan())
-                .amount(request.amount())
+                .amount(amount)
                 .build();
 
         Order saved = orderRepositoryPort.save(order);
         log.info("Pre-Order created. orderId={} userId={} plan={} amount={}",
-                saved.getId(), user.getId(), request.plan(), request.amount());
+                saved.getId(), user.getId(), request.plan(), amount);
         return saved;
     }
 }
