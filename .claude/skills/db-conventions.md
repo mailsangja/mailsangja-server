@@ -19,6 +19,11 @@ allowed-tools: Read, Write, Edit, Glob
 
 ```
 com.mailsangja.db
+├── common/{domain}/
+│   └── {DomainValueObject}.java         # 도메인 값 객체 (record/enum). Entity·Port 양쪽에서 참조
+├── dto/
+│   ├── {Domain}View.java                # Port 반환 타입 record (Service가 소비하는 공개 계약)
+│   └── {Domain}Projection.java          # JPA Projection 인터페이스 (Adapter 내부 변환용)
 ├── entity/
 │   ├── common/
 │   │   └── BaseEntity.java              # 공통 시간 필드 + Soft Delete
@@ -68,6 +73,41 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
 **규칙:**
 - Service 레이어는 반드시 **Port 인터페이스**만 주입받음 — `JpaRepositoryModule` 직접 주입 금지
 - `JpaRepositoryModule`은 `Adapter` 내부에서만 사용
+
+---
+
+## JPA Projection 과 View record
+
+View record와 JPA Projection 인터페이스는 모두 `dto/` 패키지에 위치합니다.
+
+```java
+// dto/LabelUnreadCountProjection.java — JPA Projection (Adapter 내부 변환용)
+public interface LabelUnreadCountProjection {
+    UUID getLabelId();
+    Long getUnreadCount();
+}
+
+// dto/ThreadLabelView.java — Port 반환 타입 record (Service가 소비하는 공개 계약)
+public record ThreadLabelView(UUID threadId, UUID labelId, String labelName, String colorCode) {}
+```
+
+- **View record**: Service 레이어(core)가 직접 소비하는 Port 공개 계약 — `dto/`에 위치
+- **Projection 인터페이스**: JPA 쿼리 결과 매핑용 구현 세부사항 — `dto/`에 위치
+- `Adapter`가 Projection → View record 변환을 수행한다; Service는 View record만 알면 된다
+
+---
+
+## common 패키지
+
+`common/{domain}/`은 Entity와 Port 양쪽에서 참조하는 도메인 값 객체(record, enum)를 담습니다.
+
+```java
+// common/label/LabelRule.java — Label Entity의 JSONB 컬럼 타입이자 Port 파라미터로도 사용
+public record LabelRule(List<Group> groups) { ... }
+```
+
+- Entity 필드 타입이면서 동시에 core 모듈 서비스에서도 다뤄야 하는 객체를 배치한다
+- 단순 JPA 구현 세부사항은 `module/`에, Port 계약 타입과 Projection은 `dto/`에 두고, 양쪽 공통 참조가 필요한 경우만 `common/`을 사용한다
 
 ---
 
