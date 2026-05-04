@@ -36,7 +36,10 @@ com.mailsangja.core
 │   │   └── AuthArgumentResolver.java
 │   ├── dto/        # SliceResponse, PageResponse, ResponseDto
 │   ├── exception/
-│   └── util/
+│   │   └── {domain}/
+│   │       ├── {Domain}ErrorCode.java
+│   │       └── {Domain}Exception.java
+│   └── util/       # 도메인/레이어에 속하지 않는 재사용 유틸리티 @Component
 ├── config/
 │   ├── SecurityConfig.java
 │   ├── AsyncConfig.java
@@ -213,6 +216,21 @@ public Long extractEventIdFromViewKey(String key) {
 **4. 모든 Redis 키에는 반드시 TTL을 설정한다**
 
 TTL 없는 키는 Redis 메모리를 영구 점유한다. `setIfAbsent`, `set` 호출 시 항상 TTL 파라미터를 포함한다.
+
+---
+
+## common/util 규칙
+
+`common/util/`은 특정 도메인이나 레이어에 속하지 않는 재사용 가능한 유틸리티 컴포넌트를 담는 패키지입니다.
+
+- `@Component`로 등록하며 DI를 통해 사용한다
+- 도메인 로직을 직접 수행하지 않고, 검증·변환 등 횡단 관심사를 처리한다
+- Service·Facade·Handler 어디서든 주입받아 사용할 수 있다
+
+```
+예시
+LabelRuleValidator   — LabelRule 도메인 객체의 field/operator/value 조합 유효성 검증
+```
 
 ---
 
