@@ -111,6 +111,31 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Slice<Message> findDeletedByUserIdAndFilters(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return messageJpaRepositoryModule.findDeletedByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return messageJpaRepositoryModule.findDeletedByUserIdAndLabelIdsAndReadFilter(userId, markerId, labelIds, read, pageable);
+    }
+
+    @Override
+    public long countUnreadDeletedByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return messageJpaRepositoryModule.countUnreadDeletedByUserId(userId);
+        }
+        return messageJpaRepositoryModule.countUnreadDeletedByUserIdAndLabelIds(userId, labelIds);
+    }
+
+    @Override
     public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.findAllDeletedByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }

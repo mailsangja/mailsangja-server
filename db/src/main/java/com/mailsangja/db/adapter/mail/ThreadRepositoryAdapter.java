@@ -55,13 +55,63 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
+    public Slice<Thread> findInboxByUserIdAndFilters(
+            UUID userId,
+            List<UUID> labelIds,
+            Boolean read,
+            UUID markerId,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.findInboxByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
+    }
+
+    @Override
     public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
         return threadJpaRepositoryModule.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
 
     @Override
+    public Slice<Thread> findSentByUserIdAndFilters(
+            UUID userId,
+            List<UUID> labelIds,
+            Boolean read,
+            UUID markerId,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.findSentByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return threadJpaRepositoryModule.findSentByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
+    }
+
+    @Override
     public long countUnreadInboxByUserId(UUID userId) {
         return threadJpaRepositoryModule.countUnreadInboxByUserId(userId);
+    }
+
+    @Override
+    public long countUnreadInboxByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countUnreadInboxByUserId(userId);
+        }
+        return threadJpaRepositoryModule.countUnreadInboxByUserIdAndLabelIds(userId, labelIds);
+    }
+
+    @Override
+    public long countUnreadSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countUnreadSentByUserId(userId);
+        }
+        return threadJpaRepositoryModule.countUnreadSentByUserIdAndLabelIds(userId, labelIds);
     }
 
     @Override

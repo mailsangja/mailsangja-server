@@ -101,6 +101,78 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
+    @Query("""
+            SELECT m FROM Message m
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND (:read IS NULL OR m.read = :read)
+              AND (:markerId IS NULL OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId))
+            ORDER BY m.deletedAt DESC
+            """)
+    Slice<Message> findDeletedByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
+    @Query("""
+            SELECT DISTINCT m FROM Message m
+            JOIN m.thread.threadLabels tl
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND (:read IS NULL OR m.read = :read)
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+              AND (:markerId IS NULL OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId))
+            ORDER BY m.deletedAt DESC
+            """)
+    Slice<Message> findDeletedByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("read") Boolean read,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT COUNT(m) FROM Message m
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND m.read = false
+            """)
+    long countUnreadDeletedByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT m) FROM Message m
+            JOIN m.thread.threadLabels tl
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND m.read = false
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    long countUnreadDeletedByUserIdAndLabelIds(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds
+    );
+
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id = :mailAccountId AND m.thread.gmailThreadId = :gmailThreadId AND m.deletedAt IS NOT NULL ORDER BY m.sentAt ASC")
     List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(

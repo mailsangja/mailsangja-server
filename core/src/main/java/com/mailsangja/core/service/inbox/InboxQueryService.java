@@ -52,8 +52,42 @@ public class InboxQueryService {
         return buildThreadListResult(threads);
     }
 
+    public ThreadListResult findInboxThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
+        return buildThreadListResult(threads);
+    }
+
     public ThreadListResult findSentThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
         Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+        return buildThreadListResult(threads);
+    }
+
+    public ThreadListResult findSentThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
         return buildThreadListResult(threads);
     }
 
@@ -71,6 +105,24 @@ public class InboxQueryService {
 
     public long countUnreadInbox(UUID userId) {
         return threadRepositoryPort.countUnreadInboxByUserId(userId);
+    }
+
+    public long countUnreadInbox(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countUnreadSent(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return List.of();
+        }
+        return labelIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
     }
 
     private ThreadListResult buildThreadListResult(Slice<Thread> threads) {

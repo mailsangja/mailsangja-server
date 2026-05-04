@@ -25,10 +25,66 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
     );
 
     @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT t FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'INBOUND'
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND (:markerId IS NULL OR t.lastMessageAt < (
+                SELECT m.lastMessageAt FROM Thread m
+                WHERE m.id = :markerId
+                  AND m.mailAccount.id IN (
+                    SELECT ma.id FROM MailAccount ma
+                    WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                  )
+                  AND m.direction = 'INBOUND'
+              ))
+            ORDER BY t.lastMessageAt DESC
+            """)
+    Slice<Thread> findInboxByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"mailAccount"})
     @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'OUTBOUND' AND t.deletedAt IS NULL AND (:markerId IS NULL OR t.lastMessageAt < (SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND m.direction = 'OUTBOUND')) ORDER BY t.lastMessageAt DESC")
     Slice<Thread> findSentByUserIdAndDeletedAtIsNull(
             @Param("userId") UUID userId,
             @Param("markerId") UUID markerId,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT t FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'OUTBOUND'
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND (:markerId IS NULL OR t.lastMessageAt < (
+                SELECT m.lastMessageAt FROM Thread m
+                WHERE m.id = :markerId
+                  AND m.mailAccount.id IN (
+                    SELECT ma.id FROM MailAccount ma
+                    WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                  )
+                  AND m.direction = 'OUTBOUND'
+              ))
+            ORDER BY t.lastMessageAt DESC
+            """)
+    Slice<Thread> findSentByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
             Pageable pageable
     );
 
@@ -48,6 +104,47 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
 
     @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'INBOUND' AND t.read = false AND t.deletedAt IS NULL")
     long countUnreadInboxByUserId(@Param("userId") UUID userId);
+
+    @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'OUTBOUND' AND t.read = false AND t.deletedAt IS NULL")
+    long countUnreadSentByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'INBOUND'
+              AND t.read = false
+              AND t.deletedAt IS NULL
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    long countUnreadInboxByUserIdAndLabelIds(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'OUTBOUND'
+              AND t.read = false
+              AND t.deletedAt IS NULL
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    long countUnreadSentByUserIdAndLabelIds(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds
+    );
 
     @EntityGraph(attributePaths = {"mailAccount"})
     Optional<Thread> findById(UUID id);
@@ -112,6 +209,64 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             @Param("userId") UUID userId,
             @Param("labelIds") List<UUID> labelIds,
             @Param("markerId") UUID markerId,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT DISTINCT t FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+             AND t.direction = 'INBOUND'
+             AND t.deletedAt IS NULL
+             AND (:read IS NULL OR t.read = :read)
+             AND tl.deletedAt IS NULL
+             AND tl.label.id IN :labelIds
+             AND tl.label.deletedAt IS NULL
+             AND (:markerId IS NULL OR t.lastMessageAt < (
+                SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId
+                AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL)
+                AND m.direction = 'INBOUND'
+            ))
+            ORDER BY t.lastMessageAt DESC
+            """)
+    Slice<Thread> findInboxByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT DISTINCT t FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+             AND t.direction = 'OUTBOUND'
+             AND t.deletedAt IS NULL
+             AND (:read IS NULL OR t.read = :read)
+             AND tl.deletedAt IS NULL
+             AND tl.label.id IN :labelIds
+             AND tl.label.deletedAt IS NULL
+             AND (:markerId IS NULL OR t.lastMessageAt < (
+                SELECT m.lastMessageAt FROM Thread m WHERE m.id = :markerId
+                AND m.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL)
+                AND m.direction = 'OUTBOUND'
+            ))
+            ORDER BY t.lastMessageAt DESC
+            """)
+    Slice<Thread> findSentByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
             Pageable pageable
     );
 
