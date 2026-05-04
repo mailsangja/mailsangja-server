@@ -2,7 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
-import com.mailsangja.db.port.MessageLabelView;
+import com.mailsangja.db.dto.MessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;

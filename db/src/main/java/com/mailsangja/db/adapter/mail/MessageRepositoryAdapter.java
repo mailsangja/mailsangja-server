@@ -2,9 +2,9 @@ package com.mailsangja.db.adapter.mail;
 
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
-import com.mailsangja.db.port.MessageLabelView;
+import com.mailsangja.db.dto.MessageLabelView;
+import com.mailsangja.db.dto.ThreadLabelView;
 import com.mailsangja.db.port.MessageRepositoryPort;
-import com.mailsangja.db.port.ThreadLabelView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
