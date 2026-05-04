@@ -3,6 +3,7 @@ services:
     image: postgres:18.1-alpine3.22
     container_name: mailsangja-postgres
     environment:
+      TZ: Asia/Seoul
       POSTGRES_DB: ${DB_NAME:-mailsangja}
       POSTGRES_USER: ${DB_USERNAME:-mailsangja}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-mailsangja}
@@ -19,6 +20,8 @@ services:
   redis:
     image: redis:8.4.0-alpine3.22
     container_name: mailsangja-redis
+    environment:
+      TZ: Asia/Seoul
     volumes:
       - redis-data:/data
     ports:
@@ -33,6 +36,7 @@ services:
     image: rabbitmq:4.1.4-management-alpine
     container_name: mailsangja-rabbitmq
     environment:
+      TZ: Asia/Seoul
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
@@ -54,6 +58,9 @@ services:
     container_name: mailsangja-core
     ports:
       - "${SERVER_PORT:-8080}:8080"
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
     env_file:
       - .env
     depends_on:
@@ -71,6 +78,9 @@ services:
     container_name: mailsangja-worker
     ports:
       - "${WORKER_PORT:-8081}:8081"
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
     env_file:
       - .env
     depends_on:
