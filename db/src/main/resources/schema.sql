@@ -194,6 +194,8 @@ CREATE TABLE IF NOT EXISTS orders (
     modified_at TIMESTAMP    NOT NULL,
     deleted_at  TIMESTAMP    NULL,
 
+    CONSTRAINT chk_orders_plan   CHECK (plan   IN ('FREE', 'PRO')),
+    CONSTRAINT chk_orders_status CHECK (status IN ('PENDING', 'COMPLETED')),
     PRIMARY KEY (id),
     CONSTRAINT uq_orders_webhook_id UNIQUE (webhook_id),
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id)
