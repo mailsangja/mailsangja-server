@@ -1,5 +1,7 @@
 package com.mailsangja.worker.dto.notification;
 
+import com.mailsangja.db.entity.mail.Direction;
+
 import java.util.UUID;
 
 public record NewMailPushContext(
@@ -8,6 +10,7 @@ public record NewMailPushContext(
         String subject,
         String snippet,
         UUID threadId,
-        UUID messageId
+        UUID messageId,
+        Direction direction
 ) {
 }

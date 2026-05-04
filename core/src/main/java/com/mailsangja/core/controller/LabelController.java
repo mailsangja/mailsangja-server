@@ -10,6 +10,7 @@ import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.facade.LabelFacade;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +48,7 @@ public class LabelController implements LabelControllerDocs {
     @PostMapping("/api/v1/labels")
     public ResponseEntity<LabelDetailResponse> createLabel(
             @AuthUser User user,
-            @RequestBody LabelCreateRequest request
+            @Valid @RequestBody LabelCreateRequest request
     ) {
         return ResponseEntity.ok(labelFacade.createLabel(user, request));
     }

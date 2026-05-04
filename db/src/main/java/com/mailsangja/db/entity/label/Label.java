@@ -1,6 +1,7 @@
 package com.mailsangja.db.entity.label;
 
 import com.mailsangja.db.common.label.LabelRule;
+import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.common.BaseEntity;
 import com.mailsangja.db.entity.user.User;
 import jakarta.persistence.*;
@@ -34,8 +35,9 @@ public class Label extends BaseEntity {
     @Column(name = "color_code", nullable = false, length = 7)
     private String colorCode;
 
-    @Column(name = "notification_enabled", nullable = false)
-    private boolean notificationEnabled;
+    @Column(name = "notification_policy", nullable = false, length = 10)
+    @Enumerated(EnumType.STRING)
+    private NotificationPolicy notificationPolicy;
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
@@ -52,8 +54,8 @@ public class Label extends BaseEntity {
         this.colorCode = colorCode;
     }
 
-    public void updateNotificationEnabled(boolean notificationEnabled) {
-        this.notificationEnabled = notificationEnabled;
+    public void updateNotificationPolicy(NotificationPolicy notificationPolicy) {
+        this.notificationPolicy = notificationPolicy;
     }
 
     public void updateDisplayOrder(int displayOrder) {

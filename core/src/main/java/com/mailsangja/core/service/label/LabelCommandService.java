@@ -3,6 +3,7 @@ package com.mailsangja.core.service.label;
 import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.db.common.label.LabelRule;
+import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.LabelRepositoryPort;
@@ -23,11 +24,14 @@ public class LabelCommandService {
 
     @Transactional
     public Label create(User user, LabelCreateRequest request) {
+        NotificationPolicy policy = request.notificationPolicy() != null
+                ? request.notificationPolicy()
+                : NotificationPolicy.INHERIT;
         Label label = Label.builder()
                 .user(user)
                 .name(request.name().trim())
                 .colorCode(request.colorCode())
-                .notificationEnabled(request.notificationEnabled())
+                .notificationPolicy(policy)
                 .displayOrder(request.order())
                 .rule(request.rule())
                 .build();
@@ -42,8 +46,8 @@ public class LabelCommandService {
         if (request.colorCode() != null) {
             label.updateColorCode(request.colorCode());
         }
-        if (request.notificationEnabled() != null) {
-            label.updateNotificationEnabled(request.notificationEnabled());
+        if (request.notificationPolicy() != null) {
+            label.updateNotificationPolicy(request.notificationPolicy());
         }
         if (request.order() != null) {
             label.updateDisplayOrder(request.order());

@@ -1,6 +1,5 @@
 package com.mailsangja.worker.service.mail;
 
-import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
@@ -53,16 +52,14 @@ public class GmailNewMessageSyncCommandService {
 
         for (InitialMailSyncMessageSaveCommand message : syncCommand.messages()) {
             if (event.gmailMessageId().equals(message.gmailMessageId())) {
-                if (message.direction() != Direction.INBOUND) {
-                    return Optional.empty();
-                }
                 return Optional.of(new NewMailPushContext(
                         mailAccount.getId(),
                         mailAccount.getAlias(),
                         message.subject(),
                         message.snippet(),
                         applyResult.threadId(),
-                        applyResult.messageId()
+                        applyResult.messageId(),
+                        message.direction()
                 ));
             }
         }

@@ -30,12 +30,12 @@ public class LabelRuleValidator {
         }
 
         if (rule.groups() == null) {
-            return;
+            throw new LabelException(LabelErrorCode.LABEL_RULE_INVALID_JSON);
         }
 
         for (LabelRule.Group group : rule.groups()) {
             if (group == null || group.conditions() == null) {
-                continue;
+                throw new LabelException(LabelErrorCode.LABEL_RULE_INVALID_JSON);
             }
             for (LabelRule.Condition condition : group.conditions()) {
                 validateCondition(condition);

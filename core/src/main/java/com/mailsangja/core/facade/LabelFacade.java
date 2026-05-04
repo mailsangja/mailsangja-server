@@ -6,7 +6,6 @@ import com.mailsangja.core.common.util.LabelRuleValidator;
 import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
-import com.mailsangja.core.dto.label.LabelReclassifyMessage;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.service.label.LabelCommandService;
@@ -42,7 +41,7 @@ public class LabelFacade {
 
     public LabelDetailResponse getLabelDetail(User user, UUID labelId) {
         Label label = labelQueryService.findActiveByIdAndUserId(labelId, user.getId());
-        return toDetailResponse(label);
+        return LabelDetailResponse.of(label, label.getRule());
     }
 
     public LabelDetailResponse createLabel(User user, LabelCreateRequest request) {
@@ -54,9 +53,9 @@ public class LabelFacade {
             throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
         }
         if (request.rule() != null) {
-            labelReclassifyPublisher.publish(new LabelReclassifyMessage(user.getId(), Set.of(label.getId())));
+            labelReclassifyPublisher.publish(user.getId(), Set.of(label.getId()));
         }
-        return toDetailResponse(label);
+        return LabelDetailResponse.of(label, label.getRule());
     }
 
     public LabelDetailResponse updateLabel(User user, UUID labelId, LabelUpdateRequest request) {
@@ -68,15 +67,15 @@ public class LabelFacade {
         } catch (DataIntegrityViolationException e) {
             throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
         }
-        return toDetailResponse(updated);
+        return LabelDetailResponse.of(updated, updated.getRule());
     }
 
     public LabelDetailResponse updateLabelRule(User user, UUID labelId, LabelRuleUpdateRequest request) {
         validateRuleRequest(request);
         Label label = labelQueryService.findActiveByIdAndUserId(labelId, user.getId());
         Label updated = labelCommandService.updateRule(label, request.rule());
-        labelReclassifyPublisher.publish(new LabelReclassifyMessage(user.getId(), Set.of(updated.getId())));
-        return toDetailResponse(updated);
+        labelReclassifyPublisher.publish(user.getId(), Set.of(updated.getId()));
+        return LabelDetailResponse.of(updated, updated.getRule());
     }
 
     public void deleteLabel(User user, UUID labelId) {
@@ -85,8 +84,6 @@ public class LabelFacade {
     }
 
     private void validateCreateRequest(User user, LabelCreateRequest request) {
-        validateNameNotBlank(request.name());
-        validateColorCode(request.colorCode());
         if (labelQueryService.existsByUserIdAndName(user.getId(), request.name().trim())) {
             throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
         }
@@ -121,7 +118,4 @@ public class LabelFacade {
         }
     }
 
-    private LabelDetailResponse toDetailResponse(Label label) {
-        return LabelDetailResponse.of(label, label.getRule());
-    }
 }

@@ -112,7 +112,7 @@ public class Thread extends BaseEntity {
     }
 
     public void updateMessageCount(int messageCount) {
-        this.messageCount = Math.max(messageCount, 0);
+        this.messageCount = Math.max(messageCount, 1);
     }
 
     public void updateHistoryId(String historyId) {

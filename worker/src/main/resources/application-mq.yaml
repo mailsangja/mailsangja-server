@@ -15,3 +15,5 @@ mailsangja:
       retry-max-attempts: ${MAIL_TASK_RETRY_MAX_ATTEMPTS:3}
       concurrency: ${MAIL_TASK_CONCURRENCY:1}
       publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
+    label-reclassify:
+      message-batch-size: ${LABEL_RECLASSIFY_MESSAGE_BATCH_SIZE:50}

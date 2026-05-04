@@ -1,5 +1,7 @@
 package com.mailsangja.db.port;
 
+import com.mailsangja.db.dto.MessageLabelView;
+import com.mailsangja.db.dto.ThreadLabelView;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -50,4 +52,14 @@ public interface MessageRepositoryPort {
     List<ThreadLabelView> findLabelsByThreadIdIn(List<UUID> threadIds);
 
     int deleteMessageLabelsByLabelId(UUID labelId);
+
+    Optional<Message> findByIdWithLabelsAndDeletedAtIsNull(UUID id);
+
+    List<Message> findActiveMessagesWithLabelsByUserIdPaged(UUID userId, org.springframework.data.domain.Pageable pageable);
+
+    List<MessageLabelView> findMessageLabelsByMessageIds(List<UUID> messageIds);
+
+    List<UUID> findActiveThreadIdsByUserId(UUID userId);
+
+    List<Message> findActiveMessagesWithLabelsByThreadIdIn(List<UUID> threadIds);
 }

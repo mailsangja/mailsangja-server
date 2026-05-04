@@ -1,4 +1,4 @@
-package com.mailsangja.db.module.label;
+package com.mailsangja.db.dto;
 
 import java.util.UUID;
 

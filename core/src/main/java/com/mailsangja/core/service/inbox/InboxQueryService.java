@@ -10,7 +10,8 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
-import com.mailsangja.db.port.ThreadLabelView;
+import com.mailsangja.db.dto.MessageLabelView;
+import com.mailsangja.db.dto.ThreadLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -60,7 +61,12 @@ public class InboxQueryService {
         List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
                 thread.getMailAccount().getId(), thread.getGmailThreadId());
         Map<String, String> contactNameByEmail = findContactNamesByEmails(collectEmailsFromMessages(messages));
-        return new ThreadDetailResult(thread, messages, contactNameByEmail);
+        List<UUID> messageIds = messages.stream().map(Message::getId).toList();
+        Map<UUID, List<MessageLabelView>> messageLabelsByMessageId = messageRepositoryPort
+                .findMessageLabelsByMessageIds(messageIds)
+                .stream()
+                .collect(Collectors.groupingBy(MessageLabelView::messageId));
+        return new ThreadDetailResult(thread, messages, contactNameByEmail, messageLabelsByMessageId);
     }
 
     public long countUnreadInbox(UUID userId) {
