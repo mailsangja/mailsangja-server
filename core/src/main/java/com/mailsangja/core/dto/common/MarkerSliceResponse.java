@@ -9,7 +9,7 @@ import java.util.UUID;
 public record MarkerSliceResponse<T>(
         @Schema(description = "조회된 데이터 목록")
         List<T> content,
-        @Schema(description = "다음 요청에 사용할 마커 (마지막 스레드의 threadId), null이면 마지막 페이지", example = "550e8400-e29b-41d4-a716-446655440000")
+        @Schema(description = "다음 요청에 사용할 마커 값, null이면 마지막 페이지", example = "550e8400-e29b-41d4-a716-446655440000")
         UUID nextMarker,
         @Schema(description = "다음 페이지 존재 여부", example = "true")
         boolean hasNext,
