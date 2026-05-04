@@ -2,6 +2,22 @@ spring:
   application:
     name: core
 
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: openai
+      embedding: none
+      image: none
+      moderation: none
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
