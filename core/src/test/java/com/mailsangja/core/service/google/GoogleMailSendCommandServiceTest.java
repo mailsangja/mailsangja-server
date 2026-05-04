@@ -4,6 +4,7 @@ import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailReplyContextResult;
 import com.mailsangja.core.dto.mail.MailAddressCommand;
 import com.mailsangja.core.dto.mail.MailAttachmentCommand;
+import com.mailsangja.core.dto.mail.MailInlineImageCommand;
 import com.mailsangja.core.dto.mail.MailSendCommand;
 import com.mailsangja.core.common.exception.mail.MailSendErrorCode;
 import com.mailsangja.core.common.exception.mail.MailSendException;
@@ -322,6 +323,95 @@ class GoogleMailSendCommandServiceTest {
     }
 
     @Test
+    void send_본문은html로전송한다() throws Exception {
+        // given
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+        GoogleMailSendCommandService service = createService(requestFactory);
+        MailAccount mailAccount = createMailAccount();
+        MailSendCommand command = new MailSendCommand(
+                UUID.randomUUID(),
+                new MailAddressCommand("홍길동", "sender@example.com"),
+                null,
+                List.of(new MailAddressCommand("김철수", "to@example.com")),
+                List.of(),
+                List.of(),
+                "제목",
+                "<p>본문</p>",
+                List.of()
+        );
+
+        // when
+        service.send(mailAccount, command);
+
+        // then
+        MimeMessage mimeMessage = extractMimeMessage(requestFactory.requestBody());
+        assertTrue(mimeMessage.getContentType().contains("text/html"));
+        assertTrue(mimeMessage.getContent().toString().contains("<p>본문</p>"));
+    }
+
+    @Test
+    void send_본문이미지가있으면multipartRelated로전송한다() throws Exception {
+        // given
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+        GoogleMailSendCommandService service = createService(requestFactory);
+        MailAccount mailAccount = createMailAccount();
+        MailSendCommand command = createSendCommand(
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                List.of(),
+                List.of(new MailInlineImageCommand("inline-1", "image.png", "image/png", "image".getBytes(StandardCharsets.UTF_8)))
+        );
+
+        // when
+        service.send(mailAccount, command);
+
+        // then
+        MimeMessage mimeMessage = extractMimeMessage(requestFactory.requestBody());
+        assertTrue(mimeMessage.getContentType().contains("multipart/related"));
+
+        MimeMultipart relatedMultipart = assertInstanceOf(MimeMultipart.class, mimeMessage.getContent());
+        assertEquals(2, relatedMultipart.getCount());
+        assertTrue(relatedMultipart.getBodyPart(0).getContent().toString().contains("cid:inline-1"));
+
+        BodyPart inlineImagePart = relatedMultipart.getBodyPart(1);
+        assertEquals("<inline-1>", firstHeader(inlineImagePart, "Content-ID"));
+        assertEquals(jakarta.mail.Part.INLINE, inlineImagePart.getDisposition());
+        assertEquals("image.png", inlineImagePart.getFileName());
+        assertTrue(inlineImagePart.getContentType().contains("image/png"));
+    }
+
+    @Test
+    void send_본문이미지와일반첨부가함께있으면mixed안에related를포함한다() throws Exception {
+        // given
+        CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory();
+        GoogleMailSendCommandService service = createService(requestFactory);
+        MailAccount mailAccount = createMailAccount();
+        MailSendCommand command = createSendCommand(
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                List.of(new MailAttachmentCommand("file.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8))),
+                List.of(new MailInlineImageCommand("inline-1", "image.png", "image/png", "image".getBytes(StandardCharsets.UTF_8)))
+        );
+
+        // when
+        service.send(mailAccount, command);
+
+        // then
+        MimeMessage mimeMessage = extractMimeMessage(requestFactory.requestBody());
+        assertTrue(mimeMessage.getContentType().contains("multipart/mixed"));
+
+        MimeMultipart mixedMultipart = assertInstanceOf(MimeMultipart.class, mimeMessage.getContent());
+        assertEquals(2, mixedMultipart.getCount());
+
+        MimeMultipart relatedMultipart = assertInstanceOf(MimeMultipart.class, mixedMultipart.getBodyPart(0).getContent());
+        assertEquals(2, relatedMultipart.getCount());
+        assertTrue(relatedMultipart.getBodyPart(0).getContent().toString().contains("cid:inline-1"));
+        assertEquals("<inline-1>", firstHeader(relatedMultipart.getBodyPart(1), "Content-ID"));
+
+        BodyPart attachmentPart = mixedMultipart.getBodyPart(1);
+        assertEquals("file.txt", attachmentPart.getFileName());
+        assertTrue(attachmentPart.getContentType().contains("text/plain"));
+    }
+
+    @Test
     void reply_googleApi응답본문이유효하지않으면2xx여도실패한다() {
         // given
         CapturingClientHttpRequestFactory requestFactory = new CapturingClientHttpRequestFactory(
@@ -383,6 +473,13 @@ class GoogleMailSendCommandServiceTest {
         assertEquals(expectedAddress, internetAddress.getAddress());
     }
 
+    private String firstHeader(BodyPart bodyPart, String headerName) throws Exception {
+        String[] headers = bodyPart.getHeader(headerName);
+        assertNotNull(headers);
+        assertTrue(headers.length > 0);
+        return headers[0];
+    }
+
     private GoogleMailSendCommandService createService(CapturingClientHttpRequestFactory requestFactory) {
         GoogleMailProperties properties = new GoogleMailProperties();
         properties.setSendUri("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
@@ -414,6 +511,25 @@ class GoogleMailSendCommandServiceTest {
                 "Re: 제목",
                 "답장 본문",
                 attachments
+        );
+    }
+
+    private MailSendCommand createSendCommand(
+            String content,
+            List<MailAttachmentCommand> attachments,
+            List<MailInlineImageCommand> inlineImages
+    ) {
+        return new MailSendCommand(
+                UUID.randomUUID(),
+                new MailAddressCommand("홍길동", "sender@example.com"),
+                null,
+                List.of(new MailAddressCommand("김철수", "to@example.com")),
+                List.of(),
+                List.of(),
+                "제목",
+                content,
+                attachments,
+                inlineImages
         );
     }
 
