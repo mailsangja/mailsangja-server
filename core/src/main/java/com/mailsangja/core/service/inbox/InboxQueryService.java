@@ -47,11 +47,6 @@ public class InboxQueryService {
         return message;
     }
 
-    public ThreadListResult findInboxThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
-        return buildThreadListResult(threads);
-    }
-
     public ThreadListResult findInboxThreadsResult(
             UUID userId,
             UUID markerId,
@@ -66,11 +61,6 @@ public class InboxQueryService {
                 markerId,
                 pageable
         );
-        return buildThreadListResult(threads);
-    }
-
-    public ThreadListResult findSentThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
         return buildThreadListResult(threads);
     }
 

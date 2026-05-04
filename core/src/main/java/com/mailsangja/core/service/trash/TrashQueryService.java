@@ -31,10 +31,6 @@ public class TrashQueryService {
     private final ContactRepositoryPort contactRepositoryPort;
     private final AttachmentRepositoryPort attachmentRepositoryPort;
 
-    public Slice<Message> findDeletedMessagesByUserId(UUID userId, UUID markerId, int size) {
-        return messageRepositoryPort.findDeletedByUserId(userId, markerId, PageRequest.of(0, size));
-    }
-
     public Slice<Message> findDeletedMessagesByUserId(
             UUID userId,
             UUID markerId,
