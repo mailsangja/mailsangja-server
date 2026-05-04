@@ -34,12 +34,33 @@ public record MailSendRequest(
         String content,
 
         @Schema(description = "첨부파일 목록. multipart/form-data 에서는 attachments 필드를 반복 전달합니다.")
-        List<MultipartFile> attachments
+        List<MultipartFile> attachments,
+
+        @Schema(description = "본문 인라인 이미지 목록. multipart/form-data 에서는 inlineImages 필드를 반복 전달합니다.")
+        List<MultipartFile> inlineImages,
+
+        @Schema(description = "본문 인라인 이미지 CID 목록. inlineImages와 같은 순서로 inlineImageCids 필드를 반복 전달합니다.")
+        List<String> inlineImageCids
 ) {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final Pattern CID_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{1,128}$");
+    private static final Pattern CID_REFERENCE_PATTERN = Pattern.compile("cid:([A-Za-z0-9._-]{1,128})");
     private static final long MAX_ATTACHMENT_COUNT = 10;
     private static final long MAX_ATTACHMENT_SIZE = 10L * 1024 * 1024;
     private static final long MAX_TOTAL_ATTACHMENT_SIZE = 20L * 1024 * 1024;
+
+    public MailSendRequest(
+            String from,
+            String replyTo,
+            List<String> to,
+            List<String> cc,
+            List<String> bcc,
+            String subject,
+            String content,
+            List<MultipartFile> attachments
+    ) {
+        this(from, replyTo, to, cc, bcc, subject, content, attachments, List.of(), List.of());
+    }
 
     public static void validate(MailSendRequest request) {
         if (request == null) {
@@ -55,6 +76,7 @@ public record MailSendRequest(
         validateSubject(subject);
         validateSubjectAndContent(subject, content);
         validateAttachments(attachments);
+        validateInlineImages(content, inlineImages, inlineImageCids);
     }
 
     private void validateSender(String from) {
@@ -147,6 +169,84 @@ public record MailSendRequest(
         }
 
         if (totalAttachmentSize > MAX_TOTAL_ATTACHMENT_SIZE) {
+            throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
+        }
+    }
+
+    private void validateInlineImages(String content, List<MultipartFile> inlineImages, List<String> inlineImageCids) {
+        Set<String> referencedCids = extractReferencedCids(content);
+        if ((inlineImages == null || inlineImages.isEmpty()) && (inlineImageCids == null || inlineImageCids.isEmpty())) {
+            if (!referencedCids.isEmpty()) {
+                throw new MailSendException(MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+            }
+            return;
+        }
+
+        if (inlineImages == null
+                || inlineImageCids == null
+                || inlineImages.size() != inlineImageCids.size()) {
+            throw new MailSendException(MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+        }
+
+        Set<String> uploadedCids = new HashSet<>();
+        long totalInlineImageSize = 0L;
+
+        for (int i = 0; i < inlineImages.size(); i++) {
+            MultipartFile inlineImage = inlineImages.get(i);
+            String cid = inlineImageCids.get(i);
+
+            validateInlineImageCid(cid, referencedCids, uploadedCids);
+            validateAttachmentFile(inlineImage);
+
+            if (isBlank(inlineImage.getContentType()) || !inlineImage.getContentType().startsWith("image/")) {
+                throw new MailSendException(MailSendErrorCode.INVALID_INLINE_IMAGE_TYPE);
+            }
+
+            totalInlineImageSize += inlineImage.getSize();
+        }
+
+        if (totalInlineImageSize > MAX_TOTAL_ATTACHMENT_SIZE) {
+            throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
+        }
+    }
+
+    private Set<String> extractReferencedCids(String content) {
+        Set<String> referencedCids = new HashSet<>();
+        if (isBlank(content)) {
+            return referencedCids;
+        }
+
+        java.util.regex.Matcher matcher = CID_REFERENCE_PATTERN.matcher(content);
+        while (matcher.find()) {
+            referencedCids.add(matcher.group(1));
+        }
+        return referencedCids;
+    }
+
+    private void validateInlineImageCid(String cid, Set<String> referencedCids, Set<String> uploadedCids) {
+        if (isBlank(cid) || !CID_PATTERN.matcher(cid).matches()) {
+            throw new MailSendException(MailSendErrorCode.INVALID_INLINE_IMAGE_CID);
+        }
+
+        if (!uploadedCids.add(cid)) {
+            throw new MailSendException(MailSendErrorCode.DUPLICATE_INLINE_IMAGE_CID);
+        }
+
+        if (!referencedCids.contains(cid)) {
+            throw new MailSendException(MailSendErrorCode.INLINE_IMAGE_CID_NOT_FOUND);
+        }
+    }
+
+    private void validateAttachmentFile(MultipartFile attachment) {
+        if (attachment == null || attachment.isEmpty() || attachment.getSize() <= 0) {
+            throw new MailSendException(MailSendErrorCode.EMPTY_ATTACHMENT_FILE);
+        }
+
+        if (isBlank(attachment.getOriginalFilename())) {
+            throw new MailSendException(MailSendErrorCode.INVALID_ATTACHMENT_FILENAME);
+        }
+
+        if (attachment.getSize() > MAX_ATTACHMENT_SIZE) {
             throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
         }
     }

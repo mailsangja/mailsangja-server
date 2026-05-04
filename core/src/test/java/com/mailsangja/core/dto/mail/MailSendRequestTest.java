@@ -238,6 +238,117 @@ class MailSendRequestTest {
         assertError(request, MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
     }
 
+    @Test
+    void validate_본문이미지와cid가정상매칭되면통과한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                null,
+                List.of(new MockMultipartFile("inlineImages", "image.png", "image/png", "image".getBytes())),
+                List.of("inline-1")
+        );
+
+        assertDoesNotThrow(() -> request.validate());
+    }
+
+    @Test
+    void validate_본문이미지와cid개수가다르면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                null,
+                List.of(new MockMultipartFile("inlineImages", "image.png", "image/png", "image".getBytes())),
+                List.of()
+        );
+
+        assertError(request, MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+    }
+
+    @Test
+    void validate_본문에없는cid면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p>",
+                null,
+                List.of(new MockMultipartFile("inlineImages", "image.png", "image/png", "image".getBytes())),
+                List.of("inline-1")
+        );
+
+        assertError(request, MailSendErrorCode.INLINE_IMAGE_CID_NOT_FOUND);
+    }
+
+    @Test
+    void validate_본문cid에대응하는이미지파일이없으면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                null,
+                null,
+                null
+        );
+
+        assertError(request, MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+    }
+
+    @Test
+    void validate_본문이미지cid가중복되면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                null,
+                List.of(
+                        new MockMultipartFile("inlineImages", "a.png", "image/png", "image".getBytes()),
+                        new MockMultipartFile("inlineImages", "b.png", "image/png", "image".getBytes())
+                ),
+                List.of("inline-1", "inline-1")
+        );
+
+        assertError(request, MailSendErrorCode.DUPLICATE_INLINE_IMAGE_CID);
+    }
+
+    @Test
+    void validate_본문이미지가image타입이아니면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\">",
+                null,
+                List.of(new MockMultipartFile("inlineImages", "file.txt", "text/plain", "image".getBytes())),
+                List.of("inline-1")
+        );
+
+        assertError(request, MailSendErrorCode.INVALID_INLINE_IMAGE_TYPE);
+    }
+
     private void assertError(MailSendRequest request, MailSendErrorCode expectedErrorCode) {
         MailSendException exception = assertThrows(MailSendException.class, request::validate);
         assertEquals(expectedErrorCode, exception.getErrorCode());
