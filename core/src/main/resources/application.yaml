@@ -8,15 +8,28 @@ spring:
         speech: none
         transcription: none
       chat: openai
-      embedding: none
+      embedding: openai
       image: none
       moderation: none
+    vectorstore:
+      type: ${AI_VECTORSTORE_TYPE:pgvector}
+      pgvector:
+        table-name: ${AI_PGVECTOR_TABLE_NAME:vector_store}
+        dimensions: ${AI_PGVECTOR_DIMENSIONS:1536}
+        index-type: ${AI_PGVECTOR_INDEX_TYPE:HNSW}
+        distance-type: ${AI_PGVECTOR_DISTANCE_TYPE:COSINE_DISTANCE}
+        id-type: ${AI_PGVECTOR_ID_TYPE:UUID}
+        initialize-schema: ${AI_PGVECTOR_INITIALIZE_SCHEMA:true}
+        remove-existing-vector-store-table: false
     openai:
       api-key: ${OPENAI_API_KEY}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       chat:
         options:
           model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}

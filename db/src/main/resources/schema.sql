@@ -1,3 +1,7 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE IF NOT EXISTS users (
     id              CHAR(36)     NOT NULL,
     name            VARCHAR(50)  NOT NULL,

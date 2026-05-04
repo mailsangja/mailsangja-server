@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18.1-alpine3.22
+    image: pgvector/pgvector:0.8.2-pg18
     container_name: mailsangja-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-mailsangja}
@@ -10,6 +10,7 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/src/main/resources/extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-mailsangja}"]
       interval: 10s
