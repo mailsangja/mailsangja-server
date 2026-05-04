@@ -1,10 +1,10 @@
-package com.mailsangja.worker.service.payment;
+package com.mailsangja.core.service.payment;
 
-import com.mailsangja.worker.common.exception.payment.PaymentErrorCode;
-import com.mailsangja.worker.common.exception.payment.PaymentException;
-import com.mailsangja.worker.config.properties.PortOneProperties;
-import com.mailsangja.worker.dto.payment.PortOnePaymentResponse;
-import com.mailsangja.worker.dto.payment.PortOnePaymentResult;
+import com.mailsangja.core.common.exception.payment.PaymentErrorCode;
+import com.mailsangja.core.common.exception.payment.PaymentException;
+import com.mailsangja.core.config.properties.PortOneProperties;
+import com.mailsangja.core.dto.payment.PortOnePaymentResponse;
+import com.mailsangja.core.dto.payment.PortOnePaymentResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -31,10 +31,6 @@ public class PortOneApiService {
     }
 
     public PortOnePaymentResult fetchPayment(String paymentId) {
-        if (paymentId == null || paymentId.isBlank()) {
-            throw new PaymentException(PaymentErrorCode.PAYMENT_WEBHOOK_INVALID, "paymentId must not be blank");
-        }
-
         String uri = UriComponentsBuilder.fromUriString(portOneProperties.getPaymentQueryUri())
                 .pathSegment(paymentId)
                 .toUriString();

@@ -26,6 +26,11 @@ public class OrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     @Override
+    public Optional<Order> findByIdWithLock(UUID id) {
+        return orderJpaRepositoryModule.findByIdWithLock(id);
+    }
+
+    @Override
     public boolean existsByWebhookId(String webhookId) {
         return orderJpaRepositoryModule.existsByWebhookId(webhookId);
     }

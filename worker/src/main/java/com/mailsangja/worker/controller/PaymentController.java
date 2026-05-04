@@ -18,7 +18,7 @@ public class PaymentController implements PaymentControllerDocs {
     @Override
     @PostMapping("/api/v1/payments/webhook")
     public ResponseEntity<Void> handlePaymentWebhook(@RequestBody PortOneWebhookRequest request) {
-        paymentFacade.publishWebhook(request);
+        paymentFacade.handleWebhook(request);
         return ResponseEntity.ok().build();
     }
 }

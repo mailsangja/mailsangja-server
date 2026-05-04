@@ -28,10 +28,6 @@ public record PortOneWebhookRequest(
         }
     }
 
-    public PaymentMessage toMessage() {
-        return new PaymentMessage(webhookId, data.paymentId(), type);
-    }
-
     @Schema(description = "웹훅 이벤트 데이터 상세")
     public record WebhookData(
 

@@ -1,6 +1,6 @@
-package com.mailsangja.worker.config;
+package com.mailsangja.core.config;
 
-import com.mailsangja.worker.config.properties.PortOneProperties;
+import com.mailsangja.core.config.properties.PortOneProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;

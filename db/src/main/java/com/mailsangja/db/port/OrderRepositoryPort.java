@@ -11,5 +11,7 @@ public interface OrderRepositoryPort {
 
     Optional<Order> findById(UUID id);
 
+    Optional<Order> findByIdWithLock(UUID id);
+
     boolean existsByWebhookId(String webhookId);
 }
