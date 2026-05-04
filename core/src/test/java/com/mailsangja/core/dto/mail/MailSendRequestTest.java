@@ -311,6 +311,24 @@ class MailSendRequestTest {
     }
 
     @Test
+    void validate_본문cid중일부만업로드되면실패한다() {
+        MailSendRequest request = new MailSendRequest(
+                "sender@example.com",
+                null,
+                List.of("to@example.com"),
+                null,
+                null,
+                "제목",
+                "<p>본문</p><img src=\"cid:inline-1\"><img src=\"cid:inline-2\">",
+                null,
+                List.of(new MockMultipartFile("inlineImages", "image.png", "image/png", "image".getBytes())),
+                List.of("inline-1")
+        );
+
+        assertError(request, MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+    }
+
+    @Test
     void validate_본문이미지cid가중복되면실패한다() {
         MailSendRequest request = new MailSendRequest(
                 "sender@example.com",

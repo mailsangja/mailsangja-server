@@ -211,6 +211,10 @@ public record MailSendRequest(
         if (totalInlineImageSize > MAX_TOTAL_ATTACHMENT_SIZE) {
             throw new MailSendException(MailSendErrorCode.ATTACHMENT_SIZE_EXCEEDED);
         }
+
+        if (!uploadedCids.containsAll(referencedCids)) {
+            throw new MailSendException(MailSendErrorCode.INLINE_IMAGE_COUNT_MISMATCH);
+        }
     }
 
     private Set<String> extractReferencedCids(String content) {
