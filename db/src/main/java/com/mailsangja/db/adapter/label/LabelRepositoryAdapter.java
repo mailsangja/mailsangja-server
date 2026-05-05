@@ -29,6 +29,11 @@ public class LabelRepositoryAdapter implements LabelRepositoryPort {
     }
 
     @Override
+    public List<Label> findAllByUserIdAndIdInAndDeletedAtIsNull(UUID userId, List<UUID> ids) {
+        return labelJpaRepositoryModule.findAllByUserIdAndIdInAndDeletedAtIsNull(userId, ids);
+    }
+
+    @Override
     public List<Label> findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(UUID userId) {
         return labelJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(userId);
     }
