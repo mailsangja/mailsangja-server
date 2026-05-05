@@ -157,6 +157,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
     ON labels (user_id, lower(name))
     WHERE deleted_at IS NULL;
 
+CREATE TABLE IF NOT EXISTS label_groups (
+    id             CHAR(36)     NOT NULL,
+    user_id        CHAR(36)     NOT NULL,
+    name           VARCHAR(100) NOT NULL,
+    display_order  INT          NOT NULL DEFAULT 0,
+    created_at     TIMESTAMP    NOT NULL,
+    modified_at    TIMESTAMP    NOT NULL,
+    deleted_at     TIMESTAMP    NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT fk_label_groups_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_label_groups_user_name_active
+    ON label_groups (user_id, lower(name))
+    WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS label_group_labels (
+    label_group_id CHAR(36)  NOT NULL,
+    label_id       CHAR(36)  NOT NULL,
+    created_at     TIMESTAMP NOT NULL,
+    modified_at    TIMESTAMP NOT NULL,
+    deleted_at     TIMESTAMP NULL,
+
+    PRIMARY KEY (label_group_id, label_id),
+    CONSTRAINT fk_label_group_labels_group FOREIGN KEY (label_group_id) REFERENCES label_groups (id),
+    CONSTRAINT fk_label_group_labels_label FOREIGN KEY (label_id) REFERENCES labels (id)
+);
+
 CREATE TABLE IF NOT EXISTS thread_labels (
     thread_id   CHAR(36)  NOT NULL,
     label_id    CHAR(36)  NOT NULL,
