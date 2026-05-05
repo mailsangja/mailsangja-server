@@ -8,7 +8,6 @@ import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.LabelRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
-import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class LabelCommandService {
 
     private final LabelRepositoryPort labelRepositoryPort;
-    // ⚠️ 라벨 삭제 유스케이스에서 message/thread 라벨 매핑 삭제가 필요해 cross-domain Repository를 함께 참조한다.
     private final MessageRepositoryPort messageRepositoryPort;
-    private final ThreadRepositoryPort threadRepositoryPort;
 
     @Transactional
     public Label create(User user, LabelCreateRequest request) {
@@ -64,7 +61,6 @@ public class LabelCommandService {
     @Transactional
     public void delete(Label label) {
         messageRepositoryPort.deleteMessageLabelsByLabelId(label.getId());
-        threadRepositoryPort.deleteThreadLabelsByLabelId(label.getId());
         label.delete();
         labelRepositoryPort.save(label);
     }
