@@ -55,13 +55,85 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
+    public Slice<Thread> findInboxByUserIdAndFilters(
+            UUID userId,
+            List<UUID> labelIds,
+            Boolean read,
+            UUID markerId,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return threadJpaRepositoryModule.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+            }
+            return threadJpaRepositoryModule.findInboxByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
+    }
+
+    @Override
     public Slice<Thread> findSentByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
         return threadJpaRepositoryModule.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
     }
 
     @Override
+    public Slice<Thread> findSentByUserIdAndFilters(
+            UUID userId,
+            List<UUID> labelIds,
+            Boolean read,
+            UUID markerId,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return threadJpaRepositoryModule.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+            }
+            return threadJpaRepositoryModule.findSentByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return threadJpaRepositoryModule.findSentByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
+    }
+
+    @Override
     public long countUnreadInboxByUserId(UUID userId) {
         return threadJpaRepositoryModule.countUnreadInboxByUserId(userId);
+    }
+
+    @Override
+    public long countUnreadInboxByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countUnreadInboxByUserId(userId);
+        }
+        return threadJpaRepositoryModule.countUnreadInboxByUserIdAndLabelIds(userId, labelIds);
+    }
+
+    @Override
+    public long countInboxByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countInboxByUserIdAndReadFilter(userId, read);
+        }
+        return threadJpaRepositoryModule.countInboxByUserIdAndLabelIdsAndReadFilter(userId, labelIds, read);
+    }
+
+    @Override
+    public long countUnreadSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countUnreadSentByUserId(userId);
+        }
+        return threadJpaRepositoryModule.countUnreadSentByUserIdAndLabelIds(userId, labelIds);
+    }
+
+    @Override
+    public long countSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countSentByUserIdAndReadFilter(userId, read);
+        }
+        return threadJpaRepositoryModule.countSentByUserIdAndLabelIdsAndReadFilter(userId, labelIds, read);
     }
 
     @Override
@@ -101,10 +173,5 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
             return threadJpaRepositoryModule.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
         }
         return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(userId, labelIds, markerId, pageable);
-    }
-
-    @Override
-    public int deleteThreadLabelsByLabelId(UUID labelId) {
-        return threadJpaRepositoryModule.deleteThreadLabelsByLabelId(labelId);
     }
 }

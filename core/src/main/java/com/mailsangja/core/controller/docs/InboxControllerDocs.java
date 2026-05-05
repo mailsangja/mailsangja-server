@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Inbox", description = "통합 인박스 API")
@@ -27,6 +28,8 @@ public interface InboxControllerDocs {
             summary = "받은 편지함 스레드 목록 조회",
             description = "로그인한 사용자의 모든 메일 계정에서 수신된 스레드 목록을 최신순으로 조회합니다. " +
                     "마커 기반 무한 스크롤 방식으로 동작합니다. " +
+                    "labelId는 여러 번 전달할 수 있으며, 전달된 라벨 중 하나라도 부착된 스레드를 조회합니다. " +
+                    "read는 읽음 여부 필터이며 생략하면 전체를 조회합니다. " +
                     "첫 요청은 marker 없이 호출하고, 이후 응답의 nextMarker를 다음 요청의 marker로 전달합니다. " +
                     "nextMarker가 null이면 마지막 페이지입니다.",
             security = @SecurityRequirement(name = "cookieAuth")
@@ -43,13 +46,19 @@ public interface InboxControllerDocs {
             @Parameter(description = "이전 응답의 nextMarker (첫 요청 시 생략)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false) UUID marker,
             @Parameter(description = "한 번에 조회할 스레드 수", example = "50")
-            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
+            @Parameter(description = "필터링할 라벨 ID 목록. 여러 labelId 중 하나라도 부착되어 있으면 포함", example = "550e8400-e29b-41d4-a716-446655440000")
+            @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
+            @Parameter(description = "읽음 여부 필터. 생략 시 전체 조회", example = "false")
+            @RequestParam(required = false) Boolean read
     );
 
     @Operation(
             summary = "보낸 편지함 스레드 목록 조회",
             description = "로그인한 사용자의 모든 메일 계정에서 발신된 스레드 목록을 최신순으로 조회합니다. " +
                     "마커 기반 무한 스크롤 방식으로 동작합니다. " +
+                    "labelId는 여러 번 전달할 수 있으며, 전달된 라벨 중 하나라도 부착된 스레드를 조회합니다. " +
+                    "read는 읽음 여부 필터이며 생략하면 전체를 조회합니다. " +
                     "첫 요청은 marker 없이 호출하고, 이후 응답의 nextMarker를 다음 요청의 marker로 전달합니다. " +
                     "nextMarker가 null이면 마지막 페이지입니다.",
             security = @SecurityRequirement(name = "cookieAuth")
@@ -66,7 +75,11 @@ public interface InboxControllerDocs {
             @Parameter(description = "이전 응답의 nextMarker (첫 요청 시 생략)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false) UUID marker,
             @Parameter(description = "한 번에 조회할 스레드 수", example = "50")
-            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
+            @Parameter(description = "필터링할 라벨 ID 목록. 여러 labelId 중 하나라도 부착되어 있으면 포함", example = "550e8400-e29b-41d4-a716-446655440000")
+            @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
+            @Parameter(description = "읽음 여부 필터. 생략 시 전체 조회", example = "false")
+            @RequestParam(required = false) Boolean read
     );
 
     @Operation(
