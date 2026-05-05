@@ -51,6 +51,10 @@ public class TrashQueryService {
         return messageRepositoryPort.countUnreadDeletedByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
+    public long countDeletedMessagesByUserId(UUID userId, List<UUID> labelIds, Boolean read) {
+        return messageRepositoryPort.countDeletedByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
     public List<Message> findDeletedMessagesByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageRepositoryPort.findAllDeletedByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }

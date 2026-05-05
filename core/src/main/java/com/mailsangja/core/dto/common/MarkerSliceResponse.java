@@ -14,13 +14,25 @@ public record MarkerSliceResponse<T>(
         @Schema(description = "다음 페이지 존재 여부", example = "true")
         boolean hasNext,
         @Schema(description = "현재 목록 조건에서 읽지 않은 항목 수", example = "12")
-        long unreadCount
+        long unreadCount,
+        @Schema(description = "현재 목록 조건의 전체 항목 수", example = "120")
+        long totalCount
 ) {
     public static <T> MarkerSliceResponse<T> of(List<T> content, UUID nextMarker, boolean hasNext) {
-        return new MarkerSliceResponse<>(content, nextMarker, hasNext, 0L);
+        return new MarkerSliceResponse<>(content, nextMarker, hasNext, 0L, 0L);
     }
 
     public static <T> MarkerSliceResponse<T> of(List<T> content, UUID nextMarker, boolean hasNext, long unreadCount) {
-        return new MarkerSliceResponse<>(content, nextMarker, hasNext, unreadCount);
+        return new MarkerSliceResponse<>(content, nextMarker, hasNext, unreadCount, 0L);
+    }
+
+    public static <T> MarkerSliceResponse<T> of(
+            List<T> content,
+            UUID nextMarker,
+            boolean hasNext,
+            long unreadCount,
+            long totalCount
+    ) {
+        return new MarkerSliceResponse<>(content, nextMarker, hasNext, unreadCount, totalCount);
     }
 }

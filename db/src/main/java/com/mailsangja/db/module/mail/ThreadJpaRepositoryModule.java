@@ -105,8 +105,38 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
     @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'INBOUND' AND t.read = false AND t.deletedAt IS NULL")
     long countUnreadInboxByUserId(@Param("userId") UUID userId);
 
+    @Query("""
+            SELECT COUNT(t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'INBOUND'
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+            """)
+    long countInboxByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("read") Boolean read
+    );
+
     @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'OUTBOUND' AND t.read = false AND t.deletedAt IS NULL")
     long countUnreadSentByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT COUNT(t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'OUTBOUND'
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+            """)
+    long countSentByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("read") Boolean read
+    );
 
     @Query("""
             SELECT COUNT(DISTINCT t) FROM Thread t
@@ -134,6 +164,26 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                 SELECT ma.id FROM MailAccount ma
                 WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
             )
+              AND t.direction = 'INBOUND'
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    long countInboxByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("read") Boolean read
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
               AND t.direction = 'OUTBOUND'
               AND t.read = false
               AND t.deletedAt IS NULL
@@ -144,6 +194,26 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
     long countUnreadSentByUserIdAndLabelIds(
             @Param("userId") UUID userId,
             @Param("labelIds") List<UUID> labelIds
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Thread t
+            JOIN t.threadLabels tl
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND t.direction = 'OUTBOUND'
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    long countSentByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("read") Boolean read
     );
 
     @EntityGraph(attributePaths = {"mailAccount"})

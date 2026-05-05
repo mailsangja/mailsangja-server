@@ -39,6 +39,7 @@ public interface MessageRepositoryPort {
     Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable);
     Slice<Message> findDeletedByUserIdAndFilters(UUID userId, UUID markerId, List<UUID> labelIds, Boolean read, Pageable pageable);
     long countUnreadDeletedByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read);
+    long countDeletedByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read);
     List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
     int bulkSoftDeleteByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId, LocalDateTime deletedAt);
     int bulkRestoreByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);

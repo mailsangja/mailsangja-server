@@ -101,8 +101,16 @@ public class InboxQueryService {
         return threadRepositoryPort.countUnreadInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
+    public long countInbox(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
     public long countUnreadSent(UUID userId, List<UUID> labelIds, Boolean read) {
         return threadRepositoryPort.countUnreadSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countSent(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
     private List<UUID> normalizeLabelIds(List<UUID> labelIds) {

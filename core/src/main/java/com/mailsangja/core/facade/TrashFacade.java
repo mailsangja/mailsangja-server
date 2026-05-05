@@ -65,6 +65,7 @@ public class TrashFacade {
     ) {
         Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size, labelIds, read);
         long unreadCount = trashQueryService.countUnreadDeletedMessagesByUserId(user.getId(), labelIds, read);
+        long totalCount = trashQueryService.countDeletedMessagesByUserId(user.getId(), labelIds, read);
 
         Map<String, List<Message>> grouped = messages.getContent().stream()
                 .collect(Collectors.groupingBy(
@@ -108,7 +109,7 @@ public class TrashFacade {
                 .toList();
 
         UUID nextMarker = messages.hasNext() ? messages.getContent().getLast().getId() : null;
-        return MarkerSliceResponse.of(content, nextMarker, messages.hasNext(), unreadCount);
+        return MarkerSliceResponse.of(content, nextMarker, messages.hasNext(), unreadCount, totalCount);
     }
 
     public TrashThreadDetailResponse getTrashThreadDetail(User user, UUID threadId) {

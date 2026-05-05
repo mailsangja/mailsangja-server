@@ -21,7 +21,9 @@ public interface ThreadRepositoryPort {
     Slice<Thread> findSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable);
     long countUnreadInboxByUserId(UUID userId);
     long countUnreadInboxByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read);
+    long countInboxByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read);
     long countUnreadSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read);
+    long countSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read);
     Slice<Thread> findTrashByUserId(UUID userId, UUID markerId, Pageable pageable);
     List<Thread> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId);
     List<Thread> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);

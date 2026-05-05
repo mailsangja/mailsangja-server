@@ -51,7 +51,8 @@ public class InboxFacade {
                 PageRequest.of(0, size)
         );
         long unreadCount = inboxQueryService.countUnreadInbox(user.getId(), labelIds, read);
-        return toMarkerSlice(result, unreadCount);
+        long totalCount = inboxQueryService.countInbox(user.getId(), labelIds, read);
+        return toMarkerSlice(result, unreadCount, totalCount);
     }
 
     public MarkerSliceResponse<ThreadSummaryResponse> getSent(
@@ -69,7 +70,8 @@ public class InboxFacade {
                 PageRequest.of(0, size)
         );
         long unreadCount = inboxQueryService.countUnreadSent(user.getId(), labelIds, read);
-        return toMarkerSlice(result, unreadCount);
+        long totalCount = inboxQueryService.countSent(user.getId(), labelIds, read);
+        return toMarkerSlice(result, unreadCount, totalCount);
     }
 
     public ThreadDetailResponse getThreadDetail(User user, UUID threadId) {
@@ -132,10 +134,14 @@ public class InboxFacade {
     }
 
     private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(ThreadListResult result) {
-        return toMarkerSlice(result, 0L);
+        return toMarkerSlice(result, 0L, 0L);
     }
 
-    private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(ThreadListResult result, long unreadCount) {
+    private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(
+            ThreadListResult result,
+            long unreadCount,
+            long totalCount
+    ) {
         List<ThreadSummaryResponse> content = result.threads().getContent().stream()
                 .map(thread -> ThreadSummaryResponse.from(
                         thread,
@@ -144,7 +150,7 @@ public class InboxFacade {
                         result.labelsByThreadId().getOrDefault(thread.getId(), List.of())))
                 .toList();
         UUID nextMarker = result.threads().hasNext() ? result.threads().getContent().getLast().getId() : null;
-        return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext(), unreadCount);
+        return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext(), unreadCount, totalCount);
     }
 
     private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {

@@ -186,6 +186,20 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     long countUnreadDeletedByUserId(@Param("userId") UUID userId);
 
     @Query("""
+            SELECT COUNT(m) FROM Message m
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND (:read IS NULL OR m.read = :read)
+            """)
+    long countDeletedByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("read") Boolean read
+    );
+
+    @Query("""
             SELECT COUNT(DISTINCT m) FROM Message m
             JOIN m.thread.threadLabels tl
             WHERE m.thread.mailAccount.id IN (
@@ -201,6 +215,25 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     long countUnreadDeletedByUserIdAndLabelIds(
             @Param("userId") UUID userId,
             @Param("labelIds") List<UUID> labelIds
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT m) FROM Message m
+            JOIN m.thread.threadLabels tl
+            WHERE m.thread.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+            )
+              AND m.deletedAt IS NOT NULL
+              AND (:read IS NULL OR m.read = :read)
+              AND tl.deletedAt IS NULL
+              AND tl.label.id IN :labelIds
+              AND tl.label.deletedAt IS NULL
+            """)
+    long countDeletedByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("read") Boolean read
     );
 
     @EntityGraph(attributePaths = {"attachments"})

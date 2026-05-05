@@ -110,6 +110,14 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
+    public long countInboxByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countInboxByUserIdAndReadFilter(userId, read);
+        }
+        return threadJpaRepositoryModule.countInboxByUserIdAndLabelIdsAndReadFilter(userId, labelIds, read);
+    }
+
+    @Override
     public long countUnreadSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
         if (Boolean.TRUE.equals(read)) {
             return 0L;
@@ -118,6 +126,14 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
             return threadJpaRepositoryModule.countUnreadSentByUserId(userId);
         }
         return threadJpaRepositoryModule.countUnreadSentByUserIdAndLabelIds(userId, labelIds);
+    }
+
+    @Override
+    public long countSentByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countSentByUserIdAndReadFilter(userId, read);
+        }
+        return threadJpaRepositoryModule.countSentByUserIdAndLabelIdsAndReadFilter(userId, labelIds, read);
     }
 
     @Override
