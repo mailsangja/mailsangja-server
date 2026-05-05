@@ -11,7 +11,7 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.dto.MessageLabelView;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -47,13 +47,37 @@ public class InboxQueryService {
         return message;
     }
 
-    public ThreadListResult findInboxThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+    public ThreadListResult findInboxThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
         return buildThreadListResult(threads);
     }
 
-    public ThreadListResult findSentThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+    public ThreadListResult findSentThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
         return buildThreadListResult(threads);
     }
 
@@ -73,10 +97,36 @@ public class InboxQueryService {
         return threadRepositoryPort.countUnreadInboxByUserId(userId);
     }
 
+    public long countUnreadInbox(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countInbox(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countUnreadSent(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countSent(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return List.of();
+        }
+        return labelIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+    }
+
     private ThreadListResult buildThreadListResult(Slice<Thread> threads) {
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = findAttachmentsByThreadIds(threadIds);
-        Map<UUID, List<ThreadLabelView>> labelsByThreadId = findLabelsByThreadIds(threadIds);
+        Map<UUID, List<ThreadMessageLabelView>> labelsByThreadId = findLabelsByThreadIds(threadIds);
 
         List<String> participantEmails = threads.getContent().stream()
                 .map(Thread::getLatestParticipantAddress)
@@ -88,13 +138,13 @@ public class InboxQueryService {
         return new ThreadListResult(threads, attachmentsByThreadId, contactNameByEmail, labelsByThreadId);
     }
 
-    private Map<UUID, List<ThreadLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
+    private Map<UUID, List<ThreadMessageLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
         if (threadIds.isEmpty()) {
             return Map.of();
         }
         return messageRepositoryPort.findLabelsByThreadIdIn(threadIds)
                 .stream()
-                .collect(Collectors.groupingBy(ThreadLabelView::threadId));
+                .collect(Collectors.groupingBy(ThreadMessageLabelView::threadId));
     }
 
     private Map<UUID, List<Attachment>> findAttachmentsByThreadIds(List<UUID> threadIds) {

@@ -22,7 +22,6 @@ import java.util.List;
 public class LabelCommandService {
 
     private final LabelRepositoryPort labelRepositoryPort;
-    // ⚠️ 라벨 삭제 유스케이스에서 message/thread/group 라벨 매핑 삭제가 필요해 cross-domain Repository를 함께 참조한다.
     private final MessageRepositoryPort messageRepositoryPort;
     private final ThreadRepositoryPort threadRepositoryPort;
     private final LabelGroupRepositoryPort labelGroupRepositoryPort;
@@ -69,7 +68,6 @@ public class LabelCommandService {
     @Transactional
     public void delete(Label label) {
         messageRepositoryPort.deleteMessageLabelsByLabelId(label.getId());
-        threadRepositoryPort.deleteThreadLabelsByLabelId(label.getId());
         List<LabelGroup> labelGroups = labelGroupRepositoryPort.findActiveGroupsByLabelId(label.getId());
         labelGroups.forEach(labelGroup -> labelGroup.deleteLabelMapping(label.getId()));
         labelGroupRepositoryPort.saveAll(labelGroups);
