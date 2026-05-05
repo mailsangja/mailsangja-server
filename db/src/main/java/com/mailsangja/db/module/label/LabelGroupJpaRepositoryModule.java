@@ -36,6 +36,18 @@ public interface LabelGroupJpaRepositoryModule extends JpaRepository<LabelGroup,
             @Param("userId") UUID userId
     );
 
+    @Query("""
+            SELECT DISTINCT lg
+            FROM LabelGroup lg
+            JOIN lg.labelGroupLabels target
+            LEFT JOIN FETCH lg.labelGroupLabels lgl
+            LEFT JOIN FETCH lgl.label
+            WHERE target.label.id = :labelId
+              AND target.deletedAt IS NULL
+              AND lg.deletedAt IS NULL
+            """)
+    List<LabelGroup> findActiveGroupsByLabelId(@Param("labelId") UUID labelId);
+
     boolean existsByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(UUID userId, String name);
 
     @Query("""

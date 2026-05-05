@@ -101,6 +101,16 @@ public class LabelGroup extends BaseEntity {
         delete();
     }
 
+    public void deleteLabelMapping(UUID labelId) {
+        labelGroupLabels.stream()
+                .filter(mapping -> !mapping.isDeleted())
+                .filter(mapping -> mapping.hasLabelId(labelId))
+                .forEach(LabelGroupLabel::delete);
+        if (getActiveLabels().isEmpty()) {
+            delete();
+        }
+    }
+
     private void updateMappingState(LabelGroupLabel mapping, Map<UUID, Label> requestedLabels) {
         UUID labelId = mapping.getLabel().getId();
         if (requestedLabels.containsKey(labelId)) {

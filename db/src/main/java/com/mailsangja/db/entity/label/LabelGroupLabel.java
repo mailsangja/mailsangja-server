@@ -45,4 +45,8 @@ public class LabelGroupLabel extends BaseEntity {
                 .label(label)
                 .build();
     }
+
+    public boolean hasLabelId(UUID labelId) {
+        return label.getId().equals(labelId);
+    }
 }

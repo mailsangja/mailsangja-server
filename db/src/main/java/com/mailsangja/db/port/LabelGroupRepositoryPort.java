@@ -14,6 +14,10 @@ public interface LabelGroupRepositoryPort {
 
     Optional<LabelGroup> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
+    List<LabelGroup> findActiveGroupsByLabelId(UUID labelId);
+
+    List<LabelGroup> saveAll(List<LabelGroup> labelGroups);
+
     boolean existsByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(UUID userId, String name);
 
     boolean existsByUserIdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(UUID userId, String name, UUID excludeId);

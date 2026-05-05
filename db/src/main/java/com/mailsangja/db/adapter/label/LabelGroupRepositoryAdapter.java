@@ -32,6 +32,16 @@ public class LabelGroupRepositoryAdapter implements LabelGroupRepositoryPort {
     }
 
     @Override
+    public List<LabelGroup> findActiveGroupsByLabelId(UUID labelId) {
+        return labelGroupJpaRepositoryModule.findActiveGroupsByLabelId(labelId);
+    }
+
+    @Override
+    public List<LabelGroup> saveAll(List<LabelGroup> labelGroups) {
+        return labelGroupJpaRepositoryModule.saveAll(labelGroups);
+    }
+
+    @Override
     public boolean existsByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(UUID userId, String name) {
         return labelGroupJpaRepositoryModule.existsByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(userId, name);
     }
