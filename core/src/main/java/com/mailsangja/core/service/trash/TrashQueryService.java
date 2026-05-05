@@ -10,7 +10,7 @@ import com.mailsangja.db.port.AttachmentRepositoryPort;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.dto.MessageLabelView;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -96,13 +96,13 @@ public class TrashQueryService {
         return message;
     }
 
-    public Map<UUID, List<ThreadLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
+    public Map<UUID, List<ThreadMessageLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
         if (threadIds.isEmpty()) {
             return Map.of();
         }
         return messageRepositoryPort.findLabelsByThreadIdIn(threadIds)
                 .stream()
-                .collect(Collectors.groupingBy(ThreadLabelView::threadId));
+                .collect(Collectors.groupingBy(ThreadMessageLabelView::threadId));
     }
 
     public Map<UUID, List<MessageLabelView>> findMessageLabelsByMessageIds(List<UUID> messageIds) {

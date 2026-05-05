@@ -1,7 +1,7 @@
 package com.mailsangja.db.port;
 
 import com.mailsangja.db.dto.MessageLabelView;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -52,7 +52,7 @@ public interface MessageRepositoryPort {
 
     List<Message> saveAll(List<Message> messages);
 
-    List<ThreadLabelView> findLabelsByThreadIdIn(List<UUID> threadIds);
+    List<ThreadMessageLabelView> findLabelsByThreadIdIn(List<UUID> threadIds);
 
     int deleteMessageLabelsByLabelId(UUID labelId);
 

@@ -3,7 +3,7 @@ package com.mailsangja.db.adapter.mail;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
 import com.mailsangja.db.dto.MessageLabelView;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -187,13 +187,13 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
-    public List<ThreadLabelView> findLabelsByThreadIdIn(List<UUID> threadIds) {
+    public List<ThreadMessageLabelView> findLabelsByThreadIdIn(List<UUID> threadIds) {
         if (threadIds.isEmpty()) {
             return List.of();
         }
         return messageJpaRepositoryModule.findLabelsByThreadIdIn(threadIds)
                 .stream()
-                .map(p -> new ThreadLabelView(p.getThreadId(), p.getLabelId(), p.getLabelName(), p.getLabelColorCode()))
+                .map(p -> new ThreadMessageLabelView(p.getThreadId(), p.getLabelId(), p.getLabelName(), p.getLabelColorCode()))
                 .toList();
     }
 

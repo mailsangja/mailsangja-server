@@ -174,9 +174,4 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
         }
         return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(userId, labelIds, markerId, pageable);
     }
-
-    @Override
-    public int deleteThreadLabelsByLabelId(UUID labelId) {
-        return threadJpaRepositoryModule.deleteThreadLabelsByLabelId(labelId);
-    }
 }

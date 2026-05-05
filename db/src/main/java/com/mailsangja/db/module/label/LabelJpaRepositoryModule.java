@@ -38,15 +38,16 @@ public interface LabelJpaRepositoryModule extends JpaRepository<Label, UUID> {
     );
 
     @Query("""
-            SELECT tl.label.id as labelId, COUNT(DISTINCT tl.thread.id) as unreadCount
-            FROM ThreadLabel tl
-            WHERE tl.label.user.id = :userId
-              AND tl.deletedAt IS NULL
-              AND tl.label.deletedAt IS NULL
-              AND tl.thread.deletedAt IS NULL
-              AND tl.thread.read = false
-              AND tl.thread.direction = com.mailsangja.db.entity.mail.Direction.INBOUND
-            GROUP BY tl.label.id
+            SELECT ml.label.id as labelId, COUNT(DISTINCT ml.message.thread.id) as unreadCount
+            FROM MessageLabel ml
+            WHERE ml.label.user.id = :userId
+              AND ml.deletedAt IS NULL
+              AND ml.label.deletedAt IS NULL
+              AND ml.message.deletedAt IS NULL
+              AND ml.message.thread.deletedAt IS NULL
+              AND ml.message.thread.read = false
+              AND ml.message.thread.direction = com.mailsangja.db.entity.mail.Direction.INBOUND
+            GROUP BY ml.label.id
             """)
     List<LabelUnreadCountProjection> findUnreadThreadCountsByUserId(@Param("userId") UUID userId);
 }

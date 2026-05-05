@@ -1,7 +1,7 @@
 package com.mailsangja.db.module.mail;
 
 import com.mailsangja.db.dto.MessageLabelProjection;
-import com.mailsangja.db.dto.ThreadLabelProjection;
+import com.mailsangja.db.dto.ThreadMessageLabelProjection;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -146,16 +146,16 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
     @Query("""
             SELECT DISTINCT m FROM Message m
-            JOIN m.thread.threadLabels tl
+            JOIN m.messageLabels ml
             WHERE m.thread.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
                 WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
             )
               AND m.deletedAt IS NOT NULL
               AND (:read IS NULL OR m.read = :read)
-              AND tl.deletedAt IS NULL
-              AND tl.label.id IN :labelIds
-              AND tl.label.deletedAt IS NULL
+              AND ml.deletedAt IS NULL
+              AND ml.label.id IN :labelIds
+              AND ml.label.deletedAt IS NULL
               AND (
                 :markerId IS NULL
                 OR m.deletedAt < (SELECT mm.deletedAt FROM Message mm WHERE mm.id = :markerId)
@@ -201,16 +201,16 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
 
     @Query("""
             SELECT COUNT(DISTINCT m) FROM Message m
-            JOIN m.thread.threadLabels tl
+            JOIN m.messageLabels ml
             WHERE m.thread.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
                 WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
             )
               AND m.deletedAt IS NOT NULL
               AND m.read = false
-              AND tl.deletedAt IS NULL
-              AND tl.label.id IN :labelIds
-              AND tl.label.deletedAt IS NULL
+              AND ml.deletedAt IS NULL
+              AND ml.label.id IN :labelIds
+              AND ml.label.deletedAt IS NULL
             """)
     long countUnreadDeletedByUserIdAndLabelIds(
             @Param("userId") UUID userId,
@@ -219,16 +219,16 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
 
     @Query("""
             SELECT COUNT(DISTINCT m) FROM Message m
-            JOIN m.thread.threadLabels tl
+            JOIN m.messageLabels ml
             WHERE m.thread.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
                 WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
             )
               AND m.deletedAt IS NOT NULL
               AND (:read IS NULL OR m.read = :read)
-              AND tl.deletedAt IS NULL
-              AND tl.label.id IN :labelIds
-              AND tl.label.deletedAt IS NULL
+              AND ml.deletedAt IS NULL
+              AND ml.label.id IN :labelIds
+              AND ml.label.deletedAt IS NULL
             """)
     long countDeletedByUserIdAndLabelIdsAndReadFilter(
             @Param("userId") UUID userId,
@@ -290,16 +290,16 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     List<Message> findAllByUserIdAndDeletedAtIsNullWithAttachments(@Param("userId") UUID userId);
 
     @Query("""
-            SELECT DISTINCT tl.thread.id AS threadId,
-                            tl.label.id  AS labelId,
-                            tl.label.name AS labelName,
-                            tl.label.colorCode AS labelColorCode
-            FROM ThreadLabel tl
-            WHERE tl.thread.id IN :threadIds
-              AND tl.deletedAt IS NULL
-              AND tl.label.deletedAt IS NULL
+            SELECT DISTINCT ml.message.thread.id AS threadId,
+                            ml.label.id  AS labelId,
+                            ml.label.name AS labelName,
+                            ml.label.colorCode AS labelColorCode
+            FROM MessageLabel ml
+            WHERE ml.message.thread.id IN :threadIds
+              AND ml.deletedAt IS NULL
+              AND ml.label.deletedAt IS NULL
             """)
-    List<ThreadLabelProjection> findLabelsByThreadIdIn(@Param("threadIds") List<UUID> threadIds);
+    List<ThreadMessageLabelProjection> findLabelsByThreadIdIn(@Param("threadIds") List<UUID> threadIds);
 
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM MessageLabel ml WHERE ml.label.id = :labelId")

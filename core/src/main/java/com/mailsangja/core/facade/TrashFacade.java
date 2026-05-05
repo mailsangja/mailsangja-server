@@ -17,7 +17,7 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.dto.MessageLabelView;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
@@ -83,7 +83,7 @@ public class TrashFacade {
                 .map(Thread::getId)
                 .toList();
 
-        Map<UUID, List<ThreadLabelView>> labelsByThreadId =
+        Map<UUID, List<ThreadMessageLabelView>> labelsByThreadId =
                 trashQueryService.findLabelsByThreadIds(representativeThreadIds);
 
         List<String> participantEmails = grouped.values().stream()
@@ -99,7 +99,7 @@ public class TrashFacade {
         List<TrashThreadSummaryResponse> content = grouped.values().stream()
                 .map(msgs -> {
                     Thread representative = resolveRepresentative(msgs);
-                    List<ThreadLabelView> labelViews =
+                    List<ThreadMessageLabelView> labelViews =
                             labelsByThreadId.getOrDefault(representative.getId(), List.of());
                     List<Attachment> groupAttachments = msgs.stream()
                             .flatMap(m -> attachmentsByMessageId.getOrDefault(m.getId(), List.of()).stream())

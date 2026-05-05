@@ -4,7 +4,7 @@ import com.mailsangja.core.dto.inbox.AttachmentResponse;
 import com.mailsangja.core.dto.inbox.MailAddressResponse;
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Thread;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -48,7 +48,7 @@ public record TrashThreadSummaryResponse(
             List<Attachment> attachments,
             int messageCount,
             Map<String, String> contactNameByEmail,
-            List<ThreadLabelView> labelViews
+            List<ThreadMessageLabelView> labelViews
     ) {
         return new TrashThreadSummaryResponse(
                 representative.getId(),
