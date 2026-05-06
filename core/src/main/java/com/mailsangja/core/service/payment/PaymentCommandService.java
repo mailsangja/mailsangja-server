@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 /**
  * 결제 Pre-Order 생성 서비스.
  *
@@ -29,7 +31,12 @@ public class PaymentCommandService {
     @Transactional
     public Order createPendingOrder(User user, CreateOrderRequest request) {
         String planKey = request.plan().name().toLowerCase();
-        Integer amount = portOnePlanPriceProperties.getPlanPrices().get(planKey);
+        Map<String, Integer> planPrices = portOnePlanPriceProperties.getPlanPrices();
+        if (planPrices == null) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN);
+        }
+
+        Integer amount = planPrices.get(planKey);
         if (amount == null) {
             throw new PaymentException(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN);
         }
