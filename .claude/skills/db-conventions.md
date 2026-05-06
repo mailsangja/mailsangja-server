@@ -21,6 +21,9 @@ allowed-tools: Read, Write, Edit, Glob
 com.mailsangja.db
 ├── common/{domain}/
 │   └── {DomainValueObject}.java         # 도메인 값 객체 (record/enum). Entity·Port 양쪽에서 참조
+├── dto/
+│   ├── {Domain}View.java                # Port 반환 타입 record (Service가 소비하는 공개 계약)
+│   └── {Domain}Projection.java          # JPA Projection 인터페이스 (Adapter 내부 변환용)
 ├── entity/
 │   ├── common/
 │   │   └── BaseEntity.java              # 공통 시간 필드 + Soft Delete
@@ -28,13 +31,11 @@ com.mailsangja.db
 │       ├── {Domain}.java                # JPA Entity
 │       └── {EnumName}.java              # 도메인 Enum (같은 패키지)
 ├── port/
-│   ├── {Domain}RepositoryPort.java      # 순수 Java 인터페이스
-│   └── {Domain}View.java                # Port 반환 타입 record (Service가 소비하는 공개 계약)
+│   └── {Domain}RepositoryPort.java      # 순수 Java 인터페이스
 ├── adapter/{domain}/
 │   └── {Domain}RepositoryAdapter.java   # Port 구현체 (@Repository)
 └── module/{domain}/
-    ├── {Domain}JpaRepositoryModule.java  # extends JpaRepository
-    └── {Domain}Projection.java          # JPA Projection 인터페이스 (JpaModule 전용 구현 세부사항)
+    └── {Domain}JpaRepositoryModule.java  # extends JpaRepository
 ```
 
 ---
@@ -75,39 +76,24 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
 
 ---
 
-## JPA Projection
+## JPA Projection 과 View record
 
-Spring Data JPA Projection 인터페이스는 `module/{domain}/` 패키지에 위치합니다.
+View record와 JPA Projection 인터페이스는 모두 `dto/` 패키지에 위치합니다.
 
 ```java
-// module/label/LabelUnreadCountProjection.java
+// dto/LabelUnreadCountProjection.java — JPA Projection (Adapter 내부 변환용)
 public interface LabelUnreadCountProjection {
     UUID getLabelId();
     Long getUnreadCount();
 }
 
-// module/label/LabelJpaRepositoryModule.java 에서 사용
-List<LabelUnreadCountProjection> findUnreadThreadCountsByUserId(@Param("userId") UUID userId);
-```
-
-- JPA 쿼리 결과 매핑을 위한 구현 세부사항이므로 `JpaRepositoryModule`과 같은 패키지에 배치
-- `Port`나 `Adapter` 외부로 노출하지 않는다
-- `Adapter`가 Projection → Port 반환 타입(record 또는 primitive)으로 변환한다
-
----
-
-## Port View (반환 타입 record)
-
-Port 메서드의 반환 타입으로 사용되는 record는 `port/` 패키지에 위치합니다.
-
-```java
-// port/ThreadLabelView.java — MessageRepositoryPort.findLabelsByThreadIdIn()의 반환 타입
+// dto/ThreadLabelView.java — Port 반환 타입 record (Service가 소비하는 공개 계약)
 public record ThreadLabelView(UUID threadId, UUID labelId, String labelName, String colorCode) {}
 ```
 
-- Service 레이어(core)가 직접 소비하는 **Port 공개 계약**의 일부이므로 `port/`에 위치
-- Adapter 내부에서 JPA Projection → View record 변환을 수행한다
-- JPA Projection이 `module/`에 숨겨지고, Service는 View record만 알면 된다
+- **View record**: Service 레이어(core)가 직접 소비하는 Port 공개 계약 — `dto/`에 위치
+- **Projection 인터페이스**: JPA 쿼리 결과 매핑용 구현 세부사항 — `dto/`에 위치
+- `Adapter`가 Projection → View record 변환을 수행한다; Service는 View record만 알면 된다
 
 ---
 
@@ -121,7 +107,7 @@ public record LabelRule(List<Group> groups) { ... }
 ```
 
 - Entity 필드 타입이면서 동시에 core 모듈 서비스에서도 다뤄야 하는 객체를 배치한다
-- 단순 JPA 구현 세부사항은 `module/`에, Port 계약 타입은 `port/`에 두고, 양쪽 공통 참조가 필요한 경우만 `common/`을 사용한다
+- 단순 JPA 구현 세부사항은 `module/`에, Port 계약 타입과 Projection은 `dto/`에 두고, 양쪽 공통 참조가 필요한 경우만 `common/`을 사용한다
 
 ---
 

@@ -26,6 +26,11 @@ spring:
       configure-action: none
 
 mailsangja:
+  portone:
+    api-secret: test-api-secret
+    payment-query-uri: https://api.portone.io/payments
+    connect-timeout: 3s
+    read-timeout: 5s
   rabbitmq:
     task:
       exchange: mailsangja.mail.task

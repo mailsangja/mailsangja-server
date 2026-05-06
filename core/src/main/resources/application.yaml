@@ -51,6 +51,13 @@ scalar:
   page-title: MailSangja API Reference
 
 mailsangja:
+  portone:
+    plan-prices:
+      pro: ${PORTONE_PLAN_PRICE_PRO:9900}
+    api-secret: ${PORTONE_API_SECRET}
+    payment-query-uri: ${PORTONE_PAYMENT_QUERY_URI:https://api.portone.io/payments}
+    connect-timeout: ${PORTONE_CONNECT_TIMEOUT:3s}
+    read-timeout: ${PORTONE_READ_TIMEOUT:5s}
   rabbitmq:
     task:
       exchange: ${MAIL_TASK_EXCHANGE:mailsangja.mail.task}
