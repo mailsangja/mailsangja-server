@@ -31,11 +31,13 @@ public record ThreadDetailResponse(
             Thread thread,
             List<Message> messages,
             Map<String, String> contactNameByEmail,
-            Map<UUID, List<MessageLabelView>> messageLabelsByMessageId
+            Map<UUID, List<MessageLabelView>> messageLabelsByMessageId,
+            Map<UUID, String> renderedBodyHtmlByMessageId
     ) {
         List<MessageResponse> messageResponses = messages.stream()
                 .map(message -> MessageResponse.from(
                         message,
+                        renderedBodyHtmlByMessageId.getOrDefault(message.getId(), message.getBodyHtml()),
                         contactNameByEmail,
                         messageLabelsByMessageId.getOrDefault(message.getId(), List.of())
                 ))

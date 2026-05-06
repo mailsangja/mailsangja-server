@@ -90,16 +90,21 @@ class MessageResponseTest {
                 ))
                 .build();
 
-        MessageResponse response = MessageResponse.from(message, Map.of(), List.of());
+        MessageResponse response = MessageResponse.from(
+                message,
+                "<p>본문</p><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\"><img src=\"cid:attachment-1\">",
+                Map.of(),
+                List.of()
+        );
 
         assertEquals(
-                "<p>본문</p><img src=\"/api/v1/mail/attachments/" + inlineAttachmentId + "\"><img src=\"cid:attachment-1\">",
+                "<p>본문</p><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\"><img src=\"cid:attachment-1\">",
                 response.bodyHtml()
         );
     }
 
     @Test
-    void from_cid가다른cid의접두사여도부분치환하지않는다() {
+    void from_렌더링된본문html을그대로응답한다() {
         UUID inlineAttachmentId = UUID.randomUUID();
         Message message = Message.builder()
                 .id(UUID.randomUUID())
@@ -126,10 +131,15 @@ class MessageResponseTest {
                 ))
                 .build();
 
-        MessageResponse response = MessageResponse.from(message, Map.of(), List.of());
+        MessageResponse response = MessageResponse.from(
+                message,
+                "<p>본문</p><img src=\"cid:abc\"><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                Map.of(),
+                List.of()
+        );
 
         assertEquals(
-                "<p>본문</p><img src=\"cid:abc\"><img src=\"/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                "<p>본문</p><img src=\"cid:abc\"><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
                 response.bodyHtml()
         );
     }

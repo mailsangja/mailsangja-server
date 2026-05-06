@@ -36,6 +36,8 @@ mailsangja:
       publisher-mandatory: true
     initial-mail-sync:
       task-name: sync.gmail.initial
+  inbox:
+    api-base-uri: https://test-api.mailsangja.com
   oauth:
     google:
       client-id: test-client-id
