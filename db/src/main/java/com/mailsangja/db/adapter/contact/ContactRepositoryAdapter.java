@@ -29,6 +29,28 @@ public class ContactRepositoryAdapter implements ContactRepositoryPort {
     }
 
     @Override
+    public int saveAllIgnoreDuplicateActive(List<Contact> contacts) {
+        if (contacts.isEmpty()) {
+            return 0;
+        }
+feat: 
+        String[] ids = new String[contacts.size()];
+        String[] userIds = new String[contacts.size()];
+        String[] names = new String[contacts.size()];
+        String[] emails = new String[contacts.size()];
+
+        for (int index = 0; index < contacts.size(); index++) {
+            Contact contact = contacts.get(index);
+            ids[index] = UUID.randomUUID().toString();
+            userIds[index] = contact.getUser().getId().toString();
+            names[index] = contact.getName();
+            emails[index] = contact.getEmail();
+        }
+
+        return contactJpaRepositoryModule.insertAllIgnoreDuplicateActive(ids, userIds, names, emails);
+    }
+
+    @Override
     public Optional<Contact> findByIdAndUserIdAndDeletedAtIsNull(UUID contactId, UUID userId) {
         return contactJpaRepositoryModule.findByIdAndUserIdAndDeletedAtIsNull(contactId, userId);
     }

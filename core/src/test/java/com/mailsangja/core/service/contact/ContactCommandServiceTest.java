@@ -17,7 +17,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,37 +25,29 @@ import static org.mockito.Mockito.when;
 class ContactCommandServiceTest {
 
     @Test
-    void saveMissingContacts_기존활성연락처는덮어쓰지않고신규연락처만저장한다() {
+    void saveMissingContacts_정제된결과를중복무시저장포트로위임한다() {
         User user = createUser();
         ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
         ContactCommandService service = new ContactCommandService(contactRepositoryPort);
         List<GoogleContactResult> results = List.of(
                 new GoogleContactResult("기존 구글 이름", "exists@example.com"),
-                new GoogleContactResult("새 연락처", "new@example.com"),
-                new GoogleContactResult("중복 새 연락처", "new@example.com")
+                new GoogleContactResult("새 연락처", "new@example.com")
         );
-        Contact existingContact = Contact.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .name("사용자가 저장한 이름")
-                .email("exists@example.com")
-                .build();
-        when(contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(
-                eq(user.getId()),
-                eq(List.of("exists@example.com", "new@example.com"))
-        )).thenReturn(List.of(existingContact));
-        when(contactRepositoryPort.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(contactRepositoryPort.saveAllIgnoreDuplicateActive(anyList())).thenReturn(1);
 
         int savedCount = service.saveMissingContacts(user, results);
 
         assertEquals(1, savedCount);
         ArgumentCaptor<List<Contact>> contactsCaptor = contactListCaptor();
-        verify(contactRepositoryPort).saveAll(contactsCaptor.capture());
+        verify(contactRepositoryPort).saveAllIgnoreDuplicateActive(contactsCaptor.capture());
         List<Contact> savedContacts = contactsCaptor.getValue();
-        assertEquals(1, savedContacts.size());
+        assertEquals(2, savedContacts.size());
         assertEquals(user, savedContacts.get(0).getUser());
-        assertEquals("새 연락처", savedContacts.get(0).getName());
-        assertEquals("new@example.com", savedContacts.get(0).getEmail());
+        assertEquals("기존 구글 이름", savedContacts.get(0).getName());
+        assertEquals("exists@example.com", savedContacts.get(0).getEmail());
+        assertEquals(user, savedContacts.get(1).getUser());
+        assertEquals("새 연락처", savedContacts.get(1).getName());
+        assertEquals("new@example.com", savedContacts.get(1).getEmail());
     }
 
     @Test
@@ -67,7 +58,7 @@ class ContactCommandServiceTest {
         int savedCount = service.saveMissingContacts(createUser(), List.of());
 
         assertEquals(0, savedCount);
-        verify(contactRepositoryPort, never()).saveAll(anyList());
+        verify(contactRepositoryPort, never()).saveAllIgnoreDuplicateActive(anyList());
     }
 
     @Test
@@ -80,7 +71,7 @@ class ContactCommandServiceTest {
                 List.of(new GoogleContactResult("Alice", "alice@example.com"))
         ));
         assertEquals(ContactErrorCode.INVALID_CONTACT_SYNC_REQUEST, exception.getErrorCode());
-        verify(contactRepositoryPort, never()).saveAll(anyList());
+        verify(contactRepositoryPort, never()).saveAllIgnoreDuplicateActive(anyList());
     }
 
     @Test
@@ -93,58 +84,22 @@ class ContactCommandServiceTest {
                 () -> service.saveMissingContacts(createUser(), null)
         );
         assertEquals(ContactErrorCode.INVALID_CONTACT_SYNC_REQUEST, exception.getErrorCode());
-        verify(contactRepositoryPort, never()).saveAll(anyList());
+        verify(contactRepositoryPort, never()).saveAllIgnoreDuplicateActive(anyList());
     }
 
     @Test
-    void saveMissingContacts_blankEmail결과는저장대상에서제외한다() {
+    void saveMissingContacts_이미존재하는연락처는DB고유제약으로무시된저장개수를반환한다() {
         User user = createUser();
         ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
         ContactCommandService service = new ContactCommandService(contactRepositoryPort);
-        when(contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(
-                eq(user.getId()),
-                eq(List.of("valid@example.com"))
-        )).thenReturn(List.of());
-        when(contactRepositoryPort.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        int savedCount = service.saveMissingContacts(user, List.of(
-                new GoogleContactResult("Blank", " "),
-                new GoogleContactResult("Valid", "valid@example.com")
-        ));
-
-        assertEquals(1, savedCount);
-        ArgumentCaptor<List<Contact>> contactsCaptor = contactListCaptor();
-        verify(contactRepositoryPort).saveAll(contactsCaptor.capture());
-        List<Contact> savedContacts = contactsCaptor.getValue();
-        assertEquals(1, savedContacts.size());
-        assertEquals(user, savedContacts.get(0).getUser());
-        assertEquals("Valid", savedContacts.get(0).getName());
-        assertEquals("valid@example.com", savedContacts.get(0).getEmail());
-    }
-
-    @Test
-    void saveMissingContacts_기존활성연락처는이름을업데이트하지않는다() {
-        User user = createUser();
-        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
-        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
-        Contact existingContact = Contact.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .name("사용자가 저장한 이름")
-                .email("exists@example.com")
-                .build();
-        when(contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(
-                eq(user.getId()),
-                eq(List.of("exists@example.com"))
-        )).thenReturn(List.of(existingContact));
+        when(contactRepositoryPort.saveAllIgnoreDuplicateActive(anyList())).thenReturn(0);
 
         int savedCount = service.saveMissingContacts(user, List.of(
                 new GoogleContactResult("구글 주소록 이름", "exists@example.com")
         ));
 
         assertEquals(0, savedCount);
-        assertEquals("사용자가 저장한 이름", existingContact.getName());
-        verify(contactRepositoryPort, never()).saveAll(anyList());
+        verify(contactRepositoryPort).saveAllIgnoreDuplicateActive(anyList());
     }
 
     private User createUser() {

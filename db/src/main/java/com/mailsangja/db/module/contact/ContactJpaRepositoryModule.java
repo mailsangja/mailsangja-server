@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.contact.Contact;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,6 +32,25 @@ public interface ContactJpaRepositoryModule extends JpaRepository<Contact, UUID>
             @Param("userId") UUID userId,
             @Param("keyword") String keyword,
             Pageable pageable
+    );
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO contacts (id, user_id, name, email, created_at, modified_at)
+            SELECT id, user_id, name, email, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            FROM unnest(
+                CAST(:ids AS text[]),
+                CAST(:userIds AS text[]),
+                CAST(:names AS text[]),
+                CAST(:emails AS text[])
+            ) AS contact_data(id, user_id, name, email)
+            ON CONFLICT (user_id, lower(email)) WHERE deleted_at IS NULL DO NOTHING
+            """, nativeQuery = true)
+    int insertAllIgnoreDuplicateActive(
+            @Param("ids") String[] ids,
+            @Param("userIds") String[] userIds,
+            @Param("names") String[] names,
+            @Param("emails") String[] emails
     );
 
     List<Contact> findAllByUserIdAndEmailInAndDeletedAtIsNull(UUID userId, Collection<String> emails);

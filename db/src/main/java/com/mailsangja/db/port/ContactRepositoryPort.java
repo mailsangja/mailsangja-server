@@ -13,6 +13,8 @@ public interface ContactRepositoryPort {
 
     List<Contact> saveAll(List<Contact> contacts);
 
+    int saveAllIgnoreDuplicateActive(List<Contact> contacts);
+
     Optional<Contact> findByIdAndUserIdAndDeletedAtIsNull(UUID contactId, UUID userId);
 
     Page<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
