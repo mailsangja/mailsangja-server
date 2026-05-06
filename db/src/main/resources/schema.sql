@@ -137,6 +137,23 @@ CREATE TABLE IF NOT EXISTS attachments (
     CONSTRAINT fk_attachments_message FOREIGN KEY (message_id) REFERENCES messages (id)
 );
 
+CREATE TABLE IF NOT EXISTS contacts (
+    id          CHAR(36)     NOT NULL,
+    user_id     CHAR(36)     NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    email       VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMP    NOT NULL,
+    modified_at TIMESTAMP    NOT NULL,
+    deleted_at  TIMESTAMP    NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_user_email_active
+    ON contacts (user_id, lower(email))
+    WHERE deleted_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS labels (
     id                   CHAR(36)     NOT NULL,
     user_id              CHAR(36)     NOT NULL,

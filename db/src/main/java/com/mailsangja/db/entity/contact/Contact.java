@@ -1,11 +1,15 @@
 package com.mailsangja.db.entity.contact;
 
 import com.mailsangja.db.entity.common.BaseEntity;
+import com.mailsangja.db.entity.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -31,14 +35,21 @@ public class Contact extends BaseEntity {
     @JdbcTypeCode(SqlTypes.CHAR)
     private UUID id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     @Column(name = "name", nullable = false, length = 255)
     private String name;
-
-    @Column(name = "email", nullable = false, unique = true, length = 255)
+fix: 
+    @Column(name = "email", nullable = false, length = 255)
     private String email;
 
     public void updateName(String name) {
         this.name = name;
     }
-}
 
+    public void updateEmail(String email) {
+        this.email = email;
+    }
+}
