@@ -15,6 +15,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
     ON labels (user_id, lower(name))
     WHERE deleted_at IS NULL;
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_webhook_id
+    ON orders (webhook_id);
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_label_groups_user_name_active
     ON label_groups (user_id, lower(name))
     WHERE deleted_at IS NULL;

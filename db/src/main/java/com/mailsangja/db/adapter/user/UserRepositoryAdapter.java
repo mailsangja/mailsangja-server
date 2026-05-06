@@ -26,6 +26,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Optional<User> findByIdWithLock(UUID id) {
+        return userJpaRepositoryModule.findByIdWithLock(id);
+    }
+
+    @Override
     public Optional<User> findByUsername(String username) {
         return userJpaRepositoryModule.findByUsername(username);
     }
