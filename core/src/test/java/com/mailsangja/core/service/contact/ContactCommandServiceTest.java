@@ -2,6 +2,7 @@ package com.mailsangja.core.service.contact;
 
 import com.mailsangja.core.common.exception.contact.ContactErrorCode;
 import com.mailsangja.core.common.exception.contact.ContactException;
+import com.mailsangja.core.dto.contact.ContactCreateRequest;
 import com.mailsangja.core.dto.contact.GoogleContactResult;
 import com.mailsangja.db.entity.contact.Contact;
 import com.mailsangja.db.entity.user.Plan;
@@ -23,6 +24,59 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ContactCommandServiceTest {
+
+    @Test
+    void create_요청값으로연락처를저장하고Contact를반환한다() {
+        // given
+        User user = createUser();
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
+        ContactCreateRequest request = new ContactCreateRequest(" Alice ", " Alice@Example.COM ");
+
+        when(contactRepositoryPort.save(org.mockito.ArgumentMatchers.any(Contact.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        Contact saved = service.create(user, request);
+
+        // then
+        ArgumentCaptor<Contact> contactCaptor = ArgumentCaptor.forClass(Contact.class);
+        verify(contactRepositoryPort).save(contactCaptor.capture());
+        Contact persisted = contactCaptor.getValue();
+        assertEquals(user, persisted.getUser());
+        assertEquals("Alice", persisted.getName());
+        assertEquals("alice@example.com", persisted.getEmail());
+        assertEquals(persisted, saved);
+    }
+
+    @Test
+    void create_user가null이면실패한다() {
+        // given
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
+        ContactCreateRequest request = new ContactCreateRequest("Alice", "alice@example.com");
+
+        // when
+        ContactException exception = assertThrows(ContactException.class, () -> service.create(null, request));
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactRepositoryPort, never()).save(org.mockito.ArgumentMatchers.any(Contact.class));
+    }
+
+    @Test
+    void create_request가null이면실패한다() {
+        // given
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
+
+        // when
+        ContactException exception = assertThrows(ContactException.class, () -> service.create(createUser(), null));
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactRepositoryPort, never()).save(org.mockito.ArgumentMatchers.any(Contact.class));
+    }
 
     @Test
     void saveMissingContacts_정제된결과를중복무시저장포트로위임한다() {

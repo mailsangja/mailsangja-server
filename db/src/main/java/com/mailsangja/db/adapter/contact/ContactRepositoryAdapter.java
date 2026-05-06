@@ -33,7 +33,7 @@ public class ContactRepositoryAdapter implements ContactRepositoryPort {
         if (contacts.isEmpty()) {
             return 0;
         }
-feat: 
+
         String[] ids = new String[contacts.size()];
         String[] userIds = new String[contacts.size()];
         String[] names = new String[contacts.size()];
