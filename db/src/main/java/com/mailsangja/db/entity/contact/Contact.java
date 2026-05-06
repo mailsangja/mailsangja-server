@@ -41,7 +41,7 @@ public class Contact extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
-fix: 
+
     @Column(name = "email", nullable = false, length = 255)
     private String email;
 

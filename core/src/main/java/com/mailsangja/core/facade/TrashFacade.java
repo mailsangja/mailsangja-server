@@ -91,7 +91,10 @@ public class TrashFacade {
                 .filter(email -> email != null && !email.isBlank())
                 .distinct()
                 .toList();
-        Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(participantEmails);
+        Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(
+                user.getId(),
+                participantEmails
+        );
 
         List<UUID> allMessageIds = messages.getContent().stream().map(Message::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByMessageId = trashQueryService.findAttachmentsByMessageIds(allMessageIds);
@@ -119,7 +122,7 @@ public class TrashFacade {
                 thread.getMailAccount().getId(), thread.getGmailThreadId());
 
         List<String> emails = collectEmailsFromMessages(deletedMessages);
-        Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(emails);
+        Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(user.getId(), emails);
 
         List<UUID> messageIds = deletedMessages.stream().map(Message::getId).toList();
         Map<UUID, List<MessageLabelView>> messageLabelsByMessageId =

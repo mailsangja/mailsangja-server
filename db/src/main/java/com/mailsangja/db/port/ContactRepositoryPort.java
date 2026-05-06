@@ -24,7 +24,4 @@ public interface ContactRepositoryPort {
     boolean existsByUserIdAndEmailIgnoreCaseAndDeletedAtIsNull(UUID userId, String email);
 
     boolean existsByUserIdAndEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(UUID userId, String email, UUID excludeId);
-
-    @Deprecated
-    List<Contact> findAllByEmailInAndDeletedAtIsNull(List<String> emails);
 }

@@ -51,6 +51,4 @@ public interface ContactJpaRepositoryModule extends JpaRepository<Contact, UUID>
             @Param("excludeId") UUID excludeId
     );
 
-    @Deprecated
-    List<Contact> findAllByEmailInAndDeletedAtIsNull(Collection<String> emails);
 }

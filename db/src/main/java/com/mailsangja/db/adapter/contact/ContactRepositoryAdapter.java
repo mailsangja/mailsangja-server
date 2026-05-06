@@ -66,9 +66,4 @@ public class ContactRepositoryAdapter implements ContactRepositoryPort {
         );
     }
 
-    @Deprecated
-    @Override
-    public List<Contact> findAllByEmailInAndDeletedAtIsNull(List<String> emails) {
-        return contactJpaRepositoryModule.findAllByEmailInAndDeletedAtIsNull(emails);
-    }
 }
