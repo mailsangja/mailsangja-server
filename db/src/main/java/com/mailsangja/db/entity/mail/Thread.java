@@ -1,7 +1,6 @@
 package com.mailsangja.db.entity.mail;
 
 import com.mailsangja.db.entity.common.BaseEntity;
-import com.mailsangja.db.entity.label.ThreadLabel;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -68,10 +67,6 @@ public class Thread extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "thread", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Message> messages = new ArrayList<>();
-
-    @Builder.Default
-    @OneToMany(mappedBy = "thread", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ThreadLabel> threadLabels = new ArrayList<>();
 
     public void updateLatestMessageInfo(
             String subject,

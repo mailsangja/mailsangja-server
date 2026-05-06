@@ -19,7 +19,7 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.dto.MessageLabelView;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
@@ -61,8 +61,16 @@ public class TrashFacade {
         googleGmailApiService.trashMessage(ensuredMailAccount.getAccessToken(), message.getGmailMessageId());
     }
 
-    public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(User user, UUID marker, int size) {
-        Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size);
+    public MarkerSliceResponse<TrashThreadSummaryResponse> getTrashThreads(
+            User user,
+            UUID marker,
+            int size,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size, labelIds, read);
+        long unreadCount = trashQueryService.countUnreadDeletedMessagesByUserId(user.getId(), labelIds, read);
+        long totalCount = trashQueryService.countDeletedMessagesByUserId(user.getId(), labelIds, read);
 
         Map<String, List<Message>> grouped = messages.getContent().stream()
                 .collect(Collectors.groupingBy(
@@ -80,7 +88,7 @@ public class TrashFacade {
                 .map(Thread::getId)
                 .toList();
 
-        Map<UUID, List<ThreadLabelView>> labelsByThreadId =
+        Map<UUID, List<ThreadMessageLabelView>> labelsByThreadId =
                 trashQueryService.findLabelsByThreadIds(representativeThreadIds);
 
         List<String> participantEmails = grouped.values().stream()
@@ -96,7 +104,7 @@ public class TrashFacade {
         List<TrashThreadSummaryResponse> content = grouped.values().stream()
                 .map(msgs -> {
                     Thread representative = resolveRepresentative(msgs);
-                    List<ThreadLabelView> labelViews =
+                    List<ThreadMessageLabelView> labelViews =
                             labelsByThreadId.getOrDefault(representative.getId(), List.of());
                     List<Attachment> groupAttachments = msgs.stream()
                             .flatMap(m -> attachmentsByMessageId.getOrDefault(m.getId(), List.of()).stream())
@@ -106,7 +114,7 @@ public class TrashFacade {
                 .toList();
 
         UUID nextMarker = messages.hasNext() ? messages.getContent().getLast().getId() : null;
-        return MarkerSliceResponse.of(content, nextMarker, messages.hasNext());
+        return MarkerSliceResponse.of(content, nextMarker, messages.hasNext(), unreadCount, totalCount);
     }
 
     public TrashThreadDetailResponse getTrashThreadDetail(User user, UUID threadId) {

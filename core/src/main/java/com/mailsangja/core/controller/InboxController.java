@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,9 +26,11 @@ public class InboxController implements InboxControllerDocs {
     public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getInbox(
             @AuthUser User user,
             @RequestParam(required = false) UUID marker,
-            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
+            @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
+            @RequestParam(required = false) Boolean read
     ) {
-        return ResponseEntity.ok(inboxFacade.getInbox(user, marker, size));
+        return ResponseEntity.ok(inboxFacade.getInbox(user, marker, size, labelIds, read));
     }
 
     @Override
@@ -35,9 +38,11 @@ public class InboxController implements InboxControllerDocs {
     public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getSent(
             @AuthUser User user,
             @RequestParam(required = false) UUID marker,
-            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
+            @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
+            @RequestParam(required = false) Boolean read
     ) {
-        return ResponseEntity.ok(inboxFacade.getSent(user, marker, size));
+        return ResponseEntity.ok(inboxFacade.getSent(user, marker, size, labelIds, read));
     }
 
     @Override

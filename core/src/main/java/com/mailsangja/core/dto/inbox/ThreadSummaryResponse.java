@@ -2,7 +2,7 @@ package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Thread;
-import com.mailsangja.db.dto.ThreadLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -45,7 +45,7 @@ public record ThreadSummaryResponse(
             Thread thread,
             List<Attachment> attachments,
             Map<String, String> contactNameByEmail,
-            List<ThreadLabelView> labelViews
+            List<ThreadMessageLabelView> labelViews
     ) {
         return new ThreadSummaryResponse(
                 thread.getId(),
