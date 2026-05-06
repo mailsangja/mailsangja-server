@@ -23,7 +23,7 @@ public interface PaymentControllerDocs {
                     결제 시작 전 서버에 PENDING 상태의 Pre-Order를 생성합니다.
 
                     클라이언트는 plan(PRO)을 전달합니다.
-                    서버는 PENDING Order를 생성하고 PK(UUID)를 merchantUid로 반환합니다.
+                    서버는 PENDING Order를 생성하고 PK(UUID), 플랜, 금액, 주문 상태를 반환합니다.
                     클라이언트는 이 merchantUid를 포트원 결제 요청의 merchant_uid 필드에 그대로 사용합니다.
                     """
     )
