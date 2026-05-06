@@ -2,7 +2,6 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.inbox.InboxErrorCode;
 import com.mailsangja.core.common.exception.inbox.InboxException;
-import com.mailsangja.core.config.properties.InboxProperties;
 import com.mailsangja.core.dto.common.MarkerSliceResponse;
 import com.mailsangja.core.dto.inbox.ThreadDetailResponse;
 import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
@@ -12,9 +11,8 @@ import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
+import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
-import com.mailsangja.db.entity.mail.Attachment;
-import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -28,8 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
@@ -40,7 +36,7 @@ public class InboxFacade {
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
-    private final InboxProperties inboxProperties;
+    private final InlineImageService inlineImageService;
 
     public MarkerSliceResponse<ThreadSummaryResponse> getInbox(
             User user,
@@ -169,58 +165,8 @@ public class InboxFacade {
         return messages.stream()
                 .collect(Collectors.toMap(
                         Message::getId,
-                        this::renderInlineImageUrls
+                        inlineImageService::renderInlineImageUrls
                 ));
-    }
-
-    private String renderInlineImageUrls(Message message) {
-        String bodyHtml = message.getBodyHtml();
-        if (bodyHtml == null || bodyHtml.isBlank() || message.getAttachments() == null || message.getAttachments().isEmpty()) {
-            return bodyHtml;
-        }
-
-        String renderedBodyHtml = bodyHtml;
-        for (Attachment attachment : message.getAttachments()) {
-            if (attachment == null
-                    || attachment.getId() == null
-                    || attachment.getDisposition() != AttachmentDisposition.INLINE
-                    || attachment.getContentId() == null
-                    || attachment.getContentId().isBlank()) {
-                continue;
-            }
-
-            renderedBodyHtml = replaceInlineImageSrc(
-                    renderedBodyHtml,
-                    attachment.getContentId(),
-                    buildAttachmentUri(attachment.getId())
-            );
-        }
-        return renderedBodyHtml;
-    }
-
-    private String replaceInlineImageSrc(String bodyHtml, String contentId, String attachmentUri) {
-        Pattern cidSrcPattern = Pattern.compile(
-                "(\\bsrc\\s*=\\s*)([\"'])cid:" + Pattern.quote(contentId) + "\\2",
-                Pattern.CASE_INSENSITIVE
-        );
-        Matcher matcher = cidSrcPattern.matcher(bodyHtml);
-        return matcher.replaceAll("$1$2" + Matcher.quoteReplacement(attachmentUri) + "$2");
-    }
-
-    private String buildAttachmentUri(UUID attachmentId) {
-        return normalizeBaseUri(inboxProperties.getApiBaseUri()) + "/api/v1/mail/attachments/" + attachmentId;
-    }
-
-    private String normalizeBaseUri(String baseUri) {
-        if (baseUri == null || baseUri.isBlank()) {
-            return "http://localhost:8080";
-        }
-
-        String normalizedBaseUri = baseUri.trim();
-        while (normalizedBaseUri.endsWith("/")) {
-            normalizedBaseUri = normalizedBaseUri.substring(0, normalizedBaseUri.length() - 1);
-        }
-        return normalizedBaseUri;
     }
 
     private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {
