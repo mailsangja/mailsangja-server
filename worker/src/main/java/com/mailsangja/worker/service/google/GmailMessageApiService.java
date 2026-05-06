@@ -1,5 +1,6 @@
 package com.mailsangja.worker.service.google;
 
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
@@ -208,10 +209,10 @@ public class GmailMessageApiService {
         }
     }
 
-    private com.mailsangja.db.entity.mail.Direction resolveDirection(List<String> labelIds) {
+    private Direction resolveDirection(List<String> labelIds) {
         return labelIds != null && labelIds.contains("SENT")
-                ? com.mailsangja.db.entity.mail.Direction.OUTBOUND
-                : com.mailsangja.db.entity.mail.Direction.INBOUND;
+                ? Direction.OUTBOUND
+                : Direction.INBOUND;
     }
 
     private boolean isRead(List<String> labelIds) {
