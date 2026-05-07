@@ -2,6 +2,11 @@ spring:
   application:
     name: core
 
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:20MB}
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -70,6 +75,7 @@ mailsangja:
       task-name: ${MAIL_SYNC_TASK_NAME:sync.gmail.initial}
   inbox:
     page-size: ${INBOX_PAGE_SIZE:50}
+    api-base-uri: ${INBOX_API_BASE_URI:http://localhost:8080}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:8080}
   oauth:

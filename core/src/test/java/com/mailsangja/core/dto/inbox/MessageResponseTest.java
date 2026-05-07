@@ -1,7 +1,5 @@
 package com.mailsangja.core.dto.inbox;
 
-import com.mailsangja.db.entity.mail.Attachment;
-import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
 import org.junit.jupiter.api.Test;
@@ -54,7 +52,7 @@ class MessageResponseTest {
     }
 
     @Test
-    void from_본문html의cid를첨부파일다운로드url로치환한다() {
+    void from_렌더링된본문html을그대로응답한다() {
         UUID inlineAttachmentId = UUID.randomUUID();
         Message message = Message.builder()
                 .id(UUID.randomUUID())
@@ -67,40 +65,24 @@ class MessageResponseTest {
                 .toNames(List.of("to@example.com"))
                 .snippet("snippet")
                 .read(true)
-                .bodyHtml("<p>본문</p><img src=\"cid:inline-1\"><img src=\"cid:attachment-1\">")
-                .attachments(List.of(
-                        Attachment.builder()
-                                .id(inlineAttachmentId)
-                                .gmailAttachmentId("inline-gmail-attachment-id")
-                                .filename("image.png")
-                                .mimeType("image/png")
-                                .contentId("inline-1")
-                                .disposition(AttachmentDisposition.INLINE)
-                                .size(5)
-                                .build(),
-                        Attachment.builder()
-                                .id(UUID.randomUUID())
-                                .gmailAttachmentId("normal-gmail-attachment-id")
-                                .filename("file.txt")
-                                .mimeType("text/plain")
-                                .contentId("attachment-1")
-                                .disposition(AttachmentDisposition.ATTACHMENT)
-                                .size(5)
-                                .build()
-                ))
+                .bodyHtml("<p>본문</p><img src=\"cid:inline-1\">")
                 .build();
 
-        MessageResponse response = MessageResponse.from(message, Map.of(), List.of());
+        MessageResponse response = MessageResponse.from(
+                message,
+                "<p>본문</p><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                Map.of(),
+                List.of()
+        );
 
         assertEquals(
-                "<p>본문</p><img src=\"/api/v1/mail/attachments/" + inlineAttachmentId + "\"><img src=\"cid:attachment-1\">",
+                "<p>본문</p><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
                 response.bodyHtml()
         );
     }
 
     @Test
-    void from_cid가다른cid의접두사여도부분치환하지않는다() {
-        UUID inlineAttachmentId = UUID.randomUUID();
+    void from_기본팩토리는저장된본문html을그대로응답한다() {
         Message message = Message.builder()
                 .id(UUID.randomUUID())
                 .gmailMessageId("gmail-message-id")
@@ -113,23 +95,12 @@ class MessageResponseTest {
                 .snippet("snippet")
                 .read(true)
                 .bodyHtml("<p>본문</p><img src=\"cid:abc\"><img src=\"cid:a\">")
-                .attachments(List.of(
-                        Attachment.builder()
-                                .id(inlineAttachmentId)
-                                .gmailAttachmentId("inline-gmail-attachment-id")
-                                .filename("image.png")
-                                .mimeType("image/png")
-                                .contentId("a")
-                                .disposition(AttachmentDisposition.INLINE)
-                                .size(5)
-                                .build()
-                ))
                 .build();
 
         MessageResponse response = MessageResponse.from(message, Map.of(), List.of());
 
         assertEquals(
-                "<p>본문</p><img src=\"cid:abc\"><img src=\"/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                "<p>본문</p><img src=\"cid:abc\"><img src=\"cid:a\">",
                 response.bodyHtml()
         );
     }

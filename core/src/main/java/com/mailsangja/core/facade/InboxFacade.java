@@ -11,6 +11,7 @@ import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
+import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -35,6 +36,7 @@ public class InboxFacade {
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
+    private final InlineImageService inlineImageService;
 
     public MarkerSliceResponse<ThreadSummaryResponse> getInbox(
             User user,
@@ -78,7 +80,13 @@ public class InboxFacade {
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         ThreadDetailResult result = inboxQueryService.findThreadDetailResult(thread);
-        return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail(), result.messageLabelsByMessageId());
+        return ThreadDetailResponse.from(
+                result.thread(),
+                result.messages(),
+                result.contactNameByEmail(),
+                result.messageLabelsByMessageId(),
+                renderBodyHtmlByMessageId(result.messages())
+        );
     }
 
     public void markThreadAsRead(User user, UUID threadId) {
@@ -151,6 +159,14 @@ public class InboxFacade {
                 .toList();
         UUID nextMarker = result.threads().hasNext() ? result.threads().getContent().getLast().getId() : null;
         return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext(), unreadCount, totalCount);
+    }
+
+    private java.util.Map<UUID, String> renderBodyHtmlByMessageId(List<Message> messages) {
+        return messages.stream()
+                .collect(Collectors.toMap(
+                        Message::getId,
+                        inlineImageService::renderInlineImageUrls
+                ));
     }
 
     private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {

@@ -12,4 +12,5 @@ import org.springframework.stereotype.Component;
 public class InboxProperties {
 
     private int pageSize = 50;
+    private String apiBaseUri = "http://localhost:8080";
 }

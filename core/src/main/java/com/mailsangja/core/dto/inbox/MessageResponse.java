@@ -1,8 +1,6 @@
 package com.mailsangja.core.dto.inbox;
 
 import com.mailsangja.db.entity.mail.Direction;
-import com.mailsangja.db.entity.mail.Attachment;
-import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.dto.MessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -11,8 +9,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Schema(description = "메일 메시지 상세 정보")
 public record MessageResponse(
@@ -54,6 +50,15 @@ public record MessageResponse(
     ) {}
 
     public static MessageResponse from(Message message, Map<String, String> contactNameByEmail, List<MessageLabelView> labelViews) {
+        return from(message, message.getBodyHtml(), contactNameByEmail, labelViews);
+    }
+
+    public static MessageResponse from(
+            Message message,
+            String renderedBodyHtml,
+            Map<String, String> contactNameByEmail,
+            List<MessageLabelView> labelViews
+    ) {
         List<AttachmentResponse> attachmentResponses = message.getAttachments().stream()
                 .map(AttachmentResponse::from)
                 .toList();
@@ -87,7 +92,7 @@ public record MessageResponse(
                 message.isRead(),
                 message.getSentAt(),
                 message.getBodyText(),
-                renderInlineImages(message.getBodyHtml(), message.getAttachments()),
+                renderedBodyHtml,
                 attachmentResponses,
                 labels
         );
@@ -124,38 +129,5 @@ public record MessageResponse(
             return null;
         }
         return names.get(index);
-    }
-
-    private static String renderInlineImages(String bodyHtml, List<Attachment> attachments) {
-        if (bodyHtml == null || bodyHtml.isBlank() || attachments == null || attachments.isEmpty()) {
-            return bodyHtml;
-        }
-
-        String renderedBodyHtml = bodyHtml;
-        for (Attachment attachment : attachments) {
-            if (attachment == null
-                    || attachment.getId() == null
-                    || attachment.getDisposition() != AttachmentDisposition.INLINE
-                    || attachment.getContentId() == null
-                    || attachment.getContentId().isBlank()) {
-                continue;
-            }
-
-            renderedBodyHtml = replaceInlineImageSrc(
-                    renderedBodyHtml,
-                    attachment.getContentId(),
-                    "/api/v1/mail/attachments/" + attachment.getId()
-            );
-        }
-        return renderedBodyHtml;
-    }
-
-    private static String replaceInlineImageSrc(String bodyHtml, String contentId, String attachmentUrl) {
-        Pattern cidSrcPattern = Pattern.compile(
-                "(\\bsrc\\s*=\\s*)([\"'])cid:" + Pattern.quote(contentId) + "\\2",
-                Pattern.CASE_INSENSITIVE
-        );
-        Matcher matcher = cidSrcPattern.matcher(bodyHtml);
-        return matcher.replaceAll("$1$2" + Matcher.quoteReplacement(attachmentUrl) + "$2");
     }
 }

@@ -117,12 +117,13 @@ public class GmailHistoryApiService {
 
     private GoogleMailHistoryMessageAddedResult mapMessageAdded(GoogleMailHistoryMessageAddedResponse addedMessage) {
         if (addedMessage == null || addedMessage.message() == null) {
-            return new GoogleMailHistoryMessageAddedResult(null, null);
+            return new GoogleMailHistoryMessageAddedResult(null, null, List.of());
         }
 
         return new GoogleMailHistoryMessageAddedResult(
                 addedMessage.message().id(),
-                addedMessage.message().threadId()
+                addedMessage.message().threadId(),
+                addedMessage.message().labelIds() == null ? List.of() : List.copyOf(addedMessage.message().labelIds())
         );
     }
 

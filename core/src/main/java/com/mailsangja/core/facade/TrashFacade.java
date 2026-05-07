@@ -7,6 +7,7 @@ import com.mailsangja.core.dto.trash.TrashThreadDetailResponse;
 import com.mailsangja.core.dto.trash.TrashThreadSummaryResponse;
 import com.mailsangja.core.service.google.GoogleGmailApiService;
 import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
+import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.trash.TrashCommandService;
 import com.mailsangja.core.service.trash.TrashQueryService;
@@ -39,6 +40,7 @@ public class TrashFacade {
     private final GoogleGmailApiService googleGmailApiService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
+    private final InlineImageService inlineImageService;
 
     public void deleteThread(User user, UUID threadId) {
         Thread thread = trashQueryService.findActiveThreadById(threadId);
@@ -124,7 +126,13 @@ public class TrashFacade {
         List<UUID> messageIds = deletedMessages.stream().map(Message::getId).toList();
         Map<UUID, List<MessageLabelView>> messageLabelsByMessageId =
                 trashQueryService.findMessageLabelsByMessageIds(messageIds);
-        return TrashThreadDetailResponse.from(thread, deletedMessages, contactNameByEmail, messageLabelsByMessageId);
+        return TrashThreadDetailResponse.from(
+                thread,
+                deletedMessages,
+                contactNameByEmail,
+                messageLabelsByMessageId,
+                renderBodyHtmlByMessageId(deletedMessages)
+        );
     }
 
     public void restoreThread(User user, UUID threadId) {
@@ -163,6 +171,14 @@ public class TrashFacade {
                 .filter(email -> email != null && !email.isBlank())
                 .distinct()
                 .toList();
+    }
+
+    private Map<UUID, String> renderBodyHtmlByMessageId(List<Message> messages) {
+        return messages.stream()
+                .collect(Collectors.toMap(
+                        Message::getId,
+                        inlineImageService::renderInlineImageUrls
+                ));
     }
 
     private void validateThreadAccess(User user, Thread thread) {
