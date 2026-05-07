@@ -14,6 +14,8 @@ public interface LabelJpaRepositoryModule extends JpaRepository<Label, UUID> {
 
     List<Label> findAllByUserIdAndDeletedAtIsNull(UUID userId);
 
+    List<Label> findAllByUserIdAndIdInAndDeletedAtIsNull(UUID userId, List<UUID> ids);
+
     @Query("SELECT l FROM Label l WHERE l.user.id = :userId AND l.deletedAt IS NULL ORDER BY l.displayOrder ASC, l.createdAt ASC")
     List<Label> findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(@Param("userId") UUID userId);
 

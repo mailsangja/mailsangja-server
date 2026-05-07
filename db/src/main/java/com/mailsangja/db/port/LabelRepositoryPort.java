@@ -13,6 +13,8 @@ public interface LabelRepositoryPort {
 
     List<Label> findAllByUserIdAndDeletedAtIsNull(UUID userId);
 
+    List<Label> findAllByUserIdAndIdInAndDeletedAtIsNull(UUID userId, List<UUID> ids);
+
     List<Label> findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(UUID userId);
 
     Optional<Label> findByIdAndDeletedAtIsNull(UUID id);
