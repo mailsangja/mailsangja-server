@@ -12,8 +12,8 @@ public class GooglePeopleClientConfig {
     @Bean
     public RestClient googlePeopleRestClient(GooglePeopleProperties properties) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout((int) properties.getConnectTimeout().toMillis());
-        requestFactory.setReadTimeout((int) properties.getReadTimeout().toMillis());
+        requestFactory.setConnectTimeout(Math.toIntExact(properties.getConnectTimeout().toMillis()));
+        requestFactory.setReadTimeout(Math.toIntExact(properties.getReadTimeout().toMillis()));
 
         return RestClient.builder()
                 .requestFactory(requestFactory)
