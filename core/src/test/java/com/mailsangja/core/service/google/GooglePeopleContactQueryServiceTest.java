@@ -105,7 +105,7 @@ class GooglePeopleContactQueryServiceTest {
     }
 
     @Test
-    void getContacts_응답호출이실패하면MailAccountException을던진다() {
+    void getContacts_응답호출이실패하면ContactException을던진다() {
         GooglePeopleProperties properties = createProperties();
         GooglePeopleContactQueryService service = new GooglePeopleContactQueryService(
                 properties,
