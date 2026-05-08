@@ -61,7 +61,7 @@ public interface ContactJpaRepositoryModule extends JpaRepository<Contact, UUID>
                 CAST(:names AS text[]),
                 CAST(:emails AS text[])
             ) AS contact_data(id, user_id, name, email)
-            ON CONFLICT (user_id, lower(email)) WHERE deleted_at IS NULL DO NOTHING
+            ON CONFLICT (user_id, (lower(email))) WHERE deleted_at IS NULL DO NOTHING
             """, nativeQuery = true)
     int insertAllIgnoreDuplicateActive(
             @Param("ids") String[] ids,
