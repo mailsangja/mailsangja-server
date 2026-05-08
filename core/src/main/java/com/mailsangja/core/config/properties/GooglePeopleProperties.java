@@ -17,6 +17,7 @@ public class GooglePeopleProperties {
     private static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(10);
 
     private String connectionsUri;
+    private String otherContactsUri;
     private int pageSize = 1000;
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private Duration readTimeout = DEFAULT_READ_TIMEOUT;

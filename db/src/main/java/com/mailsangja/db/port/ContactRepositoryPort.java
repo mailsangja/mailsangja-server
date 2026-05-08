@@ -17,7 +17,11 @@ public interface ContactRepositoryPort {
 
     Optional<Contact> findByIdAndUserIdAndDeletedAtIsNull(UUID contactId, UUID userId);
 
+    List<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId);
+
     Page<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
+
+    List<Contact> findAllByUserIdAndKeywordAndDeletedAtIsNull(UUID userId, String keyword);
 
     Page<Contact> findAllByUserIdAndKeywordAndDeletedAtIsNull(UUID userId, String keyword, Pageable pageable);
 

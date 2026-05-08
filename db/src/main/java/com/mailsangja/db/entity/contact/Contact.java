@@ -45,6 +45,14 @@ public class Contact extends BaseEntity {
     @Column(name = "email", nullable = false, length = 255)
     private String email;
 
+    public static Contact create(User user, String name, String email) {
+        return Contact.builder()
+                .user(user)
+                .name(name)
+                .email(email)
+                .build();
+    }
+
     public void updateName(String name) {
         this.name = name;
     }

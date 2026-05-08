@@ -5,11 +5,13 @@ import com.mailsangja.core.common.exception.contact.ContactException;
 import com.mailsangja.core.config.properties.GooglePeopleProperties;
 import com.mailsangja.core.dto.contact.GoogleContactResponse;
 import com.mailsangja.core.dto.contact.GoogleContactResult;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -18,10 +20,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class GooglePeopleContactQueryService {
 
     private static final String PERSON_FIELDS = "names,emailAddresses";
+    private static final String READ_MASK = "names,emailAddresses";
 
     private final GooglePeopleProperties googlePeopleProperties;
     private final RestClient googlePeopleRestClient;
@@ -38,23 +42,34 @@ public class GooglePeopleContactQueryService {
         validateInput(accessToken);
 
         Map<String, GoogleContactResult> deduplicatedResults = new LinkedHashMap<>();
-        String pageToken = null;
-        do {
-            GoogleContactResponse response = fetchContactsPage(accessToken, pageToken);
-            for (GoogleContactResult result : toResults(response)) {
-                deduplicatedResults.putIfAbsent(result.email(), result);
-            }
-            pageToken = normalizeBlankToNull(response.nextPageToken());
-        } while (pageToken != null);
-
+        collectConnections(accessToken, deduplicatedResults);
+        collectOtherContacts(accessToken, deduplicatedResults);
         return List.copyOf(deduplicatedResults.values());
     }
 
-    private GoogleContactResponse fetchContactsPage(String accessToken, String pageToken) {
+    private void collectConnections(String accessToken, Map<String, GoogleContactResult> results) {
+        String pageToken = null;
+        do {
+            GoogleContactResponse response = fetchContactsPage(accessToken, buildConnectionsUri(pageToken));
+            addResults(results, toResults(response.connections()));
+            pageToken = normalizeBlankToNull(response.nextPageToken());
+        } while (pageToken != null);
+    }
+
+    private void collectOtherContacts(String accessToken, Map<String, GoogleContactResult> results) {
+        String pageToken = null;
+        do {
+            GoogleContactResponse response = fetchContactsPage(accessToken, buildOtherContactsUri(pageToken));
+            addResults(results, toResults(response.otherContacts()));
+            pageToken = normalizeBlankToNull(response.nextPageToken());
+        } while (pageToken != null);
+    }
+
+    private GoogleContactResponse fetchContactsPage(String accessToken, String uri) {
         try {
             GoogleContactResponse response = googlePeopleRestClient
                     .get()
-                    .uri(buildConnectionsUri(pageToken))
+                    .uri(uri)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
@@ -66,7 +81,15 @@ public class GooglePeopleContactQueryService {
             return response;
         } catch (ContactException e) {
             throw e;
+        } catch (RestClientResponseException e) {
+            log.warn(
+                    "Google People contacts fetch failed. status={} body={}",
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
+            throw new ContactException(ContactErrorCode.GOOGLE_CONTACTS_FETCH_FAILED);
         } catch (RestClientException e) {
+            log.warn("Google People contacts fetch failed.", e);
             throw new ContactException(ContactErrorCode.GOOGLE_CONTACTS_FETCH_FAILED);
         }
     }
@@ -84,13 +107,31 @@ public class GooglePeopleContactQueryService {
         return builder.build(false).toUriString();
     }
 
-    private List<GoogleContactResult> toResults(GoogleContactResponse response) {
-        if (response.connections() == null || response.connections().isEmpty()) {
+    private String buildOtherContactsUri(String pageToken) {
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromUriString(googlePeopleProperties.getOtherContactsUri())
+                .queryParam("readMask", READ_MASK)
+                .queryParam("pageSize", googlePeopleProperties.getPageSize());
+
+        if (!isBlank(pageToken)) {
+            builder.queryParam("pageToken", pageToken);
+        }
+        return builder.build(false).toUriString();
+    }
+
+    private void addResults(Map<String, GoogleContactResult> saved, List<GoogleContactResult> fetched) {
+        for (GoogleContactResult result : fetched) {
+            saved.putIfAbsent(result.email(), result);
+        }
+    }
+
+    private List<GoogleContactResult> toResults(List<GoogleContactResponse.PersonResponse> people) {
+        if (people == null || people.isEmpty()) {
             return List.of();
         }
 
         List<GoogleContactResult> results = new ArrayList<>();
-        for (GoogleContactResponse.PersonResponse person : response.connections()) {
+        for (GoogleContactResponse.PersonResponse person : people) {
             if (person == null || person.emailAddresses() == null || person.emailAddresses().isEmpty()) {
                 continue;
             }
@@ -114,10 +155,7 @@ public class GooglePeopleContactQueryService {
             return null;
         }
 
-        GoogleContactResponse.NameResponse name = person.names().stream()
-                .filter(n -> n != null && (!isBlank(n.displayName()) || !isBlank(n.givenName()) || !isBlank(n.familyName())))
-                .findFirst()
-                .orElse(null);
+        GoogleContactResponse.NameResponse name = findFirstValidName(person.names());
         if (name == null) {
             return null;
         }
@@ -137,9 +175,23 @@ public class GooglePeopleContactQueryService {
     private void validateInput(String accessToken) {
         if (isBlank(accessToken)
                 || isBlank(googlePeopleProperties.getConnectionsUri())
+                || isBlank(googlePeopleProperties.getOtherContactsUri())
                 || googlePeopleProperties.getPageSize() <= 0) {
             throw new ContactException(ContactErrorCode.GOOGLE_CONTACTS_FETCH_FAILED);
         }
+    }
+
+    private GoogleContactResponse.NameResponse findFirstValidName(List<GoogleContactResponse.NameResponse> names) {
+        for (GoogleContactResponse.NameResponse name : names) {
+            if (name != null && hasNameValue(name)) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasNameValue(GoogleContactResponse.NameResponse name) {
+        return !isBlank(name.displayName()) || !isBlank(name.givenName()) || !isBlank(name.familyName());
     }
 
     private String normalizeEmail(String email) {

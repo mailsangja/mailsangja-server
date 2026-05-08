@@ -4,6 +4,7 @@ import java.util.List;
 
 public record GoogleContactResponse(
         List<PersonResponse> connections,
+        List<PersonResponse> otherContacts,
         String nextPageToken
 ) {
     public record PersonResponse(

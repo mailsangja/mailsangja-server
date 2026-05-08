@@ -16,7 +16,24 @@ import java.util.UUID;
 public interface ContactJpaRepositoryModule extends JpaRepository<Contact, UUID> {
     Optional<Contact> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
+    List<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId);
+
     Page<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
+
+    @Query("""
+            SELECT c
+            FROM Contact c
+            WHERE c.user.id = :userId
+              AND c.deletedAt IS NULL
+              AND (
+                    lower(c.name) LIKE lower(concat('%', :keyword, '%'))
+                    OR lower(c.email) LIKE lower(concat('%', :keyword, '%'))
+              )
+            """)
+    List<Contact> findAllByUserIdAndKeywordAndDeletedAtIsNull(
+            @Param("userId") UUID userId,
+            @Param("keyword") String keyword
+    );
 
     @Query("""
             SELECT c

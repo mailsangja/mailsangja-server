@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GooglePeopleContactQueryServiceTest {
 
     @Test
-    void getContacts_페이지네이션을따라가며이메일을정규화하고중복을제거한다() {
+    void getContacts_연락처와기타연락처페이지네이션을따라가며이메일을정규화하고중복을제거한다() {
         GooglePeopleProperties properties = createProperties();
         CapturingPagedRequestFactory requestFactory = new CapturingPagedRequestFactory(
                 """
@@ -63,6 +63,20 @@ class GooglePeopleContactQueryServiceTest {
                             }
                           ]
                         }
+                        """,
+                """
+                        {
+                          "otherContacts": [
+                            {
+                              "names": [{"displayName": "Other Duplicate"}],
+                              "emailAddresses": [{"value": "ALICE@example.com"}]
+                            },
+                            {
+                              "names": [{"displayName": "Other Contact"}],
+                              "emailAddresses": [{"value": "other@example.com"}]
+                            }
+                          ]
+                        }
                         """
         );
         GooglePeopleContactQueryService service = new GooglePeopleContactQueryService(
@@ -72,16 +86,22 @@ class GooglePeopleContactQueryServiceTest {
 
         List<GoogleContactResult> results = service.getContacts("access-token");
 
-        assertEquals(3, results.size());
+        assertEquals(4, results.size());
         assertEquals(new GoogleContactResult("Alice", "alice@example.com"), results.get(0));
         assertEquals(new GoogleContactResult("Bob Kim", "bob@example.com"), results.get(1));
         assertEquals(new GoogleContactResult("carol@example.com", "carol@example.com"), results.get(2));
+        assertEquals(new GoogleContactResult("Other Contact", "other@example.com"), results.get(3));
 
-        assertEquals(2, requestFactory.requestUris().size());
+        assertEquals(3, requestFactory.requestUris().size());
         assertTrue(requestFactory.requestUris().get(0).contains("personFields=names,emailAddresses"));
         assertTrue(requestFactory.requestUris().get(0).contains("pageSize=1000"));
         assertTrue(requestFactory.requestUris().get(1).contains("pageToken=next-token"));
-        assertEquals(List.of("Bearer access-token", "Bearer access-token"), requestFactory.authorizationHeaders());
+        assertTrue(requestFactory.requestUris().get(2).contains("/v1/otherContacts"));
+        assertTrue(requestFactory.requestUris().get(2).contains("readMask=names,emailAddresses"));
+        assertEquals(
+                List.of("Bearer access-token", "Bearer access-token", "Bearer access-token"),
+                requestFactory.authorizationHeaders()
+        );
     }
 
     @Test
@@ -121,6 +141,25 @@ class GooglePeopleContactQueryServiceTest {
     void getContacts_connectionsUri가공백이면API를호출하지않고실패한다() {
         GooglePeopleProperties properties = createProperties();
         properties.setConnectionsUri(" ");
+        CapturingPagedRequestFactory requestFactory = new CapturingPagedRequestFactory("{}");
+        GooglePeopleContactQueryService service = new GooglePeopleContactQueryService(
+                properties,
+                RestClient.builder().requestFactory(requestFactory).build()
+        );
+
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> service.getContacts("access-token")
+        );
+
+        assertEquals(ContactErrorCode.GOOGLE_CONTACTS_FETCH_FAILED, exception.getErrorCode());
+        assertEquals(0, requestFactory.requestUris().size());
+    }
+
+    @Test
+    void getContacts_otherContactsUri가공백이면API를호출하지않고실패한다() {
+        GooglePeopleProperties properties = createProperties();
+        properties.setOtherContactsUri(" ");
         CapturingPagedRequestFactory requestFactory = new CapturingPagedRequestFactory("{}");
         GooglePeopleContactQueryService service = new GooglePeopleContactQueryService(
                 properties,
@@ -186,6 +225,11 @@ class GooglePeopleContactQueryServiceTest {
                             }
                           ]
                         }
+                        """,
+                        """
+                        {
+                          "otherContacts": []
+                        }
                         """)).build()
         );
 
@@ -200,6 +244,7 @@ class GooglePeopleContactQueryServiceTest {
     private GooglePeopleProperties createProperties() {
         GooglePeopleProperties properties = new GooglePeopleProperties();
         properties.setConnectionsUri("https://people.googleapis.com/v1/people/me/connections");
+        properties.setOtherContactsUri("https://people.googleapis.com/v1/otherContacts");
         properties.setPageSize(1000);
         return properties;
     }

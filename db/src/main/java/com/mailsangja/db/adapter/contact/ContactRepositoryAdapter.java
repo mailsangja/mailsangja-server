@@ -56,8 +56,18 @@ public class ContactRepositoryAdapter implements ContactRepositoryPort {
     }
 
     @Override
+    public List<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId) {
+        return contactJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
     public Page<Contact> findAllByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable) {
         return contactJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNull(userId, pageable);
+    }
+
+    @Override
+    public List<Contact> findAllByUserIdAndKeywordAndDeletedAtIsNull(UUID userId, String keyword) {
+        return contactJpaRepositoryModule.findAllByUserIdAndKeywordAndDeletedAtIsNull(userId, keyword);
     }
 
     @Override
