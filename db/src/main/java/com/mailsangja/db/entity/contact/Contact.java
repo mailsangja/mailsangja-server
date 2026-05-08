@@ -56,8 +56,4 @@ public class Contact extends BaseEntity {
     public void updateName(String name) {
         this.name = name;
     }
-
-    public void updateEmail(String email) {
-        this.email = email;
-    }
 }

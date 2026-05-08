@@ -29,6 +29,20 @@ public class ContactCommandService {
     }
 
     @Transactional
+    public Contact updateName(Contact contact, String name) {
+        validateUpdateNameRequest(contact, name);
+        contact.updateName(name.trim());
+        return contactRepositoryPort.save(contact);
+    }
+
+    @Transactional
+    public void delete(Contact contact) {
+        validateContact(contact);
+        contact.delete();
+        contactRepositoryPort.save(contact);
+    }
+
+    @Transactional
     public int saveMissingContacts(User user, List<GoogleContactResult> results) {
         validateSyncRequest(user, results);
         if (results.isEmpty()) {
@@ -48,6 +62,19 @@ public class ContactCommandService {
             throw new ContactException(ContactErrorCode.INVALID_CONTACT_REQUEST);
         }
         if (isBlank(request.name()) || isBlank(request.email())) {
+            throw new ContactException(ContactErrorCode.INVALID_CONTACT_REQUEST);
+        }
+    }
+
+    private void validateUpdateNameRequest(Contact contact, String name) {
+        validateContact(contact);
+        if (isBlank(name)) {
+            throw new ContactException(ContactErrorCode.INVALID_CONTACT_REQUEST);
+        }
+    }
+
+    private void validateContact(Contact contact) {
+        if (contact == null) {
             throw new ContactException(ContactErrorCode.INVALID_CONTACT_REQUEST);
         }
     }
