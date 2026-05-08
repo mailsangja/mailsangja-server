@@ -1,6 +1,7 @@
 package com.mailsangja.db.adapter.contact;
 
 import com.mailsangja.db.entity.contact.Contact;
+import com.mailsangja.db.module.contact.ContactBulkInsertModule;
 import com.mailsangja.db.module.contact.ContactJpaRepositoryModule;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public class ContactRepositoryAdapter implements ContactRepositoryPort {
 
     private final ContactJpaRepositoryModule contactJpaRepositoryModule;
+    private final ContactBulkInsertModule contactBulkInsertModule;
 
     @Override
     public Contact save(Contact contact) {
@@ -47,7 +49,7 @@ public class ContactRepositoryAdapter implements ContactRepositoryPort {
             emails[index] = contact.getEmail();
         }
 
-        return contactJpaRepositoryModule.insertAllIgnoreDuplicateActive(ids, userIds, names, emails);
+        return contactBulkInsertModule.insertAllIgnoreDuplicateActive(ids, userIds, names, emails);
     }
 
     @Override
