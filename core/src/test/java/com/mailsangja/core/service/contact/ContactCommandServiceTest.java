@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -76,6 +77,55 @@ class ContactCommandServiceTest {
         // then
         assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
         verify(contactRepositoryPort, never()).save(org.mockito.ArgumentMatchers.any(Contact.class));
+    }
+
+    @Test
+    void updateName_이름만trim해서수정하고email은유지한다() {
+        // given
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
+        Contact contact = Contact.create(createUser(), "Alice", "alice@example.com");
+        when(contactRepositoryPort.save(contact)).thenReturn(contact);
+
+        // when
+        Contact updated = service.updateName(contact, " Alice Updated ");
+
+        // then
+        assertEquals(contact, updated);
+        assertEquals("Alice Updated", contact.getName());
+        assertEquals("alice@example.com", contact.getEmail());
+        verify(contactRepositoryPort).save(contact);
+    }
+
+    @Test
+    void updateName_name이blank이면실패한다() {
+        // given
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> service.updateName(Contact.create(createUser(), "Alice", "alice@example.com"), "   ")
+        );
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+    }
+
+    @Test
+    void delete_contact를softDelete처리한다() {
+        // given
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactCommandService service = new ContactCommandService(contactRepositoryPort);
+        Contact contact = Contact.create(createUser(), "Alice", "alice@example.com");
+
+        // when
+        service.delete(contact);
+
+        // then
+        assertTrue(contact.isDeleted());
+        verify(contactRepositoryPort).save(contact);
     }
 
     @Test

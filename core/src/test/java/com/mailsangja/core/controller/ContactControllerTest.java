@@ -2,6 +2,7 @@ package com.mailsangja.core.controller;
 
 import com.mailsangja.core.dto.contact.ContactCreateRequest;
 import com.mailsangja.core.dto.contact.ContactResponse;
+import com.mailsangja.core.dto.contact.ContactUpdateRequest;
 import com.mailsangja.core.facade.ContactFacade;
 import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.Role;
@@ -57,6 +58,42 @@ class ContactControllerTest {
         assertEquals(200, response.getStatusCode().value());
         assertEquals(expected, response.getBody());
         verify(contactFacade).getContacts(user, "ali");
+    }
+
+    @Test
+    void updateContact_PATCH_api_v1_contacts_contactId는Facade를호출하고응답을반환한다() {
+        // given
+        ContactFacade contactFacade = mock(ContactFacade.class);
+        ContactController controller = new ContactController(contactFacade);
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        ContactUpdateRequest request = new ContactUpdateRequest("Alice Updated");
+        ContactResponse expected = new ContactResponse(contactId, "Alice Updated", "alice@example.com");
+        when(contactFacade.updateContact(user, contactId, request)).thenReturn(expected);
+
+        // when
+        ResponseEntity<ContactResponse> response = controller.updateContact(user, contactId, request);
+
+        // then
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(expected, response.getBody());
+        verify(contactFacade).updateContact(user, contactId, request);
+    }
+
+    @Test
+    void deleteContact_DELETE_api_v1_contacts_contactId는Facade를호출하고204를반환한다() {
+        // given
+        ContactFacade contactFacade = mock(ContactFacade.class);
+        ContactController controller = new ContactController(contactFacade);
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+
+        // when
+        ResponseEntity<Void> response = controller.deleteContact(user, contactId);
+
+        // then
+        assertEquals(204, response.getStatusCode().value());
+        verify(contactFacade).deleteContact(user, contactId);
     }
 
     private User createUser() {

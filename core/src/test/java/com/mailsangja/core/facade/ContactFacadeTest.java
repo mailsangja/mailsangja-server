@@ -4,6 +4,7 @@ import com.mailsangja.core.common.exception.contact.ContactErrorCode;
 import com.mailsangja.core.common.exception.contact.ContactException;
 import com.mailsangja.core.dto.contact.ContactCreateRequest;
 import com.mailsangja.core.dto.contact.ContactResponse;
+import com.mailsangja.core.dto.contact.ContactUpdateRequest;
 import com.mailsangja.core.service.contact.ContactCommandService;
 import com.mailsangja.core.service.contact.ContactQueryService;
 import com.mailsangja.db.entity.contact.Contact;
@@ -207,6 +208,184 @@ class ContactFacadeTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyString()
         );
+    }
+
+    @Test
+    void updateContact_정상요청이면활성연락처를조회하고이름수정응답을반환한다() {
+        // given
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        ContactUpdateRequest request = new ContactUpdateRequest(" Alice Updated ");
+        Contact contact = createContact(user, "Alice", "alice@example.com");
+        Contact updated = createContact(user, "Alice Updated", "alice@example.com");
+        when(contactQueryService.findActiveContact(user, contactId)).thenReturn(contact);
+        when(contactCommandService.updateName(contact, "Alice Updated")).thenReturn(updated);
+
+        // when
+        ContactResponse response = facade.updateContact(user, contactId, request);
+
+        // then
+        assertEquals(updated.getId(), response.id());
+        assertEquals("Alice Updated", response.name());
+        assertEquals("alice@example.com", response.email());
+        verify(contactQueryService).findActiveContact(user, contactId);
+        verify(contactCommandService).updateName(contact, "Alice Updated");
+    }
+
+    @Test
+    void updateContact_request가null이면실패한다() {
+        // given
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> facade.updateContact(createUser(), UUID.randomUUID(), null)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactQueryService, never()).findActiveContact(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void updateContact_contactId가null이면실패한다() {
+        // given
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        ContactUpdateRequest request = new ContactUpdateRequest("Alice");
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> facade.updateContact(createUser(), null, request)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactQueryService, never()).findActiveContact(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void updateContact_name이blank이면실패한다() {
+        // given
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        ContactUpdateRequest request = new ContactUpdateRequest("   ");
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> facade.updateContact(createUser(), UUID.randomUUID(), request)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactQueryService, never()).findActiveContact(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void updateContact_대상이없으면ContactNotFound를전파한다() {
+        // given
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        ContactUpdateRequest request = new ContactUpdateRequest("Alice");
+        when(contactQueryService.findActiveContact(user, contactId))
+                .thenThrow(new ContactException(ContactErrorCode.CONTACT_NOT_FOUND));
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> facade.updateContact(user, contactId, request)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.CONTACT_NOT_FOUND, exception.getErrorCode());
+        verify(contactCommandService, never()).updateName(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    void deleteContact_정상요청이면활성연락처를조회하고삭제한다() {
+        // given
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        Contact contact = createContact(user, "Alice", "alice@example.com");
+        when(contactQueryService.findActiveContact(user, contactId)).thenReturn(contact);
+
+        // when
+        facade.deleteContact(user, contactId);
+
+        // then
+        verify(contactQueryService).findActiveContact(user, contactId);
+        verify(contactCommandService).delete(contact);
+    }
+
+    @Test
+    void deleteContact_contactId가null이면실패한다() {
+        // given
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> facade.deleteContact(createUser(), null)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactQueryService, never()).findActiveContact(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void deleteContact_대상이없으면ContactNotFound를전파한다() {
+        // given
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        when(contactQueryService.findActiveContact(user, contactId))
+                .thenThrow(new ContactException(ContactErrorCode.CONTACT_NOT_FOUND));
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> facade.deleteContact(user, contactId)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.CONTACT_NOT_FOUND, exception.getErrorCode());
+        verify(contactCommandService, never()).delete(org.mockito.ArgumentMatchers.any());
     }
 
     private User createUser() {

@@ -10,6 +10,7 @@ import com.mailsangja.db.port.ContactRepositoryPort;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -111,6 +112,61 @@ class ContactQueryServiceTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyString()
         );
+    }
+
+    @Test
+    void findActiveContact_contactId와userId로activeContact를조회한다() {
+        // given
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        Contact contact = createContact(user, "Alice", "alice@example.com");
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactQueryService service = new ContactQueryService(contactRepositoryPort);
+        when(contactRepositoryPort.findByIdAndUserIdAndDeletedAtIsNull(contactId, user.getId()))
+                .thenReturn(Optional.of(contact));
+
+        // when
+        Contact result = service.findActiveContact(user, contactId);
+
+        // then
+        assertEquals(contact, result);
+        verify(contactRepositoryPort).findByIdAndUserIdAndDeletedAtIsNull(contactId, user.getId());
+    }
+
+    @Test
+    void findActiveContact_조회결과가없으면실패한다() {
+        // given
+        User user = createUser();
+        UUID contactId = UUID.randomUUID();
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactQueryService service = new ContactQueryService(contactRepositoryPort);
+        when(contactRepositoryPort.findByIdAndUserIdAndDeletedAtIsNull(contactId, user.getId()))
+                .thenReturn(Optional.empty());
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> service.findActiveContact(user, contactId)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.CONTACT_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void findActiveContact_contactId가null이면실패한다() {
+        // given
+        ContactRepositoryPort contactRepositoryPort = mock(ContactRepositoryPort.class);
+        ContactQueryService service = new ContactQueryService(contactRepositoryPort);
+
+        // when
+        ContactException exception = assertThrows(
+                ContactException.class,
+                () -> service.findActiveContact(createUser(), null)
+        );
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
     }
 
     private User createUser() {
