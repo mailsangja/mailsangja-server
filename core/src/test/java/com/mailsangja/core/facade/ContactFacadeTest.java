@@ -257,6 +257,25 @@ class ContactFacadeTest {
     }
 
     @Test
+    void updateContact_user가null이면실패한다() {
+        // given
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+        ContactUpdateRequest request = new ContactUpdateRequest("Alice");
+
+        // when
+        ContactException exception = assertThrows(ContactException.class, () -> facade.updateContact(null,UUID.randomUUID(), request));
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactCommandService, never()).create(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
     void updateContact_contactId가null이면실패한다() {
         // given
         ContactCommandService contactCommandService = mock(ContactCommandService.class);
@@ -343,6 +362,25 @@ class ContactFacadeTest {
         // then
         verify(contactQueryService).findActiveContact(user, contactId);
         verify(contactCommandService).delete(contact);
+    }
+
+
+    @Test
+    void deleteContact_user가null이면실패한다() {
+        // given
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        ContactQueryService contactQueryService = mock(ContactQueryService.class);
+        ContactFacade facade = new ContactFacade(contactCommandService, contactQueryService);
+
+        // when
+        ContactException exception = assertThrows(ContactException.class, () -> facade.deleteContact(null,UUID.randomUUID()));
+
+        // then
+        assertEquals(ContactErrorCode.INVALID_CONTACT_REQUEST, exception.getErrorCode());
+        verify(contactCommandService, never()).create(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test
