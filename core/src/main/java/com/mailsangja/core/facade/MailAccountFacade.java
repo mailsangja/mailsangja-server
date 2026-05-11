@@ -2,14 +2,17 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
+import com.mailsangja.core.dto.contact.GoogleContactResult;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
 import com.mailsangja.core.dto.mail.InitialMailSyncMessage;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
+import com.mailsangja.core.service.contact.ContactCommandService;
 import com.mailsangja.core.service.google.GoogleMailWatchQueryService;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
+import com.mailsangja.core.service.google.GooglePeopleContactQueryService;
 import com.mailsangja.core.service.mail.InitialMailSyncMessageCommandService;
 import com.mailsangja.core.service.mail.MailAccountCommandService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
@@ -17,11 +20,13 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MailAccountFacade {
@@ -35,6 +40,8 @@ public class MailAccountFacade {
     private final GoogleOAuthQueryService googleOAuthQueryService;
     private final GoogleMailWatchQueryService googleMailWatchQueryService;
     private final InitialMailSyncMessageCommandService initialMailSyncMessageCommandService;
+    private final GooglePeopleContactQueryService googlePeopleContactQueryService;
+    private final ContactCommandService contactCommandService;
 
     public MailAccountAuthorizeResponse authorizeGoogle(String state) {
         String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
@@ -69,6 +76,7 @@ public class MailAccountFacade {
         if (savedMailAccount.getProvider() == MailProvider.GMAIL) {
             InitialMailSyncMessage initialMailSyncMessage = InitialMailSyncMessage.from(savedMailAccount);
             initialMailSyncMessageCommandService.publish(initialMailSyncMessage);
+            saveInitialGoogleContacts(user, result.accessToken(), savedMailAccount);
         }
 
         return MailAccountResponse.from(savedMailAccount);
@@ -126,6 +134,27 @@ public class MailAccountFacade {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private void saveInitialGoogleContacts(User user, String accessToken, MailAccount mailAccount) {
+        try {
+            List<GoogleContactResult> contacts = googlePeopleContactQueryService.getContacts(accessToken);
+            int savedCount = contactCommandService.saveMissingContacts(user, contacts);
+            log.info(
+                    "Saved initial Google contacts. mailAccountId={} userId={} fetchedCount={} savedCount={}",
+                    mailAccount.getId(),
+                    user.getId(),
+                    contacts.size(),
+                    savedCount
+            );
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to save initial Google contacts. mailAccountId={} userId={}",
+                    mailAccount.getId(),
+                    user.getId(),
+                    e
+            );
+        }
     }
 
     private record MailAccountAppearance(
