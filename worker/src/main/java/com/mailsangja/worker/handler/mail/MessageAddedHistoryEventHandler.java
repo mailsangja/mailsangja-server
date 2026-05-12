@@ -6,10 +6,12 @@ import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.port.AttachmentRepositoryPort;
+import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.label.MessageBatch;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.handler.label.LabelRuleCompiler;
+import com.mailsangja.worker.messaging.publisher.MailEmbeddingPublisher;
 import com.mailsangja.worker.service.label.LabelQueryService;
 import com.mailsangja.worker.service.label.MessageLabelCommandService;
 import com.mailsangja.worker.service.mail.GmailNewMessageSyncCommandService;
@@ -34,9 +36,12 @@ public class MessageAddedHistoryEventHandler {
     private final MessageLabelCommandService messageLabelCommandService;
     private final AttachmentRepositoryPort attachmentRepositoryPort;
     private final FcmPushCommandService fcmPushCommandService;
+    private final MailEmbeddingPublisher mailEmbeddingPublisher;
 
     public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
         gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event).ifPresent(context -> {
+            mailEmbeddingPublisher.publish(new MailEmbeddingMessage(context.messageId()));
+
             List<Label> activeLabels = labelQueryService.findAllActiveByUserId(mailAccount.getUser().getId());
 
             boolean isOutbound = context.direction() == Direction.OUTBOUND;

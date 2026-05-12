@@ -7,6 +7,7 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -349,6 +351,106 @@ class InitialMailSyncCommandServiceTest {
         assertEquals("CC Receiver", thread.getLatestParticipantName());
     }
 
+    @Test
+    void saveThreadBatch_새로저장한ThreadId와MessageId를반환한다() {
+        // given
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        UUID messageId = UUID.randomUUID();
+
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            ReflectionTestUtils.setField(message, "id", messageId);
+            return message;
+        });
+
+        // when
+        InitialMailSyncSaveResult result = service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        Direction.INBOUND,
+                        "subject",
+                        "alice@example.com",
+                        "Alice",
+                        java.util.List.of("bob@example.com"),
+                        java.util.List.of("Bob"),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        "snippet",
+                        false,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "body",
+                        null,
+                        java.util.List.of()
+                ))
+        )));
+
+        // then
+        assertEquals(java.util.List.of(thread.getId()), result.threadIds());
+        assertEquals(java.util.List.of(messageId), result.messageIds());
+    }
+
+    @Test
+    void saveThreadBatch_이미존재하는활성MessageId도반환한다() {
+        // given
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        UUID messageId = UUID.randomUUID();
+        Message message = createMessage(messageId, thread, "message-1");
+
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.of(message));
+
+        // when
+        InitialMailSyncSaveResult result = service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                java.util.List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        Direction.INBOUND,
+                        "updated subject",
+                        "alice@example.com",
+                        "Alice",
+                        java.util.List.of("bob@example.com"),
+                        java.util.List.of("Bob"),
+                        java.util.List.of(),
+                        java.util.List.of(),
+                        "updated snippet",
+                        false,
+                        LocalDateTime.of(2026, 4, 11, 10, 0),
+                        "updated body",
+                        null,
+                        java.util.List.of()
+                ))
+        )));
+
+        // then
+        assertEquals(java.util.List.of(thread.getId()), result.threadIds());
+        assertEquals(java.util.List.of(messageId), result.messageIds());
+    }
+
     private MailAccount createMailAccount() {
         return MailAccount.builder()
                 .id(UUID.randomUUID())
@@ -363,6 +465,17 @@ class InitialMailSyncCommandServiceTest {
                 .direction(direction)
                 .read(true)
                 .messageCount(0)
+                .build();
+    }
+
+    private Message createMessage(UUID messageId, Thread thread, String gmailMessageId) {
+        return Message.builder()
+                .id(messageId)
+                .thread(thread)
+                .gmailMessageId(gmailMessageId)
+                .direction(Direction.INBOUND)
+                .fromAddress("alice@example.com")
+                .read(false)
                 .build();
     }
 }

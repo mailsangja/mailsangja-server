@@ -11,6 +11,7 @@ import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncAttachmentResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,16 +32,19 @@ public class InitialMailSyncCommandService {
     private final MessageRepositoryPort messageRepositoryPort;
 
     @Transactional
-    public List<UUID> saveThreadBatch(MailAccount mailAccount, List<InitialMailSyncThreadSaveCommand> commands) {
+    public InitialMailSyncSaveResult saveThreadBatch(MailAccount mailAccount, List<InitialMailSyncThreadSaveCommand> commands) {
         if (mailAccount == null || commands == null || commands.isEmpty()) {
             throw new MailPushException(MailPushErrorCode.INVALID_INITIAL_MAIL_SYNC_COMMAND);
         }
 
         List<UUID> savedThreadIds = new ArrayList<>();
+        List<UUID> savedMessageIds = new ArrayList<>();
         for (InitialMailSyncThreadSaveCommand command : commands) {
-            savedThreadIds.addAll(saveThread(mailAccount, command));
+            InitialMailSyncSaveResult result = saveThread(mailAccount, command);
+            savedThreadIds.addAll(result.threadIds());
+            savedMessageIds.addAll(result.messageIds());
         }
-        return savedThreadIds;
+        return new InitialMailSyncSaveResult(savedThreadIds, savedMessageIds);
     }
 
     @Transactional
@@ -59,19 +63,23 @@ public class InitialMailSyncCommandService {
                 ));
     }
 
-    private List<UUID> saveThread(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
+    private InitialMailSyncSaveResult saveThread(MailAccount mailAccount, InitialMailSyncThreadSaveCommand command) {
         if (command == null || isBlank(command.gmailThreadId()) || command.messages() == null) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
-        return command.messages().stream()
+        List<ThreadDirectionSaveResult> results = command.messages().stream()
                 .collect(Collectors.groupingBy(InitialMailSyncMessageSaveCommand::direction))
                 .entrySet().stream()
                 .map(entry -> saveThreadDirection(mailAccount, command, entry.getKey(), entry.getValue()))
                 .toList();
+        return new InitialMailSyncSaveResult(
+                results.stream().map(ThreadDirectionSaveResult::threadId).toList(),
+                results.stream().flatMap(result -> result.messageIds().stream()).toList()
+        );
     }
 
-    private UUID saveThreadDirection(
+    private ThreadDirectionSaveResult saveThreadDirection(
             MailAccount mailAccount,
             InitialMailSyncThreadSaveCommand threadCommand,
             Direction direction,
@@ -83,9 +91,11 @@ public class InitialMailSyncCommandService {
 
         Thread thread = findOrCreateThread(mailAccount, threadCommand.gmailThreadId(), direction);
         ThreadAggregate aggregate = ThreadAggregate.from(thread);
+        List<UUID> savedMessageIds = new ArrayList<>();
 
         for (InitialMailSyncMessageSaveCommand messageCommand : messageCommands) {
-            saveMessage(thread, threadCommand, messageCommand, aggregate);
+            saveMessage(thread, threadCommand, messageCommand, aggregate)
+                    .ifPresent(savedMessageIds::add);
         }
 
         thread.updateHistoryId(aggregate.historyId());
@@ -98,7 +108,7 @@ public class InitialMailSyncCommandService {
                 aggregate.read()
         );
         thread.updateMessageCount(aggregate.messageCount());
-        return thread.getId();
+        return new ThreadDirectionSaveResult(thread.getId(), savedMessageIds);
     }
 
     private void saveMissingMessagesByDirection(
@@ -141,7 +151,7 @@ public class InitialMailSyncCommandService {
         }
     }
 
-    private void saveMessage(
+    private Optional<UUID> saveMessage(
             Thread thread,
             InitialMailSyncThreadSaveCommand threadCommand,
             InitialMailSyncMessageSaveCommand messageCommand,
@@ -157,15 +167,18 @@ public class InitialMailSyncCommandService {
         if (anyMessage.isEmpty()) {
             Message message = Message.from(thread, messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
-            messageRepositoryPort.save(message);
+            Message savedMessage = messageRepositoryPort.save(message);
             aggregate.merge(threadCommand, messageCommand, true);
+            return Optional.ofNullable(savedMessage.getId());
         } else if (!anyMessage.get().isDeleted()) {
             Message message = anyMessage.get();
             message.updateFrom(messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
             aggregate.merge(threadCommand, messageCommand, false);
+            return Optional.ofNullable(message.getId());
         }
         // 소프트 삭제된 메시지는 건너뛴다 (의도적으로 삭제된 메시지는 재삽입하지 않는다)
+        return Optional.empty();
     }
 
     private Thread findOrCreateThread(MailAccount mailAccount, String gmailThreadId, Direction direction) {
@@ -218,6 +231,15 @@ public class InitialMailSyncCommandService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record ThreadDirectionSaveResult(
+            UUID threadId,
+            List<UUID> messageIds
+    ) {
+        private ThreadDirectionSaveResult {
+            messageIds = messageIds == null ? List.of() : List.copyOf(messageIds);
+        }
     }
 
     private static final class ThreadAggregate {
