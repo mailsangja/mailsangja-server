@@ -38,6 +38,7 @@ dependencies {
     implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
     implementation 'com.sun.mail:jakarta.mail:2.0.1'
     implementation 'ai.philterd:phileas:3.3.0'
+    implementation 'org.jsoup:jsoup:1.17.2'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-scalar:3.0.2'
     implementation 'com.google.firebase:firebase-admin:9.4.2'

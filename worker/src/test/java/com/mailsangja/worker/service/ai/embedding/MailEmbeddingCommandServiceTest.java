@@ -10,6 +10,8 @@ import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.VectorDocumentRepositoryPort;
+import com.mailsangja.worker.common.exception.embedding.EmbeddingErrorCode;
+import com.mailsangja.worker.common.exception.embedding.EmbeddingException;
 import com.mailsangja.worker.dto.ai.masking.MaskingCommand;
 import com.mailsangja.worker.dto.ai.masking.MaskingResult;
 import com.mailsangja.worker.dto.ai.masking.MaskingScope;
@@ -50,10 +52,7 @@ class MailEmbeddingCommandServiceTest {
     private VectorDocumentRepositoryPort vectorDocumentRepositoryPort;
 
     @Mock
-    private MailEmbeddingIdentityService mailEmbeddingIdentityService;
-
-    @Mock
-    private MailEmbeddingDocumentService mailEmbeddingDocumentService;
+    private MailEmbeddingQueryService mailEmbeddingQueryService;
 
     @Mock
     private PhileasMaskingService phileasMaskingService;
@@ -62,20 +61,35 @@ class MailEmbeddingCommandServiceTest {
     private VectorStore vectorStore;
 
     @Test
-    void embed_bodyText가blank이면임베딩하지않는다() {
+    void embed_messageId로메시지를찾지못하면커스텀예외를던진다() {
         // given
         UUID messageId = UUID.randomUUID();
-        Message message = createMessage(messageId, " ");
+        MailEmbeddingCommandService service = createService();
+        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.empty());
+
+        // when
+        EmbeddingException exception = assertThrows(EmbeddingException.class, () -> service.embed(messageId));
+
+        // then
+        assertEquals(EmbeddingErrorCode.MAIL_EMBEDDING_MESSAGE_NOT_FOUND, exception.getErrorCode());
+        verifyNoInteractions(mailEmbeddingQueryService, vectorDocumentRepositoryPort, phileasMaskingService, vectorStore);
+    }
+
+    @Test
+    void embed_임베딩가능한본문이blank이면임베딩하지않는다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        Message message = createMessage(messageId, " ", null);
         MailEmbeddingCommandService service = createService();
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
-        when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(false);
+        when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("");
 
         // when
         service.embed(messageId);
 
         // then
-        verify(mailEmbeddingDocumentService).hasBodyText(message);
-        verifyNoInteractions(mailEmbeddingIdentityService, vectorDocumentRepositoryPort, phileasMaskingService, vectorStore);
+        verify(mailEmbeddingQueryService).extractEmbeddableText(message);
+        verifyNoInteractions(vectorDocumentRepositoryPort, phileasMaskingService, vectorStore);
     }
 
     @Test
@@ -83,11 +97,11 @@ class MailEmbeddingCommandServiceTest {
         // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
-        Message message = createMessage(messageId, "본문입니다.");
+        Message message = createMessage(messageId, "본문입니다.", null);
         MailEmbeddingCommandService service = createService();
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
-        when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(true);
-        when(mailEmbeddingIdentityService.createDocumentId(message)).thenReturn(documentId);
+        when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
+        when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
         when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(true);
 
         // when
@@ -96,7 +110,7 @@ class MailEmbeddingCommandServiceTest {
         // then
         verify(vectorDocumentRepositoryPort).existsById(documentId);
         verifyNoInteractions(phileasMaskingService, vectorStore);
-        verify(mailEmbeddingDocumentService, never()).build(any(), any(), any());
+        verify(mailEmbeddingQueryService, never()).buildDocument(any(), any(), any());
     }
 
     @Test
@@ -104,7 +118,7 @@ class MailEmbeddingCommandServiceTest {
         // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
-        Message message = createMessage(messageId, "전화번호는 010-1234-5678 입니다.");
+        Message message = createMessage(messageId, " 전화번호는 010-1234-5678 입니다. ", null);
         Document document = Document.builder()
                 .id(documentId.toString())
                 .text("전화번호는 {{PHONE_NUMBER_1}} 입니다.")
@@ -112,14 +126,14 @@ class MailEmbeddingCommandServiceTest {
                 .build();
         MailEmbeddingCommandService service = createService();
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
-        when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(true);
-        when(mailEmbeddingIdentityService.createDocumentId(message)).thenReturn(documentId);
+        when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("전화번호는 010-1234-5678 입니다.");
+        when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
         when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
         when(phileasMaskingService.mask(
-                eq(message.getBodyText()),
+                eq("전화번호는 010-1234-5678 입니다."),
                 argThat(command -> command != null && command.scope() == MaskingScope.PAST_CONTEXT)
         )).thenReturn(maskingResult("전화번호는 {{PHONE_NUMBER_1}} 입니다."));
-        when(mailEmbeddingDocumentService.build(message, documentId, "전화번호는 {{PHONE_NUMBER_1}} 입니다."))
+        when(mailEmbeddingQueryService.buildDocument(message, documentId, "전화번호는 {{PHONE_NUMBER_1}} 입니다."))
                 .thenReturn(document);
 
         // when
@@ -136,7 +150,7 @@ class MailEmbeddingCommandServiceTest {
         // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
-        Message message = createMessage(messageId, "본문입니다.");
+        Message message = createMessage(messageId, "본문입니다.", null);
         Document document = Document.builder()
                 .id(documentId.toString())
                 .text("마스킹된 본문입니다.")
@@ -145,12 +159,12 @@ class MailEmbeddingCommandServiceTest {
         RuntimeException vectorStoreFailure = new RuntimeException("vector store failed");
         MailEmbeddingCommandService service = createService();
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
-        when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(true);
-        when(mailEmbeddingIdentityService.createDocumentId(message)).thenReturn(documentId);
+        when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
+        when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
         when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
         when(phileasMaskingService.mask(any(), any(MaskingCommand.class)))
                 .thenReturn(maskingResult("마스킹된 본문입니다."));
-        when(mailEmbeddingDocumentService.build(message, documentId, "마스킹된 본문입니다.")).thenReturn(document);
+        when(mailEmbeddingQueryService.buildDocument(message, documentId, "마스킹된 본문입니다.")).thenReturn(document);
         doThrow(vectorStoreFailure).when(vectorStore).add(List.of(document));
 
         // when
@@ -164,8 +178,7 @@ class MailEmbeddingCommandServiceTest {
         return new MailEmbeddingCommandService(
                 messageRepositoryPort,
                 vectorDocumentRepositoryPort,
-                mailEmbeddingIdentityService,
-                mailEmbeddingDocumentService,
+                mailEmbeddingQueryService,
                 phileasMaskingService,
                 vectorStore
         );
@@ -180,7 +193,7 @@ class MailEmbeddingCommandServiceTest {
         );
     }
 
-    private Message createMessage(UUID messageId, String bodyText) {
+    private Message createMessage(UUID messageId, String bodyText, String bodyHtml) {
         Thread thread = Thread.builder()
                 .id(UUID.randomUUID())
                 .mailAccount(createMailAccount())
@@ -197,6 +210,7 @@ class MailEmbeddingCommandServiceTest {
                 .toAddresses(List.of("to@example.com"))
                 .sentAt(LocalDateTime.of(2026, 5, 4, 10, 0))
                 .bodyText(bodyText)
+                .bodyHtml(bodyHtml)
                 .build();
     }
 
