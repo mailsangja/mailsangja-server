@@ -2,6 +2,8 @@ package com.mailsangja.db.adapter.mail;
 
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
+import com.mailsangja.db.dto.MessageLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -109,6 +111,42 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Slice<Message> findDeletedByUserIdAndFilters(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return messageJpaRepositoryModule.findDeletedByUserId(userId, markerId, pageable);
+            }
+            return messageJpaRepositoryModule.findDeletedByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return messageJpaRepositoryModule.findDeletedByUserIdAndLabelIdsAndReadFilter(userId, markerId, labelIds, read, pageable);
+    }
+
+    @Override
+    public long countUnreadDeletedByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return messageJpaRepositoryModule.countUnreadDeletedByUserId(userId);
+        }
+        return messageJpaRepositoryModule.countUnreadDeletedByUserIdAndLabelIds(userId, labelIds);
+    }
+
+    @Override
+    public long countDeletedByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return messageJpaRepositoryModule.countDeletedByUserIdAndReadFilter(userId, read);
+        }
+        return messageJpaRepositoryModule.countDeletedByUserIdAndLabelIdsAndReadFilter(userId, labelIds, read);
+    }
+
+    @Override
     public List<Message> findAllDeletedByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.findAllDeletedByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
     }
@@ -131,5 +169,70 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public boolean existsByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadId(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public List<Message> findAllByUserIdAndDeletedAtIsNullWithLabels(UUID userId) {
+        return messageJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNullWithLabels(userId);
+    }
+
+    @Override
+    public List<Message> findAllByUserIdAndDeletedAtIsNullWithAttachments(UUID userId) {
+        return messageJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNullWithAttachments(userId);
+    }
+
+    @Override
+    public List<Message> saveAll(List<Message> messages) {
+        return messageJpaRepositoryModule.saveAll(messages);
+    }
+
+    @Override
+    public List<ThreadMessageLabelView> findLabelsByThreadIdIn(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepositoryModule.findLabelsByThreadIdIn(threadIds)
+                .stream()
+                .map(p -> new ThreadMessageLabelView(p.getThreadId(), p.getLabelId(), p.getLabelName(), p.getLabelColorCode()))
+                .toList();
+    }
+
+    @Override
+    public int deleteMessageLabelsByLabelId(UUID labelId) {
+        return messageJpaRepositoryModule.deleteMessageLabelsByLabelId(labelId);
+    }
+
+    @Override
+    public Optional<Message> findByIdWithLabelsAndDeletedAtIsNull(UUID id) {
+        return messageJpaRepositoryModule.findByIdWithLabelsAndDeletedAtIsNull(id);
+    }
+
+    @Override
+    public List<Message> findActiveMessagesWithLabelsByUserIdPaged(UUID userId, Pageable pageable) {
+        return messageJpaRepositoryModule.findActiveMessagesWithLabelsByUserIdPaged(userId, pageable);
+    }
+
+    @Override
+    public List<MessageLabelView> findMessageLabelsByMessageIds(List<UUID> messageIds) {
+        if (messageIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepositoryModule.findMessageLabelsByMessageIdIn(messageIds)
+                .stream()
+                .map(p -> new MessageLabelView(p.getMessageId(), p.getLabelId(), p.getLabelName(), p.getColorCode()))
+                .toList();
+    }
+
+    @Override
+    public List<UUID> findActiveThreadIdsByUserId(UUID userId) {
+        return messageJpaRepositoryModule.findActiveThreadIdsByUserId(userId);
+    }
+
+    @Override
+    public List<Message> findActiveMessagesWithLabelsByThreadIdIn(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return List.of();
+        }
+        return messageJpaRepositoryModule.findActiveMessagesWithLabelsByThreadIdIn(threadIds);
     }
 }

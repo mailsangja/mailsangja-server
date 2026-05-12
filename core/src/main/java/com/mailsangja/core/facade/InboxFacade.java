@@ -11,6 +11,7 @@ import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.dto.inbox.ThreadDetailResult;
 import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
+import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
@@ -35,22 +36,57 @@ public class InboxFacade {
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
+    private final InlineImageService inlineImageService;
 
-    public MarkerSliceResponse<ThreadSummaryResponse> getInbox(User user, UUID marker, int size) {
-        ThreadListResult result = inboxQueryService.findInboxThreadsResult(user.getId(), marker, PageRequest.of(0, size));
-        return toMarkerSlice(result);
+    public MarkerSliceResponse<ThreadSummaryResponse> getInbox(
+            User user,
+            UUID marker,
+            int size,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        ThreadListResult result = inboxQueryService.findInboxThreadsResult(
+                user.getId(),
+                marker,
+                labelIds,
+                read,
+                PageRequest.of(0, size)
+        );
+        long unreadCount = inboxQueryService.countUnreadInbox(user.getId(), labelIds, read);
+        long totalCount = inboxQueryService.countInbox(user.getId(), labelIds, read);
+        return toMarkerSlice(result, unreadCount, totalCount);
     }
 
-    public MarkerSliceResponse<ThreadSummaryResponse> getSent(User user, UUID marker, int size) {
-        ThreadListResult result = inboxQueryService.findSentThreadsResult(user.getId(), marker, PageRequest.of(0, size));
-        return toMarkerSlice(result);
+    public MarkerSliceResponse<ThreadSummaryResponse> getSent(
+            User user,
+            UUID marker,
+            int size,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        ThreadListResult result = inboxQueryService.findSentThreadsResult(
+                user.getId(),
+                marker,
+                labelIds,
+                read,
+                PageRequest.of(0, size)
+        );
+        long unreadCount = inboxQueryService.countUnreadSent(user.getId(), labelIds, read);
+        long totalCount = inboxQueryService.countSent(user.getId(), labelIds, read);
+        return toMarkerSlice(result, unreadCount, totalCount);
     }
 
     public ThreadDetailResponse getThreadDetail(User user, UUID threadId) {
         Thread thread = inboxQueryService.findThreadById(threadId);
         validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
         ThreadDetailResult result = inboxQueryService.findThreadDetailResult(thread);
-        return ThreadDetailResponse.from(result.thread(), result.messages(), result.contactNameByEmail());
+        return ThreadDetailResponse.from(
+                result.thread(),
+                result.messages(),
+                result.contactNameByEmail(),
+                result.messageLabelsByMessageId(),
+                renderBodyHtmlByMessageId(result.messages())
+        );
     }
 
     public void markThreadAsRead(User user, UUID threadId) {
@@ -106,14 +142,31 @@ public class InboxFacade {
     }
 
     private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(ThreadListResult result) {
+        return toMarkerSlice(result, 0L, 0L);
+    }
+
+    private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(
+            ThreadListResult result,
+            long unreadCount,
+            long totalCount
+    ) {
         List<ThreadSummaryResponse> content = result.threads().getContent().stream()
                 .map(thread -> ThreadSummaryResponse.from(
                         thread,
                         result.attachmentsByThreadId().getOrDefault(thread.getId(), List.of()),
-                        result.contactNameByEmail()))
+                        result.contactNameByEmail(),
+                        result.labelsByThreadId().getOrDefault(thread.getId(), List.of())))
                 .toList();
         UUID nextMarker = result.threads().hasNext() ? result.threads().getContent().getLast().getId() : null;
-        return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext());
+        return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext(), unreadCount, totalCount);
+    }
+
+    private java.util.Map<UUID, String> renderBodyHtmlByMessageId(List<Message> messages) {
+        return messages.stream()
+                .collect(Collectors.toMap(
+                        Message::getId,
+                        inlineImageService::renderInlineImageUrls
+                ));
     }
 
     private void validateThreadAccess(List<MailAccount> userAccounts, Thread thread) {

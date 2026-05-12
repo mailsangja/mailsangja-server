@@ -2,6 +2,7 @@ package com.mailsangja.core.dto.trash;
 
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.dto.MessageLabelView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -27,9 +28,20 @@ public record TrashMessageItemResponse(
         @Schema(description = "발송 시각")
         LocalDateTime sentAt,
         @Schema(description = "삭제된 시각")
-        LocalDateTime deletedAt
+        LocalDateTime deletedAt,
+        @Schema(description = "메시지에 적용된 라벨 목록")
+        List<LabelSummary> labels
 ) {
-    public static TrashMessageItemResponse from(Message message) {
+    public record LabelSummary(
+            @Schema(description = "라벨 ID") UUID labelId,
+            @Schema(description = "라벨 이름") String name,
+            @Schema(description = "라벨 색상 코드", example = "#FF5733") String colorCode
+    ) {}
+
+    public static TrashMessageItemResponse from(Message message, List<MessageLabelView> labelViews) {
+        List<LabelSummary> labels = labelViews.stream()
+                .map(v -> new LabelSummary(v.labelId(), v.labelName(), v.colorCode()))
+                .toList();
         return new TrashMessageItemResponse(
                 message.getId(),
                 message.getGmailMessageId(),
@@ -39,7 +51,8 @@ public record TrashMessageItemResponse(
                 message.getToAddresses(),
                 message.getSnippet(),
                 message.getSentAt(),
-                message.getDeletedAt()
+                message.getDeletedAt(),
+                labels
         );
     }
 }

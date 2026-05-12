@@ -109,6 +109,8 @@ public class MailCommandService {
                         .gmailAttachmentId(attachment.gmailAttachmentId())
                         .filename(attachment.filename())
                         .mimeType(attachment.mimeType())
+                        .contentId(attachment.contentId())
+                        .disposition(attachment.disposition())
                         .size(attachment.size())
                         .build())
                 .toList();

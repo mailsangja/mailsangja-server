@@ -7,6 +7,7 @@ import com.mailsangja.core.dto.mail.GoogleMailAttachmentResult;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResponse;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.core.dto.mail.GoogleMailReplyContextResult;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -262,6 +263,8 @@ public class GoogleMailMessageQueryService {
                         part.body() == null ? null : part.body().attachmentId(),
                         part.filename(),
                         part.mimeType(),
+                        normalizeContentId(extractPartHeaderValue(part, "Content-ID")),
+                        resolveDisposition(part),
                         part.body() == null ? null : part.body().size()
                 ))
                 .toList();
@@ -286,6 +289,49 @@ public class GoogleMailMessageQueryService {
         }
 
         payload.parts().forEach(part -> collectAttachmentParts(part, attachmentParts));
+    }
+
+    private String extractPartHeaderValue(
+            GoogleMailMessageResponse.GoogleMailPayloadResponse payload,
+            String headerName
+    ) {
+        if (payload == null || payload.headers() == null) {
+            return null;
+        }
+
+        return payload.headers().stream()
+                .filter(header -> header != null
+                        && !isBlank(header.name())
+                        && headerName.equalsIgnoreCase(header.name()))
+                .map(GoogleMailMessageResponse.GoogleMailHeaderResponse::value)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private AttachmentDisposition resolveDisposition(GoogleMailMessageResponse.GoogleMailPayloadResponse part) {
+        String disposition = extractPartHeaderValue(part, "Content-Disposition");
+        if (!isBlank(disposition) && disposition.trim().toLowerCase().startsWith("inline")) {
+            return AttachmentDisposition.INLINE;
+        }
+
+        if (!isBlank(extractPartHeaderValue(part, "Content-ID"))) {
+            return AttachmentDisposition.INLINE;
+        }
+
+        return AttachmentDisposition.ATTACHMENT;
+    }
+
+    private String normalizeContentId(String contentId) {
+        if (isBlank(contentId)) {
+            return null;
+        }
+
+        String normalizedContentId = contentId.trim();
+        if (normalizedContentId.startsWith("<") && normalizedContentId.endsWith(">") && normalizedContentId.length() > 2) {
+            return normalizedContentId.substring(1, normalizedContentId.length() - 1);
+        }
+        return normalizedContentId;
     }
 
     private boolean isBlank(String value) {

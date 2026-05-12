@@ -2,9 +2,15 @@ package com.mailsangja.core.service.trash;
 
 import com.mailsangja.core.common.exception.trash.TrashErrorCode;
 import com.mailsangja.core.common.exception.trash.TrashException;
+import com.mailsangja.db.entity.contact.Contact;
+import com.mailsangja.db.entity.mail.Attachment;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.port.AttachmentRepositoryPort;
+import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
+import com.mailsangja.db.dto.MessageLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -12,7 +18,9 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,9 +28,31 @@ public class TrashQueryService {
 
     private final ThreadRepositoryPort threadRepositoryPort;
     private final MessageRepositoryPort messageRepositoryPort;
+    private final ContactRepositoryPort contactRepositoryPort;
+    private final AttachmentRepositoryPort attachmentRepositoryPort;
 
-    public Slice<Message> findDeletedMessagesByUserId(UUID userId, UUID markerId, int size) {
-        return messageRepositoryPort.findDeletedByUserId(userId, markerId, PageRequest.of(0, size));
+    public Slice<Message> findDeletedMessagesByUserId(
+            UUID userId,
+            UUID markerId,
+            int size,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        return messageRepositoryPort.findDeletedByUserIdAndFilters(
+                userId,
+                markerId,
+                normalizeLabelIds(labelIds),
+                read,
+                PageRequest.of(0, size)
+        );
+    }
+
+    public long countUnreadDeletedMessagesByUserId(UUID userId, List<UUID> labelIds, Boolean read) {
+        return messageRepositoryPort.countUnreadDeletedByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countDeletedMessagesByUserId(UUID userId, List<UUID> labelIds, Boolean read) {
+        return messageRepositoryPort.countDeletedByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
     public List<Message> findDeletedMessagesByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId) {
@@ -64,5 +94,51 @@ public class TrashQueryService {
             throw new TrashException(TrashErrorCode.MESSAGE_NOT_DELETED);
         }
         return message;
+    }
+
+    public Map<UUID, List<ThreadMessageLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return Map.of();
+        }
+        return messageRepositoryPort.findLabelsByThreadIdIn(threadIds)
+                .stream()
+                .collect(Collectors.groupingBy(ThreadMessageLabelView::threadId));
+    }
+
+    public Map<UUID, List<MessageLabelView>> findMessageLabelsByMessageIds(List<UUID> messageIds) {
+        if (messageIds.isEmpty()) {
+            return Map.of();
+        }
+        return messageRepositoryPort.findMessageLabelsByMessageIds(messageIds)
+                .stream()
+                .collect(Collectors.groupingBy(MessageLabelView::messageId));
+    }
+
+    public Map<String, String> findContactNamesByEmails(UUID userId, List<String> emails) {
+        if (emails.isEmpty()) {
+            return Map.of();
+        }
+        return contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(userId, emails)
+                .stream()
+                .collect(Collectors.toMap(Contact::getEmail, Contact::getName));
+    }
+
+    public Map<UUID, List<Attachment>> findAttachmentsByMessageIds(List<UUID> messageIds) {
+        if (messageIds.isEmpty()) {
+            return Map.of();
+        }
+        return attachmentRepositoryPort.findAllByMessageIdIn(messageIds)
+                .stream()
+                .collect(Collectors.groupingBy(a -> a.getMessage().getId()));
+    }
+
+    private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return List.of();
+        }
+        return labelIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
     }
 }

@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS attachments (
     gmail_attachment_id VARCHAR(1024) NULL,
     filename            VARCHAR(255) NOT NULL,
     mime_type           VARCHAR(255) NOT NULL,
+    content_id          VARCHAR(255) NULL,
+    disposition         VARCHAR(20)  NOT NULL DEFAULT 'ATTACHMENT',
     size                INT          NULL,
     created_at          TIMESTAMP    NOT NULL,
     modified_at         TIMESTAMP    NOT NULL,
@@ -139,12 +141,30 @@ CREATE TABLE IF NOT EXISTS attachments (
     CONSTRAINT fk_attachments_message FOREIGN KEY (message_id) REFERENCES messages (id)
 );
 
+CREATE TABLE IF NOT EXISTS contacts (
+    id          CHAR(36)     NOT NULL,
+    user_id     CHAR(36)     NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    email       VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMP    NOT NULL,
+    modified_at TIMESTAMP    NOT NULL,
+    deleted_at  TIMESTAMP    NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT fk_contacts_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_user_email_active
+    ON contacts (user_id, lower(email))
+    WHERE deleted_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS labels (
     id                   CHAR(36)     NOT NULL,
     user_id              CHAR(36)     NOT NULL,
     name                 VARCHAR(100) NOT NULL,
     color_code           VARCHAR(7)   NOT NULL,
-    notification_enabled BOOLEAN      NOT NULL DEFAULT FALSE,
+    notification_policy  VARCHAR(10)  NOT NULL DEFAULT 'INHERIT' CHECK (notification_policy IN ('URGENT', 'SILENT', 'INHERIT')),
+    display_order        INT          NOT NULL DEFAULT 0,
     rule                 JSONB        NULL,
     created_at           TIMESTAMP    NOT NULL,
     modified_at          TIMESTAMP    NOT NULL,
@@ -154,9 +174,45 @@ CREATE TABLE IF NOT EXISTS labels (
     CONSTRAINT fk_labels_user FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
+    ON labels (user_id, lower(name))
+    WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS label_groups (
+    id             CHAR(36)     NOT NULL,
+    user_id        CHAR(36)     NOT NULL,
+    name           VARCHAR(100) NOT NULL,
+    display_order  INT          NOT NULL DEFAULT 0,
+    created_at     TIMESTAMP    NOT NULL,
+    modified_at    TIMESTAMP    NOT NULL,
+    deleted_at     TIMESTAMP    NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT fk_label_groups_user FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_label_groups_user_name_active
+    ON label_groups (user_id, lower(name))
+    WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS label_group_labels (
+    label_group_id CHAR(36)  NOT NULL,
+    label_id       CHAR(36)  NOT NULL,
+    created_at     TIMESTAMP NOT NULL,
+    modified_at    TIMESTAMP NOT NULL,
+    deleted_at     TIMESTAMP NULL,
+
+    PRIMARY KEY (label_group_id, label_id),
+    CONSTRAINT fk_label_group_labels_group FOREIGN KEY (label_group_id) REFERENCES label_groups (id),
+    CONSTRAINT fk_label_group_labels_label FOREIGN KEY (label_id) REFERENCES labels (id)
+);
+
 CREATE TABLE IF NOT EXISTS thread_labels (
-    thread_id CHAR(36) NOT NULL,
-    label_id  CHAR(36) NOT NULL,
+    thread_id   CHAR(36)  NOT NULL,
+    label_id    CHAR(36)  NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
 
     PRIMARY KEY (thread_id, label_id),
     CONSTRAINT fk_thread_labels_thread FOREIGN KEY (thread_id) REFERENCES threads (id),
@@ -164,10 +220,35 @@ CREATE TABLE IF NOT EXISTS thread_labels (
 );
 
 CREATE TABLE IF NOT EXISTS message_labels (
-    message_id CHAR(36) NOT NULL,
-    label_id   CHAR(36) NOT NULL,
+    message_id  CHAR(36)  NOT NULL,
+    label_id    CHAR(36)  NOT NULL,
+    created_at  TIMESTAMP NOT NULL,
+    modified_at TIMESTAMP NOT NULL,
+    deleted_at  TIMESTAMP NULL,
 
     PRIMARY KEY (message_id, label_id),
     CONSTRAINT fk_message_labels_message FOREIGN KEY (message_id) REFERENCES messages (id),
     CONSTRAINT fk_message_labels_label   FOREIGN KEY (label_id)   REFERENCES labels (id)
+);
+
+-- webhookId: 포트원 V2 웹훅 루트 레벨 식별자. UNIQUE 제약으로 멱등성 보장
+-- status: PENDING(결제 전 Pre-Order) / COMPLETED(결제 완료)
+-- webhook_id: PENDING 상태에서는 null 허용. 결제 완료(COMPLETED) 후 webhook_id 설정
+CREATE TABLE IF NOT EXISTS orders (
+    id          CHAR(36)     NOT NULL,
+    webhook_id  VARCHAR(255) NULL,
+    payment_id  VARCHAR(255) NULL,
+    user_id     CHAR(36)     NOT NULL,
+    plan        VARCHAR(20)  NOT NULL,
+    amount      INT          NOT NULL,
+    status      VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    created_at  TIMESTAMP    NOT NULL,
+    modified_at TIMESTAMP    NOT NULL,
+    deleted_at  TIMESTAMP    NULL,
+
+    CONSTRAINT chk_orders_plan   CHECK (plan   IN ('FREE', 'PRO')),
+    CONSTRAINT chk_orders_status CHECK (status IN ('PENDING', 'COMPLETED')),
+    PRIMARY KEY (id),
+    CONSTRAINT uq_orders_webhook_id UNIQUE (webhook_id),
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id)
 );

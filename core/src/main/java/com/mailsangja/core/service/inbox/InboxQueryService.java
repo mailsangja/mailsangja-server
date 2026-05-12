@@ -10,6 +10,8 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
+import com.mailsangja.db.dto.MessageLabelView;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -45,39 +47,107 @@ public class InboxQueryService {
         return message;
     }
 
-    public ThreadListResult findInboxThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
-        return buildThreadListResult(threads);
+    public ThreadListResult findInboxThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findInboxByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
+        return buildThreadListResult(userId, threads);
     }
 
-    public ThreadListResult findSentThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
-        return buildThreadListResult(threads);
+    public ThreadListResult findSentThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findSentByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
+        return buildThreadListResult(userId, threads);
     }
 
     public ThreadDetailResult findThreadDetailResult(Thread thread) {
         List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
                 thread.getMailAccount().getId(), thread.getGmailThreadId());
-        Map<String, String> contactNameByEmail = findContactNamesByEmails(collectEmailsFromMessages(messages));
-        return new ThreadDetailResult(thread, messages, contactNameByEmail);
+        Map<String, String> contactNameByEmail = findContactNamesByEmails(
+                thread.getMailAccount().getUser().getId(),
+                collectEmailsFromMessages(messages)
+        );
+        List<UUID> messageIds = messages.stream().map(Message::getId).toList();
+        Map<UUID, List<MessageLabelView>> messageLabelsByMessageId = messageRepositoryPort
+                .findMessageLabelsByMessageIds(messageIds)
+                .stream()
+                .collect(Collectors.groupingBy(MessageLabelView::messageId));
+        return new ThreadDetailResult(thread, messages, contactNameByEmail, messageLabelsByMessageId);
     }
 
     public long countUnreadInbox(UUID userId) {
         return threadRepositoryPort.countUnreadInboxByUserId(userId);
     }
 
-    private ThreadListResult buildThreadListResult(Slice<Thread> threads) {
+    public long countUnreadInbox(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countInbox(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countInboxByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countUnreadSent(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    public long countSent(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
+    }
+
+    private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return List.of();
+        }
+        return labelIds.stream()
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+    }
+
+    private ThreadListResult buildThreadListResult(UUID userId, Slice<Thread> threads) {
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = findAttachmentsByThreadIds(threadIds);
+        Map<UUID, List<ThreadMessageLabelView>> labelsByThreadId = findLabelsByThreadIds(threadIds);
 
         List<String> participantEmails = threads.getContent().stream()
                 .map(Thread::getLatestParticipantAddress)
                 .filter(email -> email != null && !email.isBlank())
                 .distinct()
                 .toList();
-        Map<String, String> contactNameByEmail = findContactNamesByEmails(participantEmails);
+        Map<String, String> contactNameByEmail = findContactNamesByEmails(userId, participantEmails);
 
-        return new ThreadListResult(threads, attachmentsByThreadId, contactNameByEmail);
+        return new ThreadListResult(threads, attachmentsByThreadId, contactNameByEmail, labelsByThreadId);
+    }
+
+    private Map<UUID, List<ThreadMessageLabelView>> findLabelsByThreadIds(List<UUID> threadIds) {
+        if (threadIds.isEmpty()) {
+            return Map.of();
+        }
+        return messageRepositoryPort.findLabelsByThreadIdIn(threadIds)
+                .stream()
+                .collect(Collectors.groupingBy(ThreadMessageLabelView::threadId));
     }
 
     private Map<UUID, List<Attachment>> findAttachmentsByThreadIds(List<UUID> threadIds) {
@@ -109,11 +179,11 @@ public class InboxQueryService {
                 .toList();
     }
 
-    private Map<String, String> findContactNamesByEmails(List<String> emails) {
+    private Map<String, String> findContactNamesByEmails(UUID userId, List<String> emails) {
         if (emails.isEmpty()) {
             return Map.of();
         }
-        return contactRepositoryPort.findAllByEmailInAndDeletedAtIsNull(emails)
+        return contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(userId, emails)
                 .stream()
                 .collect(Collectors.toMap(Contact::getEmail, Contact::getName));
     }

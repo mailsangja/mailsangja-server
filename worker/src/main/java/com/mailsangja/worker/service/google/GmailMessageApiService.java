@@ -1,5 +1,6 @@
 package com.mailsangja.worker.service.google;
 
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
@@ -9,6 +10,7 @@ import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncAttachmentResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import lombok.extern.slf4j.Slf4j;
@@ -207,10 +209,10 @@ public class GmailMessageApiService {
         }
     }
 
-    private com.mailsangja.db.entity.mail.Direction resolveDirection(List<String> labelIds) {
+    private Direction resolveDirection(List<String> labelIds) {
         return labelIds != null && labelIds.contains("SENT")
-                ? com.mailsangja.db.entity.mail.Direction.OUTBOUND
-                : com.mailsangja.db.entity.mail.Direction.INBOUND;
+                ? Direction.OUTBOUND
+                : Direction.INBOUND;
     }
 
     private boolean isRead(List<String> labelIds) {
@@ -362,6 +364,8 @@ public class GmailMessageApiService {
                         part.body() == null ? null : part.body().attachmentId(),
                         part.filename(),
                         part.mimeType(),
+                        normalizeContentId(extractPartHeaderValue(part, "Content-ID")),
+                        resolveDisposition(part),
                         part.body() == null ? null : part.body().size()
                 ))
                 .toList();
@@ -386,6 +390,49 @@ public class GmailMessageApiService {
         }
 
         payload.parts().forEach(part -> collectAttachmentParts(part, attachmentParts));
+    }
+
+    private String extractPartHeaderValue(
+            GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload,
+            String headerName
+    ) {
+        if (payload == null || payload.headers() == null) {
+            return null;
+        }
+
+        return payload.headers().stream()
+                .filter(header -> header != null
+                        && !isBlank(header.name())
+                        && headerName.equalsIgnoreCase(header.name()))
+                .map(GoogleMailThreadResponse.GoogleMailHeaderResponse::value)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private AttachmentDisposition resolveDisposition(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse part) {
+        String disposition = extractPartHeaderValue(part, "Content-Disposition");
+        if (!isBlank(disposition) && disposition.trim().toLowerCase().startsWith("inline")) {
+            return AttachmentDisposition.INLINE;
+        }
+
+        if (!isBlank(extractPartHeaderValue(part, "Content-ID"))) {
+            return AttachmentDisposition.INLINE;
+        }
+
+        return AttachmentDisposition.ATTACHMENT;
+    }
+
+    private String normalizeContentId(String contentId) {
+        if (isBlank(contentId)) {
+            return null;
+        }
+
+        String normalizedContentId = contentId.trim();
+        if (normalizedContentId.startsWith("<") && normalizedContentId.endsWith(">") && normalizedContentId.length() > 2) {
+            return normalizedContentId.substring(1, normalizedContentId.length() - 1);
+        }
+        return normalizedContentId;
     }
 
     private String firstNonBlank(String primary, String secondary) {

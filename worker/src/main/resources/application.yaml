@@ -119,3 +119,8 @@ mailsangja:
     service-account-key-path: ${MAILSANGJA_FCM_SERVICE_ACCOUNT_KEY_PATH:firebase-key.json}
     logo-image-url: ${MAILSANGJA_FCM_LOGO_IMAGE_URL:https://www.ajou.ac.kr/_res/ajou/kr/img/intro/img-symbol.png}
     thread-detail-url-template: ${MAILSANGJA_FCM_THREAD_DETAIL_URL_TEMPLATE:https://mail.ajou.app/mail/inbox?thread={threadId}&message={messageId}}
+  portone:
+    api-secret: ${PORTONE_API_SECRET}
+    payment-query-uri: ${PORTONE_PAYMENT_QUERY_URI:https://api.portone.io/payments}
+    connect-timeout: ${PORTONE_CONNECT_TIMEOUT:3s}
+    read-timeout: ${PORTONE_READ_TIMEOUT:5s}

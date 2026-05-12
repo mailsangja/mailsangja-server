@@ -8,7 +8,9 @@ import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import com.mailsangja.worker.messaging.publisher.InitialMailSyncThreadBatchPublisher;
+import com.mailsangja.worker.messaging.publisher.LabelReclassifyPublisher;
 import com.mailsangja.worker.service.google.GmailMessageApiService;
+import com.mailsangja.worker.service.label.LabelQueryService;
 import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
@@ -20,6 +22,8 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -32,6 +36,8 @@ public class InitialMailSyncListener {
     private final InitialMailSyncThreadBatchPublisher initialMailSyncThreadBatchPublisher;
     private final InitialMailSyncCommandService initialMailSyncCommandService;
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
+    private final LabelQueryService labelQueryService;
+    private final LabelReclassifyPublisher labelReclassifyPublisher;
 
     @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
     public void handle(InitialMailSyncMessage message) {
@@ -84,7 +90,12 @@ public class InitialMailSyncListener {
                 .map(InitialMailSyncThreadSaveCommand::from)
                 .toList();
 
-        initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
+        List<UUID> savedThreadIds = initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
+
+        Set<UUID> activeLabelIds = labelQueryService.findActiveLabelIdsByUserId(message.userId());
+        if (!activeLabelIds.isEmpty() && !savedThreadIds.isEmpty()) {
+            labelReclassifyPublisher.publish(message.userId(), activeLabelIds, savedThreadIds);
+        }
 
         log.info(
                 "Saved initial mail sync thread batch. mailAccountId={} emailAddress={} threadCount={}",

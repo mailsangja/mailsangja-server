@@ -1,0 +1,97 @@
+package com.mailsangja.core.service.google;
+
+import com.mailsangja.core.config.properties.GoogleMailProperties;
+import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequest;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.mock.http.client.MockClientHttpRequest;
+import org.springframework.mock.http.client.MockClientHttpResponse;
+import org.springframework.web.client.RestClient;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class GoogleMailMessageQueryServiceTest {
+
+    @Test
+    void getMessage_본문이미지첨부의contentId와disposition을보존한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        properties.setMessagesUri("https://gmail.googleapis.com/gmail/v1/users/me/messages");
+
+        RestClient restClient = RestClient.builder()
+                .requestFactory(new StubClientHttpRequestFactory("""
+                        {
+                          "id": "message-1",
+                          "threadId": "thread-1",
+                          "snippet": "snippet",
+                          "historyId": "history-1",
+                          "internalDate": "1712822400000",
+                          "payload": {
+                            "mimeType": "multipart/related",
+                            "headers": [
+                              {"name": "Subject", "value": "subject"},
+                              {"name": "From", "value": "Alice <alice@example.com>"},
+                              {"name": "To", "value": "Bob <bob@example.com>"},
+                              {"name": "Message-ID", "value": "<message-id@example.com>"}
+                            ],
+                            "parts": [
+                              {
+                                "mimeType": "text/html",
+                                "body": {"data": "PHA-Ym9keTxpbWcgc3JjPVwiY2lkOmlubGluZS0xXCI-PC9wPg"}
+                              },
+                              {
+                                "mimeType": "image/png",
+                                "filename": "image.png",
+                                "headers": [
+                                  {"name": "Content-ID", "value": "<inline-1>"},
+                                  {"name": "Content-Disposition", "value": "inline; filename=image.png"}
+                                ],
+                                "body": {"attachmentId": "gmail-attachment-id", "size": 5}
+                              }
+                            ]
+                          }
+                        }
+                        """))
+                .build();
+
+        GoogleMailMessageQueryService service = new GoogleMailMessageQueryService(properties, restClient);
+
+        GoogleMailMessageResult result = service.getMessage("token", "message-1");
+
+        assertEquals(1, result.attachments().size());
+        assertEquals("gmail-attachment-id", result.attachments().getFirst().gmailAttachmentId());
+        assertEquals("inline-1", result.attachments().getFirst().contentId());
+        assertEquals(AttachmentDisposition.INLINE, result.attachments().getFirst().disposition());
+    }
+
+    private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
+        private final String responseBody;
+
+        private StubClientHttpRequestFactory(String responseBody) {
+            this.responseBody = responseBody;
+        }
+
+        @Override
+        public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            return new MockClientHttpRequest(httpMethod, uri) {
+                @Override
+                protected ClientHttpResponse executeInternal() {
+                    MockClientHttpResponse response = new MockClientHttpResponse(
+                            responseBody.getBytes(StandardCharsets.UTF_8),
+                            HttpStatus.OK
+                    );
+                    response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+                    return response;
+                }
+            };
+        }
+    }
+}

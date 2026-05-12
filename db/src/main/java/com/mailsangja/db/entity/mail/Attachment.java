@@ -36,6 +36,14 @@ public class Attachment extends BaseEntity {
     @Column(name = "mime_type", nullable = false, length = 255)
     private String mimeType;
 
+    @Column(name = "content_id", length = 255)
+    private String contentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "disposition", nullable = false, length = 20)
+    @Builder.Default
+    private AttachmentDisposition disposition = AttachmentDisposition.ATTACHMENT;
+
     // 첨부파일 크기 (bytes)
     @Column(name = "size")
     private Integer size;

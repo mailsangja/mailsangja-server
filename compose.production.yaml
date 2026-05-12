@@ -7,6 +7,7 @@ services:
       - "80:80"
       - "443:443"
     environment:
+      TZ: Asia/Seoul
       API_DOMAIN: ${API_DOMAIN}
       CADDY_EMAIL: ${CADDY_EMAIL}
     volumes:
@@ -22,6 +23,7 @@ services:
     container_name: mailsangja-postgres
     restart: unless-stopped
     environment:
+      TZ: Asia/Seoul
       POSTGRES_DB: ${DB_NAME:-mailsangja}
       POSTGRES_USER: ${DB_USERNAME:-mailsangja}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-mailsangja}
@@ -38,6 +40,8 @@ services:
     image: redis:8.4.0-alpine3.22
     container_name: mailsangja-redis
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
     volumes:
       - mailsangja_redis_data:/data
     healthcheck:
@@ -51,6 +55,7 @@ services:
     container_name: mailsangja-rabbitmq
     restart: unless-stopped
     environment:
+      TZ: Asia/Seoul
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
@@ -66,6 +71,9 @@ services:
     image: ghcr.io/${CORE_IMAGE_NAME}:${APP_IMAGE_TAG}
     container_name: mailsangja-core
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
     env_file:
       - .env
     depends_on:
@@ -80,6 +88,9 @@ services:
     image: ghcr.io/${WORKER_IMAGE_NAME}:${APP_IMAGE_TAG}
     container_name: mailsangja-worker
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
     env_file:
       - .env
     depends_on:

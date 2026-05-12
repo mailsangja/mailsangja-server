@@ -39,7 +39,8 @@ class MessageResponseTest {
                         "first@example.com", "Contact First",
                         "second@example.com", "Contact Second",
                         "cc@example.com", "Contact Cc"
-                )
+                ),
+                List.of()
         );
 
         assertEquals("Gmail Sender", response.from().name());
@@ -48,5 +49,59 @@ class MessageResponseTest {
         assertEquals("First Gmail Name", response.to().getFirst().name());
         assertEquals("Contact Second", response.to().get(1).name());
         assertEquals("Contact Cc", response.cc().getFirst().name());
+    }
+
+    @Test
+    void from_렌더링된본문html을그대로응답한다() {
+        UUID inlineAttachmentId = UUID.randomUUID();
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .gmailMessageId("gmail-message-id")
+                .direction(Direction.INBOUND)
+                .subject("subject")
+                .fromAddress("sender@example.com")
+                .fromName("sender@example.com")
+                .toAddresses(List.of("to@example.com"))
+                .toNames(List.of("to@example.com"))
+                .snippet("snippet")
+                .read(true)
+                .bodyHtml("<p>본문</p><img src=\"cid:inline-1\">")
+                .build();
+
+        MessageResponse response = MessageResponse.from(
+                message,
+                "<p>본문</p><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                Map.of(),
+                List.of()
+        );
+
+        assertEquals(
+                "<p>본문</p><img src=\"https://test-api.mailsangja.com/api/v1/mail/attachments/" + inlineAttachmentId + "\">",
+                response.bodyHtml()
+        );
+    }
+
+    @Test
+    void from_기본팩토리는저장된본문html을그대로응답한다() {
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .gmailMessageId("gmail-message-id")
+                .direction(Direction.INBOUND)
+                .subject("subject")
+                .fromAddress("sender@example.com")
+                .fromName("sender@example.com")
+                .toAddresses(List.of("to@example.com"))
+                .toNames(List.of("to@example.com"))
+                .snippet("snippet")
+                .read(true)
+                .bodyHtml("<p>본문</p><img src=\"cid:abc\"><img src=\"cid:a\">")
+                .build();
+
+        MessageResponse response = MessageResponse.from(message, Map.of(), List.of());
+
+        assertEquals(
+                "<p>본문</p><img src=\"cid:abc\"><img src=\"cid:a\">",
+                response.bodyHtml()
+        );
     }
 }

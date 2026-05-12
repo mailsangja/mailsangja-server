@@ -23,9 +23,10 @@ public interface MailControllerDocs {
     @Operation(
             summary = "메일 전송",
             description = "사용자가 작성한 메일을 전송하기 위한 API입니다. multipart/form-data 형식으로 일반 form 필드와 첨부파일을 함께 전달합니다. " +
-                    "20MB 이하의 일반 첨부파일만 허용합니다. " +
+                    "20MB 이하의 일반 첨부파일과 본문 인라인 이미지를 허용합니다. " +
                     "from/to/cc/bcc는 `user@example.com` 또는 `\"이름\" <user@example.com>` 형식을 지원합니다. " +
-                    "to/cc/bcc/attachments 배열 필드는 동일한 필드를 여러 번 반복 전달합니다.",
+                    "본문 인라인 이미지는 content의 `<img src=\"cid:{cid}\">`, inlineImages 파일, inlineImageCids 값을 같은 순서로 전달합니다. " +
+                    "to/cc/bcc/attachments/inlineImages/inlineImageCids 배열 필드는 동일한 필드를 여러 번 반복 전달합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -54,7 +55,9 @@ public interface MailControllerDocs {
                                     @Encoding(name = "to"),
                                     @Encoding(name = "cc"),
                                     @Encoding(name = "bcc"),
-                                    @Encoding(name = "attachments")
+                                    @Encoding(name = "attachments"),
+                                    @Encoding(name = "inlineImages"),
+                                    @Encoding(name = "inlineImageCids")
                             }
                     )
             )

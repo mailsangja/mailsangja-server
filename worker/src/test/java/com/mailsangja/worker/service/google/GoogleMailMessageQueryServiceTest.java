@@ -1,6 +1,7 @@
 package com.mailsangja.worker.service.google;
 
 import com.mailsangja.db.entity.mail.Direction;
+import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
@@ -58,6 +59,15 @@ class GoogleMailMessageQueryServiceTest {
                                   {
                                     "mimeType": "text/plain",
                                     "body": {"data": "aGVsbG8"}
+                                  },
+                                  {
+                                    "mimeType": "image/png",
+                                    "filename": "image.png",
+                                    "headers": [
+                                      {"name": "Content-ID", "value": "<inline-1>"},
+                                      {"name": "Content-Disposition", "value": "inline; filename=image.png"}
+                                    ],
+                                    "body": {"attachmentId": "gmail-attachment-id", "size": 5}
                                   }
                                 ]
                               }
@@ -86,6 +96,9 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals("Reply Alias", results.getFirst().messages().getFirst().replyToName());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());
         assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
+        assertEquals(1, results.getFirst().messages().getFirst().attachments().size());
+        assertEquals("inline-1", results.getFirst().messages().getFirst().attachments().getFirst().contentId());
+        assertEquals(AttachmentDisposition.INLINE, results.getFirst().messages().getFirst().attachments().getFirst().disposition());
     }
 
     private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
