@@ -12,7 +12,7 @@ spring:
       audio:
         speech: none
         transcription: none
-      chat: openai
+      chat: ${AI_CHAT_PROVIDER:openai}
       embedding: ${AI_EMBEDDING_PROVIDER:openai}
       embedding.text: ${AI_EMBEDDING_PROVIDER:openai}
       image: none
@@ -39,6 +39,10 @@ spring:
           dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
     google:
       genai:
+        api-key: ${GOOGLE_GENAI_API_KEY:unused-google-genai-api-key}
+        chat:
+          options:
+            model: ${GOOGLE_GENAI_CHAT_MODEL:gemini-2.0-flash}
         embedding:
           api-key: ${GOOGLE_GENAI_API_KEY:unused-google-genai-api-key}
           text:
