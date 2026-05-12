@@ -133,7 +133,16 @@ class MailEmbeddingCommandServiceTest {
                 eq("전화번호는 010-1234-5678 입니다."),
                 argThat(command -> command != null && command.scope() == MaskingScope.PAST_CONTEXT)
         )).thenReturn(maskingResult("전화번호는 {{PHONE_NUMBER_1}} 입니다."));
-        when(mailEmbeddingQueryService.buildDocument(message, documentId, "전화번호는 {{PHONE_NUMBER_1}} 입니다."))
+        when(mailEmbeddingQueryService.splitTextForEmbedding("전화번호는 {{PHONE_NUMBER_1}} 입니다."))
+                .thenReturn(List.of("전화번호는 {{PHONE_NUMBER_1}} 입니다."));
+        when(mailEmbeddingQueryService.buildDocument(
+                message,
+                documentId,
+                "전화번호는 {{PHONE_NUMBER_1}} 입니다.",
+                documentId,
+                0,
+                1
+        ))
                 .thenReturn(document);
 
         // when
@@ -143,6 +152,50 @@ class MailEmbeddingCommandServiceTest {
         ArgumentCaptor<List<Document>> documentsCaptor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(documentsCaptor.capture());
         assertEquals(List.of(document), documentsCaptor.getValue());
+    }
+
+    @Test
+    void embed_마스킹된본문이길면토큰기반으로나눈여러Document를저장한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        UUID secondChunkDocumentId = UUID.randomUUID();
+        Message message = createMessage(messageId, "본문입니다.", null);
+        String longMaskedText = "긴 본문입니다.";
+        String firstChunkText = "첫 번째 청크입니다.";
+        String secondChunkText = "두 번째 청크입니다.";
+        Document firstDocument = Document.builder()
+                .id(documentId.toString())
+                .text(firstChunkText)
+                .metadata(Map.of("MessageId", messageId.toString()))
+                .build();
+        Document secondDocument = Document.builder()
+                .id(secondChunkDocumentId.toString())
+                .text(secondChunkText)
+                .metadata(Map.of("MessageId", messageId.toString()))
+                .build();
+        MailEmbeddingCommandService service = createService();
+        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
+        when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
+        when(mailEmbeddingQueryService.createChunkDocumentId(documentId, 1)).thenReturn(secondChunkDocumentId);
+        when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
+        when(phileasMaskingService.mask(any(), any(MaskingCommand.class)))
+                .thenReturn(maskingResult(longMaskedText));
+        when(mailEmbeddingQueryService.splitTextForEmbedding(longMaskedText))
+                .thenReturn(List.of(firstChunkText, secondChunkText));
+        when(mailEmbeddingQueryService.buildDocument(message, documentId, firstChunkText, documentId, 0, 2))
+                .thenReturn(firstDocument);
+        when(mailEmbeddingQueryService.buildDocument(message, secondChunkDocumentId, secondChunkText, documentId, 1, 2))
+                .thenReturn(secondDocument);
+
+        // when
+        service.embed(messageId);
+
+        // then
+        verify(mailEmbeddingQueryService).buildDocument(message, documentId, firstChunkText, documentId, 0, 2);
+        verify(mailEmbeddingQueryService).buildDocument(message, secondChunkDocumentId, secondChunkText, documentId, 1, 2);
+        verify(vectorStore).add(List.of(firstDocument, secondDocument));
     }
 
     @Test
@@ -164,7 +217,10 @@ class MailEmbeddingCommandServiceTest {
         when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
         when(phileasMaskingService.mask(any(), any(MaskingCommand.class)))
                 .thenReturn(maskingResult("마스킹된 본문입니다."));
-        when(mailEmbeddingQueryService.buildDocument(message, documentId, "마스킹된 본문입니다.")).thenReturn(document);
+        when(mailEmbeddingQueryService.splitTextForEmbedding("마스킹된 본문입니다."))
+                .thenReturn(List.of("마스킹된 본문입니다."));
+        when(mailEmbeddingQueryService.buildDocument(message, documentId, "마스킹된 본문입니다.", documentId, 0, 1))
+                .thenReturn(document);
         doThrow(vectorStoreFailure).when(vectorStore).add(List.of(document));
 
         // when

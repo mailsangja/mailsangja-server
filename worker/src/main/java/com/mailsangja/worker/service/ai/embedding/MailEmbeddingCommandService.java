@@ -13,6 +13,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,7 +41,26 @@ public class MailEmbeddingCommandService {
         }
 
         MaskingResult maskingResult = phileasMaskingService.mask(embeddableText, MaskingCommand.pastContext());
-        Document document = mailEmbeddingQueryService.buildDocument(message, documentId, maskingResult.maskedText());
-        vectorStore.add(List.of(document));
+        List<Document> documents = buildChunkDocuments(message, documentId, maskingResult.maskedText());
+        vectorStore.add(documents);
+    }
+
+    private List<Document> buildChunkDocuments(Message message, UUID documentId, String text) {
+        List<String> chunks = mailEmbeddingQueryService.splitTextForEmbedding(text);
+        List<Document> documents = new ArrayList<>();
+        for (int index = 0; index < chunks.size(); index++) {
+            UUID chunkDocumentId = index == 0
+                    ? documentId
+                    : mailEmbeddingQueryService.createChunkDocumentId(documentId, index);
+            documents.add(mailEmbeddingQueryService.buildDocument(
+                    message,
+                    chunkDocumentId,
+                    chunks.get(index),
+                    documentId,
+                    index,
+                    chunks.size()
+            ));
+        }
+        return documents;
     }
 }

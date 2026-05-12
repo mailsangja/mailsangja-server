@@ -12,6 +12,7 @@ import com.mailsangja.worker.common.exception.embedding.EmbeddingErrorCode;
 import com.mailsangja.worker.common.exception.embedding.EmbeddingException;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.tokenizer.JTokkitTokenCountEstimator;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -131,6 +132,53 @@ class MailEmbeddingQueryServiceTest {
     }
 
     @Test
+    void createChunkDocumentId_같은원본문서Id와청크번호면같은문서Id를반환한다() {
+        // given
+        UUID documentId = UUID.randomUUID();
+
+        // when
+        UUID first = service.createChunkDocumentId(documentId, 1);
+        UUID second = service.createChunkDocumentId(documentId, 1);
+
+        // then
+        assertEquals(first, second);
+        assertNotEquals(documentId, first);
+    }
+
+    @Test
+    void createChunkDocumentId_청크번호가다르면다른문서Id를반환한다() {
+        // given
+        UUID documentId = UUID.randomUUID();
+
+        // when
+        UUID firstChunkId = service.createChunkDocumentId(documentId, 1);
+        UUID secondChunkId = service.createChunkDocumentId(documentId, 2);
+
+        // then
+        assertNotEquals(firstChunkId, secondChunkId);
+    }
+
+    @Test
+    void splitTextForEmbedding_긴본문을토큰한도이하의여러청크로분리한다() {
+        // given
+        String longText = "메일 본문입니다. 확인 부탁드립니다.\n".repeat(3_000);
+        JTokkitTokenCountEstimator tokenCountEstimator = new JTokkitTokenCountEstimator();
+
+        // when
+        List<String> chunks = service.splitTextForEmbedding(longText);
+
+        // then
+        assertFalse(chunks.isEmpty());
+        assertFalse(chunks.stream().anyMatch(String::isBlank));
+        assertEquals(
+                chunks.size(),
+                chunks.stream()
+                        .filter(chunk -> tokenCountEstimator.estimate(chunk) <= MailEmbeddingQueryService.EMBEDDING_CHUNK_SIZE_TOKENS)
+                        .count()
+        );
+    }
+
+    @Test
     void createDocumentId_message가null이면커스텀예외를던진다() {
         // when
         EmbeddingException exception = assertThrows(EmbeddingException.class, () -> service.createDocumentId(null));
@@ -168,6 +216,9 @@ class MailEmbeddingQueryServiceTest {
         assertEquals(documentId.toString(), document.getId());
         assertEquals("마스킹된 본문입니다.", document.getText());
         assertRequiredMetadata(message, metadata);
+        assertEquals(documentId.toString(), metadata.get("RootDocumentId"));
+        assertEquals(0, metadata.get("ChunkIndex"));
+        assertEquals(1, metadata.get("ChunkCount"));
     }
 
     @Test

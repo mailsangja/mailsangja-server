@@ -11,6 +11,7 @@ import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -22,12 +23,25 @@ import java.util.UUID;
 @Service
 public class MailEmbeddingQueryService {
 
+    static final int EMBEDDING_CHUNK_SIZE_TOKENS = 1_800;
+    private static final int MIN_CHUNK_SIZE_CHARS = 350;
+    private static final int MIN_CHUNK_LENGTH_TO_EMBED = 5;
+    private static final int MAX_CHUNK_COUNT = 1_000;
+
     private static final Set<String> BLOCK_TAGS = Set.of(
             "p", "div", "section", "article", "header", "footer", "main", "aside",
             "table", "tr", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6",
             "blockquote", "pre"
     );
     private static final Set<String> SKIP_TAGS = Set.of("script", "style", "noscript");
+
+    private final TokenTextSplitter tokenTextSplitter = TokenTextSplitter.builder()
+            .withChunkSize(EMBEDDING_CHUNK_SIZE_TOKENS)
+            .withMinChunkSizeChars(MIN_CHUNK_SIZE_CHARS)
+            .withMinChunkLengthToEmbed(MIN_CHUNK_LENGTH_TO_EMBED)
+            .withMaxNumChunks(MAX_CHUNK_COUNT)
+            .withKeepSeparator(true)
+            .build();
 
     public String extractEmbeddableText(Message message) {
         if (message == null) {
@@ -51,13 +65,48 @@ public class MailEmbeddingQueryService {
         return UUID.nameUUIDFromBytes(identity.getBytes(StandardCharsets.UTF_8));
     }
 
+    public List<String> splitTextForEmbedding(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        Document document = Document.builder()
+                .text(text)
+                .build();
+        return tokenTextSplitter.split(document).stream()
+                .map(Document::getText)
+                .filter(chunk -> chunk != null && !chunk.isBlank())
+                .toList();
+    }
+
+    public UUID createChunkDocumentId(UUID documentId, int chunkIndex) {
+        if (documentId == null || chunkIndex <= 0) {
+            throw new EmbeddingException(EmbeddingErrorCode.INVALID_MAIL_EMBEDDING_DOCUMENT);
+        }
+        String identity = "mail-embedding-chunk:%s:%d".formatted(documentId, chunkIndex);
+        return UUID.nameUUIDFromBytes(identity.getBytes(StandardCharsets.UTF_8));
+    }
+
     public Document buildDocument(Message message, UUID documentId, String maskedText) {
         validateMessage(message);
         validateDocumentInput(documentId, maskedText);
+        return buildDocument(message, documentId, maskedText, documentId, 0, 1);
+    }
+
+    public Document buildDocument(
+            Message message,
+            UUID documentId,
+            String maskedText,
+            UUID rootDocumentId,
+            int chunkIndex,
+            int chunkCount
+    ) {
+        validateMessage(message);
+        validateDocumentInput(documentId, maskedText);
+        validateChunkInput(rootDocumentId, chunkIndex, chunkCount);
         return Document.builder()
                 .id(documentId.toString())
                 .text(maskedText)
-                .metadata(buildMetadata(message))
+                .metadata(buildMetadata(message, rootDocumentId, chunkIndex, chunkCount))
                 .build();
     }
 
@@ -77,10 +126,19 @@ public class MailEmbeddingQueryService {
         }
     }
 
-    private Map<String, Object> buildMetadata(Message message) {
+    private void validateChunkInput(UUID rootDocumentId, int chunkIndex, int chunkCount) {
+        if (rootDocumentId == null || chunkIndex < 0 || chunkCount <= 0 || chunkIndex >= chunkCount) {
+            throw new EmbeddingException(EmbeddingErrorCode.INVALID_MAIL_EMBEDDING_DOCUMENT);
+        }
+    }
+
+    private Map<String, Object> buildMetadata(Message message, UUID rootDocumentId, int chunkIndex, int chunkCount) {
         Thread thread = message.getThread();
         MailAccount mailAccount = thread.getMailAccount();
         Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("RootDocumentId", rootDocumentId.toString());
+        metadata.put("ChunkIndex", chunkIndex);
+        metadata.put("ChunkCount", chunkCount);
         metadata.put("UserId", mailAccount.getUser().getId().toString());
         metadata.put("MailAccountId", mailAccount.getId().toString());
         metadata.put("MessageId", message.getId().toString());
