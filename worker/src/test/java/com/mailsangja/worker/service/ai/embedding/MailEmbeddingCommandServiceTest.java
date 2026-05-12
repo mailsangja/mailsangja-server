@@ -34,11 +34,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class MailEmbeddingCommandServiceTest {
@@ -62,41 +62,46 @@ class MailEmbeddingCommandServiceTest {
     private VectorStore vectorStore;
 
     @Test
-    void embed_skipsBlankBodyText() {
+    void embed_bodyText가blank이면임베딩하지않는다() {
+        // given
         UUID messageId = UUID.randomUUID();
         Message message = createMessage(messageId, " ");
         MailEmbeddingCommandService service = createService();
-
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(false);
 
+        // when
         service.embed(messageId);
 
+        // then
         verify(mailEmbeddingDocumentService).hasBodyText(message);
         verifyNoInteractions(mailEmbeddingIdentityService, vectorDocumentRepositoryPort, phileasMaskingService, vectorStore);
     }
 
     @Test
-    void embed_skipsWhenVectorDocumentAlreadyExists() {
+    void embed_vectorStore에이미존재하면본문마스킹과임베딩을하지않는다() {
+        // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         Message message = createMessage(messageId, "본문입니다.");
         MailEmbeddingCommandService service = createService();
-
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(true);
         when(mailEmbeddingIdentityService.createDocumentId(message)).thenReturn(documentId);
         when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(true);
 
+        // when
         service.embed(messageId);
 
+        // then
         verify(vectorDocumentRepositoryPort).existsById(documentId);
         verifyNoInteractions(phileasMaskingService, vectorStore);
         verify(mailEmbeddingDocumentService, never()).build(any(), any(), any());
     }
 
     @Test
-    void embed_masksBodyTextWithPastContextAndAddsDocument() {
+    void embed_본문을pastContext로마스킹한뒤VectorStore에저장한다() {
+        // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         Message message = createMessage(messageId, "전화번호는 010-1234-5678 입니다.");
@@ -106,7 +111,6 @@ class MailEmbeddingCommandServiceTest {
                 .metadata(Map.of("MessageId", messageId.toString()))
                 .build();
         MailEmbeddingCommandService service = createService();
-
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(true);
         when(mailEmbeddingIdentityService.createDocumentId(message)).thenReturn(documentId);
@@ -118,15 +122,18 @@ class MailEmbeddingCommandServiceTest {
         when(mailEmbeddingDocumentService.build(message, documentId, "전화번호는 {{PHONE_NUMBER_1}} 입니다."))
                 .thenReturn(document);
 
+        // when
         service.embed(messageId);
 
+        // then
         ArgumentCaptor<List<Document>> documentsCaptor = ArgumentCaptor.forClass(List.class);
         verify(vectorStore).add(documentsCaptor.capture());
         assertEquals(List.of(document), documentsCaptor.getValue());
     }
 
     @Test
-    void embed_propagatesVectorStoreFailureForMqRetry() {
+    void embed_VectorStore저장에실패하면예외를전파한다() {
+        // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         Message message = createMessage(messageId, "본문입니다.");
@@ -137,7 +144,6 @@ class MailEmbeddingCommandServiceTest {
                 .build();
         RuntimeException vectorStoreFailure = new RuntimeException("vector store failed");
         MailEmbeddingCommandService service = createService();
-
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingDocumentService.hasBodyText(message)).thenReturn(true);
         when(mailEmbeddingIdentityService.createDocumentId(message)).thenReturn(documentId);
@@ -147,8 +153,10 @@ class MailEmbeddingCommandServiceTest {
         when(mailEmbeddingDocumentService.build(message, documentId, "마스킹된 본문입니다.")).thenReturn(document);
         doThrow(vectorStoreFailure).when(vectorStore).add(List.of(document));
 
+        // when
         RuntimeException thrown = assertThrows(RuntimeException.class, () -> service.embed(messageId));
 
+        // then
         assertEquals(vectorStoreFailure, thrown);
     }
 

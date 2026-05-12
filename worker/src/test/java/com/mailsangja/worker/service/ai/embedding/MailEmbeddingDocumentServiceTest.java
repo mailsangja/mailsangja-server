@@ -25,20 +25,28 @@ class MailEmbeddingDocumentServiceTest {
     private final MailEmbeddingDocumentService service = new MailEmbeddingDocumentService();
 
     @Test
-    void hasBodyText_returnsFalseForBlankBodyText() {
+    void hasBodyText_bodyText가blank이면false를반환한다() {
+        // given
         Message message = createMessage(" ");
 
-        assertFalse(service.hasBodyText(message));
+        // when
+        boolean hasBodyText = service.hasBodyText(message);
+
+        // then
+        assertFalse(hasBodyText);
     }
 
     @Test
-    void build_usesMessageIdAndRequiredMetadata() {
+    void build_계산된문서Id와마스킹된본문그리고필수metadata로Document를생성한다() {
+        // given
         Message message = createMessage("본문입니다.");
         UUID documentId = UUID.randomUUID();
 
+        // when
         Document document = service.build(message, documentId, "마스킹된 본문입니다.");
         Map<String, Object> metadata = document.getMetadata();
 
+        // then
         assertEquals(documentId.toString(), document.getId());
         assertEquals("마스킹된 본문입니다.", document.getText());
         assertRequiredMetadata(message, metadata);

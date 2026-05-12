@@ -20,34 +20,49 @@ class MailEmbeddingIdentityServiceTest {
     private final MailEmbeddingIdentityService service = new MailEmbeddingIdentityService();
 
     @Test
-    void createDocumentId_returnsSameIdForSameProviderMessageInDifferentDirections() {
+    void createDocumentId_같은외부메시지면방향이다른메시지도같은문서Id를반환한다() {
+        // given
         UUID mailAccountId = UUID.randomUUID();
         Message inbound = createMessage(mailAccountId, MailProvider.GMAIL, "provider-message-id", Direction.INBOUND);
         Message outbound = createMessage(mailAccountId, MailProvider.GMAIL, "provider-message-id", Direction.OUTBOUND);
 
+        // when
         UUID inboundDocumentId = service.createDocumentId(inbound);
         UUID outboundDocumentId = service.createDocumentId(outbound);
 
+        // then
         assertEquals(inboundDocumentId, outboundDocumentId);
         assertNotEquals(inbound.getId(), inboundDocumentId);
         assertNotEquals(outbound.getId(), outboundDocumentId);
     }
 
     @Test
-    void createDocumentId_returnsDifferentIdForDifferentMailAccount() {
+    void createDocumentId_메일계정이다른같은외부메시지도같은문서Id를반환한다() {
+        // given
         Message first = createMessage(UUID.randomUUID(), MailProvider.GMAIL, "provider-message-id", Direction.INBOUND);
         Message second = createMessage(UUID.randomUUID(), MailProvider.GMAIL, "provider-message-id", Direction.INBOUND);
 
-        assertNotEquals(service.createDocumentId(first), service.createDocumentId(second));
+        // when
+        UUID firstDocumentId = service.createDocumentId(first);
+        UUID secondDocumentId = service.createDocumentId(second);
+
+        // then
+        assertEquals(firstDocumentId, secondDocumentId);
     }
 
     @Test
-    void createDocumentId_returnsDifferentIdForDifferentProviderMessageId() {
+    void createDocumentId_외부메시지Id가다르면다른문서Id를반환한다() {
+        // given
         UUID mailAccountId = UUID.randomUUID();
         Message first = createMessage(mailAccountId, MailProvider.GMAIL, "provider-message-id-1", Direction.INBOUND);
         Message second = createMessage(mailAccountId, MailProvider.GMAIL, "provider-message-id-2", Direction.INBOUND);
 
-        assertNotEquals(service.createDocumentId(first), service.createDocumentId(second));
+        // when
+        UUID firstDocumentId = service.createDocumentId(first);
+        UUID secondDocumentId = service.createDocumentId(second);
+
+        // then
+        assertNotEquals(firstDocumentId, secondDocumentId);
     }
 
     private Message createMessage(UUID mailAccountId, MailProvider provider, String providerMessageId, Direction direction) {
