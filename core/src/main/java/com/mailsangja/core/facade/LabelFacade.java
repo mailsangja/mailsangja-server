@@ -10,7 +10,7 @@ import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.service.label.LabelCommandService;
 import com.mailsangja.core.service.label.LabelQueryService;
-import com.mailsangja.core.service.label.LabelReclassifyPublisher;
+import com.mailsangja.core.service.label.LabelReclassifyPendingJobStore;
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -28,7 +27,7 @@ public class LabelFacade {
 
     private final LabelQueryService labelQueryService;
     private final LabelCommandService labelCommandService;
-    private final LabelReclassifyPublisher labelReclassifyPublisher;
+    private final LabelReclassifyPendingJobStore pendingJobStore;
     private final LabelRuleValidator labelRuleValidator;
 
     public List<LabelListResponse> getLabels(User user) {
@@ -53,7 +52,8 @@ public class LabelFacade {
             throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
         }
         if (request.rule() != null) {
-            labelReclassifyPublisher.publish(user.getId(), Set.of(label.getId()));
+            pendingJobStore.checkRateLimit(user.getId());
+            pendingJobStore.mergePendingJob(user.getId(), label.getId());
         }
         return LabelDetailResponse.of(label, label.getRule());
     }
@@ -74,7 +74,8 @@ public class LabelFacade {
         validateRuleRequest(request);
         Label label = labelQueryService.findActiveByIdAndUserId(labelId, user.getId());
         Label updated = labelCommandService.updateRule(label, request.rule());
-        labelReclassifyPublisher.publish(user.getId(), Set.of(updated.getId()));
+        pendingJobStore.checkRateLimit(user.getId());
+        pendingJobStore.mergePendingJob(user.getId(), updated.getId());
         return LabelDetailResponse.of(updated, updated.getRule());
     }
 
@@ -117,5 +118,4 @@ public class LabelFacade {
             throw new LabelException(LabelErrorCode.LABEL_COLOR_CODE_BLANK);
         }
     }
-
 }

@@ -1,6 +1,7 @@
 package com.mailsangja.core.common.exception;
 
 import com.mailsangja.core.common.exception.common.CommonErrorCode;
+import com.mailsangja.core.common.exception.label.LabelException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
@@ -21,6 +25,21 @@ public class GlobalExceptionHandler {
                 .orElse(CommonErrorCode.INVALID_REQUEST.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(400, CommonErrorCode.INVALID_REQUEST.getCode(), message));
+    }
+
+    @ExceptionHandler(LabelException.class)
+    public ResponseEntity<Map<String, Object>> handleLabelException(LabelException e) {
+        log.warn("LabelException: {}", e.getMessage());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("status", e.getErrorCode().getStatus());
+        body.put("code", e.getErrorCode().getCode());
+        body.put("message", e.getErrorCode().getMessage());
+        if (e.getRetryAfterSeconds() != null) {
+            body.put("retryAfterSeconds", e.getRetryAfterSeconds());
+        }
+        return ResponseEntity
+                .status(e.getErrorCode().getStatus())
+                .body(body);
     }
 
     @ExceptionHandler(BaseException.class)

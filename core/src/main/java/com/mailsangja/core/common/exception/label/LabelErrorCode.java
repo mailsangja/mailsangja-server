@@ -21,7 +21,8 @@ public enum LabelErrorCode implements ErrorCode {
     LABEL_RULE_INVALID_JSON(400, "MS-LABEL-RULE-INVALID-JSON", "규칙 JSON 형식이 올바르지 않습니다."),
     LABEL_RULE_INVALID_BOOLEAN_VALUE(400, "MS-LABEL-RULE-INVALID-BOOLEAN-VALUE", "BOOLEAN operator의 value는 'true' 또는 'false'이어야 합니다."),
     LABEL_RECLASSIFY_INVALID_REQUEST(400, "MS-LABEL-RECLASSIFY-INVALID-REQUEST", "라벨 재분류 요청 값이 올바르지 않습니다."),
-    LABEL_RECLASSIFY_INVALID_CONFIG(500, "MS-LABEL-RECLASSIFY-INVALID-CONFIG", "라벨 재분류 설정 값이 올바르지 않습니다.");
+    LABEL_RECLASSIFY_INVALID_CONFIG(500, "MS-LABEL-RECLASSIFY-INVALID-CONFIG", "라벨 재분류 설정 값이 올바르지 않습니다."),
+    LABEL_RECLASSIFY_RATE_LIMITED(429, "MS-LABEL-RECLASSIFY-RATE-LIMITED", "라벨 재분류 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.");
 
     private final int status;
     private final String code;

@@ -56,6 +56,12 @@ scalar:
   page-title: MailSangja API Reference
 
 mailsangja:
+  label:
+    debounce:
+      debounce-seconds: ${LABEL_DEBOUNCE_SECONDS:60}
+      scheduler-fixed-delay-seconds: ${LABEL_DEBOUNCE_SCHEDULER_DELAY:10}
+      rate-limit-window-seconds: ${LABEL_DEBOUNCE_RATE_LIMIT_WINDOW:60}
+      rate-limit-max-requests: ${LABEL_DEBOUNCE_RATE_LIMIT_MAX_REQUESTS:20}
   portone:
     plan-prices:
       pro: ${PORTONE_PLAN_PRICE_PRO:9900}
