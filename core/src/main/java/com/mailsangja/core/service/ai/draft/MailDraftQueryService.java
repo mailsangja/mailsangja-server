@@ -11,15 +11,20 @@ import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftSearchContextResult;
 import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.service.ai.masking.PhileasMaskingService;
+import com.mailsangja.db.dto.MailDraftReferenceMessageResult;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.port.MailDraftReferenceQueryPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -28,6 +33,13 @@ import java.util.regex.Pattern;
 public class MailDraftQueryService {
 
     private static final String FIELD_DELIMITER = "\n[MAIL_DRAFT_FIELD]\n";
+    private static final int RECENT_WRITTEN_LIMIT = 6;
+    private static final int OWN_RELEVANT_LIMIT = 8;
+    private static final int OTHER_RELEVANT_LIMIT = 3;
+    private static final int VECTOR_SEARCH_LIMIT = 40;
+    private static final String SOURCE_RECENT = "recent";
+    private static final String SOURCE_RELEVANT = "relevant";
+    private static final String SOURCE_THREAD = "thread";
     private static final String SYSTEM_PROMPT = """
             You are Mailsangja Draft Writer, a professional email drafting assistant.
             Your only task is to draft email subject and body content for the authenticated user.
@@ -67,22 +79,6 @@ public class MailDraftQueryService {
     private final VectorStore vectorStore;
     private final PhileasMaskingService maskingService;
 
-    public MailDraftQueryService() {
-        this(null, null, new PhileasMaskingService());
-    }
-
-    public MailDraftQueryService(VectorStore vectorStore) {
-        this(null, vectorStore, new PhileasMaskingService());
-    }
-
-    public MailDraftQueryService(MailDraftReferenceQueryPort referenceQueryPort) {
-        this(referenceQueryPort, null, new PhileasMaskingService());
-    }
-
-    public MailDraftQueryService(MailDraftReferenceQueryPort referenceQueryPort, VectorStore vectorStore) {
-        this(referenceQueryPort, vectorStore, new PhileasMaskingService());
-    }
-
     public void validatePromptInjection(String query) {
         if (query == null) {
             throw new MailDraftException(MailDraftErrorCode.PROMPT_INJECTION_DETECTED);
@@ -94,11 +90,7 @@ public class MailDraftQueryService {
     }
 
     public List<MailDraftSearchContextResult> searchOwnWrittenMessages(UUID userId, UUID mailAccountId, String query, int limit) {
-        if (vectorStore == null) {
-            return List.of();
-        }
-        vectorStore.similaritySearch(SearchRequest.builder().query(query).topK(limit).build());
-        return List.of();
+        return searchRelevantMessages(userId, mailAccountId, query, limit, Direction.OUTBOUND);
     }
 
     public MailDraftCommand createCommand(UUID userId, MailDraftStreamRequest request) {
@@ -212,11 +204,22 @@ public class MailDraftQueryService {
     }
 
     private List<MailDraftSearchContextResult> findGeneralRelevant(MailDraftCommand command) {
-        List<MailDraftSearchContextResult> own = searchOwn(command);
-        if (own.size() >= 8) {
+        List<MailDraftReferenceMessageResult> messages = findVectorMessages(command.userId(), command.mailAccountId(), command.maskedQuery());
+        List<MailDraftSearchContextResult> own = ownRelevantMessages(messages);
+        if (own.size() >= OWN_RELEVANT_LIMIT) {
             return own;
         }
-        return mergeRelevant(own, searchOther(command));
+        return mergeRelevant(own, otherRelevantMessages(messages));
+    }
+
+    private List<MailDraftSearchContextResult> ownRelevantMessages(List<MailDraftReferenceMessageResult> messages) {
+        List<MailDraftReferenceMessageResult> own = filterByDirection(messages, Direction.OUTBOUND, OWN_RELEVANT_LIMIT);
+        return toMaskedContexts(own, SOURCE_RELEVANT);
+    }
+
+    private List<MailDraftSearchContextResult> otherRelevantMessages(List<MailDraftReferenceMessageResult> messages) {
+        List<MailDraftReferenceMessageResult> other = filterByDirection(messages, Direction.INBOUND, OTHER_RELEVANT_LIMIT);
+        return toMaskedContexts(other, SOURCE_RELEVANT);
     }
 
     private List<MailDraftSearchContextResult> mergeRelevant(List<MailDraftSearchContextResult> own, List<MailDraftSearchContextResult> other) {
@@ -225,35 +228,145 @@ public class MailDraftQueryService {
         return merged;
     }
 
-    @SuppressWarnings("unchecked")
     private List<MailDraftSearchContextResult> findRecent(MailDraftCommand command) {
         if (referenceQueryPort == null) {
             return List.of();
         }
-        return referenceQueryPort.findRecentWrittenMessages(command.userId(), command.mailAccountId(), 6);
+        return toMaskedContexts(referenceQueryPort.findRecentWrittenMessages(
+                command.userId(), command.mailAccountId(), RECENT_WRITTEN_LIMIT
+        ), SOURCE_RECENT);
     }
 
-    @SuppressWarnings("unchecked")
     private List<MailDraftSearchContextResult> searchOwn(MailDraftCommand command) {
-        if (referenceQueryPort == null) {
-            return List.of();
-        }
-        return referenceQueryPort.searchOwnWrittenMessages(command.userId(), command.mailAccountId(), command.maskedQuery(), 8);
+        return searchRelevantMessages(command.userId(), command.mailAccountId(), command.maskedQuery(), OWN_RELEVANT_LIMIT, Direction.OUTBOUND);
     }
 
-    @SuppressWarnings("unchecked")
     private List<MailDraftSearchContextResult> searchOther(MailDraftCommand command) {
-        if (referenceQueryPort == null) {
-            return List.of();
-        }
-        return referenceQueryPort.searchOtherRelevantMessages(command.userId(), command.mailAccountId(), command.maskedQuery(), 3);
+        return searchRelevantMessages(command.userId(), command.mailAccountId(), command.maskedQuery(), OTHER_RELEVANT_LIMIT, Direction.INBOUND);
     }
 
-    @SuppressWarnings("unchecked")
+    private List<MailDraftSearchContextResult> searchRelevantMessages(UUID userId, UUID mailAccountId, String query,
+                                                                      int limit, Direction direction) {
+        List<MailDraftReferenceMessageResult> messages = findVectorMessages(userId, mailAccountId, query);
+        List<MailDraftReferenceMessageResult> filtered = filterByDirection(messages, direction, limit);
+        return toMaskedContexts(filtered, SOURCE_RELEVANT);
+    }
+
+    private List<MailDraftReferenceMessageResult> findVectorMessages(UUID userId, UUID mailAccountId, String query) {
+        if (vectorStore == null || referenceQueryPort == null) {
+            return List.of();
+        }
+        List<UUID> messageIds = messageIdsFromVectorSearch(userId, mailAccountId, query);
+        return orderByMessageIds(referenceQueryPort.findMessagesByIds(messageIds), messageIds);
+    }
+
+    private List<UUID> messageIdsFromVectorSearch(UUID userId, UUID mailAccountId, String query) {
+        List<Document> documents = vectorStore.similaritySearch(searchRequest(userId, mailAccountId, query));
+        List<UUID> messageIds = new ArrayList<>();
+        for (Document document : documents) {
+            addMessageId(messageIds, document);
+        }
+        return messageIds;
+    }
+
+    private SearchRequest searchRequest(UUID userId, UUID mailAccountId, String query) {
+        return SearchRequest.builder()
+                .query(query)
+                .topK(VECTOR_SEARCH_LIMIT)
+                .filterExpression(vectorFilter(userId, mailAccountId))
+                .build();
+    }
+
+    private String vectorFilter(UUID userId, UUID mailAccountId) {
+        return "UserId == '%s' && MailAccountId == '%s'".formatted(userId, mailAccountId);
+    }
+
+    private void addMessageId(List<UUID> messageIds, Document document) {
+        String messageId = metadataValue(document, "MessageId");
+        if (messageId == null || messageId.isBlank()) {
+            return;
+        }
+        UUID id = UUID.fromString(messageId);
+        if (!messageIds.contains(id)) {
+            messageIds.add(id);
+        }
+    }
+
+    private String metadataValue(Document document, String key) {
+        Object value = document.getMetadata().get(key);
+        if (value == null) {
+            return null;
+        }
+        return value.toString();
+    }
+
+    private List<MailDraftReferenceMessageResult> orderByMessageIds(List<MailDraftReferenceMessageResult> messages, List<UUID> ids) {
+        Map<UUID, MailDraftReferenceMessageResult> byId = mapById(messages);
+        List<MailDraftReferenceMessageResult> ordered = new ArrayList<>();
+        for (UUID id : ids) {
+            addIfPresent(ordered, byId.get(id));
+        }
+        return ordered;
+    }
+
+    private Map<UUID, MailDraftReferenceMessageResult> mapById(List<MailDraftReferenceMessageResult> messages) {
+        Map<UUID, MailDraftReferenceMessageResult> byId = new LinkedHashMap<>();
+        for (MailDraftReferenceMessageResult message : messages) {
+            byId.putIfAbsent(message.messageId(), message);
+        }
+        return byId;
+    }
+
+    private void addIfPresent(List<MailDraftReferenceMessageResult> messages, MailDraftReferenceMessageResult message) {
+        if (message != null) {
+            messages.add(message);
+        }
+    }
+
+    private List<MailDraftReferenceMessageResult> filterByDirection(List<MailDraftReferenceMessageResult> messages,
+                                                                    Direction direction, int limit) {
+        List<MailDraftReferenceMessageResult> filtered = new ArrayList<>();
+        for (MailDraftReferenceMessageResult message : messages) {
+            addIfDirectionMatches(filtered, message, direction, limit);
+        }
+        return filtered;
+    }
+
+    private void addIfDirectionMatches(List<MailDraftReferenceMessageResult> values,
+                                       MailDraftReferenceMessageResult message, Direction direction, int limit) {
+        if (values.size() < limit && message.direction() == direction) {
+            values.add(message);
+        }
+    }
+
+    private List<MailDraftSearchContextResult> toMaskedContexts(List<MailDraftReferenceMessageResult> messages, String source) {
+        List<MailDraftSearchContextResult> contexts = new ArrayList<>();
+        for (MailDraftReferenceMessageResult message : messages) {
+            contexts.add(toMaskedContext(message, source));
+        }
+        return contexts;
+    }
+
+    private MailDraftSearchContextResult toMaskedContext(MailDraftReferenceMessageResult message, String source) {
+        return new MailDraftSearchContextResult(
+                message.messageId(),
+                source,
+                maskPast(message.subject()),
+                maskPast(message.body())
+        );
+    }
+
+    private String maskPast(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return maskingService.mask(text, MaskingCommand.pastContext()).maskedText();
+    }
+
     private List<MailDraftSearchContextResult> findThread(UUID replyMessageId) {
         if (referenceQueryPort == null) {
             return List.of();
         }
-        return referenceQueryPort.findThreadContextMessages(replyMessageId);
+        return toMaskedContexts(referenceQueryPort.findThreadContextMessages(replyMessageId), SOURCE_THREAD);
     }
 }
