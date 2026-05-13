@@ -34,8 +34,8 @@ public class MailDraftQueryService {
 
     private static final String FIELD_DELIMITER = "\n[MAIL_DRAFT_FIELD]\n";
     private static final int RECENT_WRITTEN_LIMIT = 6;
-    private static final int OWN_RELEVANT_LIMIT = 8;
-    private static final int OTHER_RELEVANT_LIMIT = 3;
+    private static final int ACCOUNT_RELEVANT_WRITTEN_LIMIT = 8;
+    private static final int USER_RELEVANT_WRITTEN_LIMIT = 3;
     private static final int VECTOR_SEARCH_LIMIT = 40;
     private static final String SOURCE_RECENT = "recent";
     private static final String SOURCE_RELEVANT = "relevant";
@@ -204,28 +204,39 @@ public class MailDraftQueryService {
     }
 
     private List<MailDraftSearchContextResult> findGeneralRelevant(MailDraftCommand command) {
-        List<MailDraftReferenceMessageResult> messages = findVectorMessages(command.userId(), command.mailAccountId(), command.maskedQuery());
-        List<MailDraftSearchContextResult> own = ownRelevantMessages(messages);
-        if (own.size() >= OWN_RELEVANT_LIMIT) {
-            return own;
-        }
-        return mergeRelevant(own, otherRelevantMessages(messages));
+        List<MailDraftSearchContextResult> account = findAccountRelevantWritten(command);
+        List<MailDraftSearchContextResult> user = findUserRelevantWritten(command);
+        return mergeRelevant(account, user);
     }
 
-    private List<MailDraftSearchContextResult> ownRelevantMessages(List<MailDraftReferenceMessageResult> messages) {
-        List<MailDraftReferenceMessageResult> own = filterByDirection(messages, Direction.OUTBOUND, OWN_RELEVANT_LIMIT);
-        return toMaskedContexts(own, SOURCE_RELEVANT);
+    private List<MailDraftSearchContextResult> findAccountRelevantWritten(MailDraftCommand command) {
+        List<MailDraftReferenceMessageResult> messages = findAccountVectorMessages(command);
+        List<MailDraftReferenceMessageResult> filtered = filterByAccountAndDirection(
+                messages, command.mailAccountId(), Direction.OUTBOUND, ACCOUNT_RELEVANT_WRITTEN_LIMIT
+        );
+        return toMaskedContexts(filtered, SOURCE_RELEVANT);
     }
 
-    private List<MailDraftSearchContextResult> otherRelevantMessages(List<MailDraftReferenceMessageResult> messages) {
-        List<MailDraftReferenceMessageResult> other = filterByDirection(messages, Direction.INBOUND, OTHER_RELEVANT_LIMIT);
-        return toMaskedContexts(other, SOURCE_RELEVANT);
+    private List<MailDraftSearchContextResult> findUserRelevantWritten(MailDraftCommand command) {
+        List<MailDraftReferenceMessageResult> messages = findUserVectorMessages(command);
+        List<MailDraftReferenceMessageResult> filtered = filterByDirection(
+                messages, Direction.OUTBOUND, USER_RELEVANT_WRITTEN_LIMIT
+        );
+        return toMaskedContexts(filtered, SOURCE_RELEVANT);
     }
 
     private List<MailDraftSearchContextResult> mergeRelevant(List<MailDraftSearchContextResult> own, List<MailDraftSearchContextResult> other) {
-        List<MailDraftSearchContextResult> merged = new ArrayList<>(own);
-        merged.addAll(other);
-        return merged;
+        Map<UUID, MailDraftSearchContextResult> unique = new LinkedHashMap<>();
+        putAllByMessageId(unique, own);
+        putAllByMessageId(unique, other);
+        return List.copyOf(unique.values());
+    }
+
+    private void putAllByMessageId(Map<UUID, MailDraftSearchContextResult> values,
+                                   List<MailDraftSearchContextResult> messages) {
+        for (MailDraftSearchContextResult message : messages) {
+            values.putIfAbsent(message.messageId(), message);
+        }
     }
 
     private List<MailDraftSearchContextResult> findRecent(MailDraftCommand command) {
@@ -237,31 +248,35 @@ public class MailDraftQueryService {
         ), SOURCE_RECENT);
     }
 
-    private List<MailDraftSearchContextResult> searchOwn(MailDraftCommand command) {
-        return searchRelevantMessages(command.userId(), command.mailAccountId(), command.maskedQuery(), OWN_RELEVANT_LIMIT, Direction.OUTBOUND);
-    }
-
-    private List<MailDraftSearchContextResult> searchOther(MailDraftCommand command) {
-        return searchRelevantMessages(command.userId(), command.mailAccountId(), command.maskedQuery(), OTHER_RELEVANT_LIMIT, Direction.INBOUND);
-    }
-
     private List<MailDraftSearchContextResult> searchRelevantMessages(UUID userId, UUID mailAccountId, String query,
                                                                       int limit, Direction direction) {
-        List<MailDraftReferenceMessageResult> messages = findVectorMessages(userId, mailAccountId, query);
+        List<MailDraftReferenceMessageResult> messages = findAccountVectorMessages(userId, mailAccountId, query);
         List<MailDraftReferenceMessageResult> filtered = filterByDirection(messages, direction, limit);
         return toMaskedContexts(filtered, SOURCE_RELEVANT);
     }
 
-    private List<MailDraftReferenceMessageResult> findVectorMessages(UUID userId, UUID mailAccountId, String query) {
+    private List<MailDraftReferenceMessageResult> findAccountVectorMessages(MailDraftCommand command) {
+        return findAccountVectorMessages(command.userId(), command.mailAccountId(), command.maskedQuery());
+    }
+
+    private List<MailDraftReferenceMessageResult> findAccountVectorMessages(UUID userId, UUID mailAccountId, String query) {
+        return findVectorMessages(query, accountVectorFilter(userId, mailAccountId));
+    }
+
+    private List<MailDraftReferenceMessageResult> findUserVectorMessages(MailDraftCommand command) {
+        return findVectorMessages(command.maskedQuery(), userVectorFilter(command.userId()));
+    }
+
+    private List<MailDraftReferenceMessageResult> findVectorMessages(String query, String filter) {
         if (vectorStore == null || referenceQueryPort == null) {
             return List.of();
         }
-        List<UUID> messageIds = messageIdsFromVectorSearch(userId, mailAccountId, query);
+        List<UUID> messageIds = messageIdsFromVectorSearch(query, filter);
         return orderByMessageIds(referenceQueryPort.findMessagesByIds(messageIds), messageIds);
     }
 
-    private List<UUID> messageIdsFromVectorSearch(UUID userId, UUID mailAccountId, String query) {
-        List<Document> documents = vectorStore.similaritySearch(searchRequest(userId, mailAccountId, query));
+    private List<UUID> messageIdsFromVectorSearch(String query, String filter) {
+        List<Document> documents = vectorStore.similaritySearch(searchRequest(query, filter));
         List<UUID> messageIds = new ArrayList<>();
         for (Document document : documents) {
             addMessageId(messageIds, document);
@@ -269,16 +284,20 @@ public class MailDraftQueryService {
         return messageIds;
     }
 
-    private SearchRequest searchRequest(UUID userId, UUID mailAccountId, String query) {
+    private SearchRequest searchRequest(String query, String filter) {
         return SearchRequest.builder()
                 .query(query)
                 .topK(VECTOR_SEARCH_LIMIT)
-                .filterExpression(vectorFilter(userId, mailAccountId))
+                .filterExpression(filter)
                 .build();
     }
 
-    private String vectorFilter(UUID userId, UUID mailAccountId) {
+    private String accountVectorFilter(UUID userId, UUID mailAccountId) {
         return "UserId == '%s' && MailAccountId == '%s'".formatted(userId, mailAccountId);
+    }
+
+    private String userVectorFilter(UUID userId) {
+        return "UserId == '%s'".formatted(userId);
     }
 
     private void addMessageId(List<UUID> messageIds, Document document) {
@@ -332,11 +351,32 @@ public class MailDraftQueryService {
         return filtered;
     }
 
+    private List<MailDraftReferenceMessageResult> filterByAccountAndDirection(List<MailDraftReferenceMessageResult> messages,
+                                                                              UUID mailAccountId, Direction direction, int limit) {
+        List<MailDraftReferenceMessageResult> filtered = new ArrayList<>();
+        for (MailDraftReferenceMessageResult message : messages) {
+            addIfAccountAndDirectionMatch(filtered, message, mailAccountId, direction, limit);
+        }
+        return filtered;
+    }
+
     private void addIfDirectionMatches(List<MailDraftReferenceMessageResult> values,
                                        MailDraftReferenceMessageResult message, Direction direction, int limit) {
         if (values.size() < limit && message.direction() == direction) {
             values.add(message);
         }
+    }
+
+    private void addIfAccountAndDirectionMatch(List<MailDraftReferenceMessageResult> values,
+                                               MailDraftReferenceMessageResult message,
+                                               UUID mailAccountId, Direction direction, int limit) {
+        if (isAccountWrittenMessage(message, mailAccountId, direction) && values.size() < limit) {
+            values.add(message);
+        }
+    }
+
+    private boolean isAccountWrittenMessage(MailDraftReferenceMessageResult message, UUID mailAccountId, Direction direction) {
+        return mailAccountId.equals(message.mailAccountId()) && message.direction() == direction;
     }
 
     private List<MailDraftSearchContextResult> toMaskedContexts(List<MailDraftReferenceMessageResult> messages, String source) {

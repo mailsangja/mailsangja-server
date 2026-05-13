@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -112,38 +113,40 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
-    void general은최근작성메일6개와관련본인작성메일8개를조회한다() {
+    void general은최근작성메일6개와계정작성관련메일8개와사용자작성관련메일3개를조회한다() {
         // given
         Fixture fixture = createFixture();
         MailDraftCommand command = createCommand(null);
-        List<MailDraftReferenceMessageResult> recent = references(Direction.OUTBOUND, 6);
-        List<MailDraftReferenceMessageResult> ownRelevant = references(Direction.OUTBOUND, 8);
+        List<MailDraftReferenceMessageResult> recent = references(command.mailAccountId(), Direction.OUTBOUND, 6);
+        List<MailDraftReferenceMessageResult> accountRelevant = references(command.mailAccountId(), Direction.OUTBOUND, 8);
+        List<MailDraftReferenceMessageResult> userRelevant = references(UUID.randomUUID(), Direction.OUTBOUND, 3);
         when(fixture.referenceQueryPort().findRecentWrittenMessages(command.userId(), command.mailAccountId(), 6)).thenReturn(recent);
-        stubVectorSearch(fixture, ownRelevant);
+        stubVectorSearches(fixture, accountRelevant, userRelevant);
 
         // when
         MailDraftRagContextResult result = fixture.service().generalRagContext(command);
 
         // then
         assertEquals(6, result.recentWrittenMessages().size());
-        assertEquals(8, result.relevantMessages().size());
+        assertEquals(11, result.relevantMessages().size());
         verify(fixture.referenceQueryPort(), never()).findThreadContextMessages(any());
     }
 
     @Test
-    void general_관련본인작성메일이8개미만이면타인작성관련메일3개를추가조회한다() {
+    void general은받은메일을관련메일에서제외한다() {
         // given
         Fixture fixture = createFixture();
         MailDraftCommand command = createCommand(null);
-        List<MailDraftReferenceMessageResult> vectorMessages = relevantReferences(5, 3);
-        stubVectorSearch(fixture, vectorMessages);
+        List<MailDraftReferenceMessageResult> accountRelevant = references(command.mailAccountId(), Direction.OUTBOUND, 5);
+        List<MailDraftReferenceMessageResult> inbound = references(command.mailAccountId(), Direction.INBOUND, 3);
+        stubVectorSearches(fixture, merge(accountRelevant, inbound), inbound);
 
         // when
         MailDraftRagContextResult result = fixture.service().generalRagContext(command);
 
         // then
-        assertEquals(8, result.relevantMessages().size());
-        verify(fixture.referenceQueryPort()).findMessagesByIds(any());
+        assertEquals(5, result.relevantMessages().size());
+        verify(fixture.referenceQueryPort(), times(2)).findMessagesByIds(any());
     }
 
     @Test
@@ -212,12 +215,13 @@ class MailDraftQueryServiceTest {
         // given
         Fixture fixture = createFixture();
         UUID duplicatedMessageId = UUID.randomUUID();
-        MailDraftReferenceMessageResult duplicated = reference(duplicatedMessageId, Direction.OUTBOUND);
+        MailDraftCommand command = createCommand(null);
+        MailDraftReferenceMessageResult duplicated = reference(duplicatedMessageId, command.mailAccountId(), Direction.OUTBOUND);
         when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6))).thenReturn(List.of(duplicated));
         stubVectorSearch(fixture, List.of(duplicated));
 
         // when
-        MailDraftRagContextResult result = fixture.service().generalRagContext(createCommand(null));
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
 
         // then
         assertEquals(1, result.referenceMessages().size());
@@ -276,6 +280,10 @@ class MailDraftQueryServiceTest {
         return new MailDraftReferenceMessageResult(messageId, UUID.randomUUID(), direction, "subject", "body");
     }
 
+    private MailDraftReferenceMessageResult reference(UUID messageId, UUID mailAccountId, Direction direction) {
+        return new MailDraftReferenceMessageResult(messageId, mailAccountId, direction, "subject", "body");
+    }
+
     private MailDraftReferenceMessageResult reference(Direction direction, String subject, String body) {
         return new MailDraftReferenceMessageResult(UUID.randomUUID(), UUID.randomUUID(), direction, subject, body);
     }
@@ -290,16 +298,31 @@ class MailDraftQueryServiceTest {
                 .toList();
     }
 
-    private List<MailDraftReferenceMessageResult> relevantReferences(int ownSize, int otherSize) {
+    private List<MailDraftReferenceMessageResult> references(UUID mailAccountId, Direction direction, int size) {
+        return IntStream.range(0, size)
+                .mapToObj(index -> reference(UUID.randomUUID(), mailAccountId, direction))
+                .toList();
+    }
+
+    private List<MailDraftReferenceMessageResult> merge(List<MailDraftReferenceMessageResult> first,
+                                                        List<MailDraftReferenceMessageResult> second) {
         java.util.ArrayList<MailDraftReferenceMessageResult> values = new java.util.ArrayList<>();
-        values.addAll(references(Direction.OUTBOUND, ownSize));
-        values.addAll(references(Direction.INBOUND, otherSize));
+        values.addAll(first);
+        values.addAll(second);
         return values;
     }
 
     private void stubVectorSearch(Fixture fixture, List<MailDraftReferenceMessageResult> references) {
         when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenReturn(documents(references));
         when(fixture.referenceQueryPort().findMessagesByIds(any())).thenReturn(references);
+    }
+
+    private void stubVectorSearches(Fixture fixture, List<MailDraftReferenceMessageResult> first,
+                                    List<MailDraftReferenceMessageResult> second) {
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class)))
+                .thenReturn(documents(first), documents(second));
+        when(fixture.referenceQueryPort().findMessagesByIds(any()))
+                .thenReturn(first, second);
     }
 
     private List<Document> documents(List<MailDraftReferenceMessageResult> references) {
