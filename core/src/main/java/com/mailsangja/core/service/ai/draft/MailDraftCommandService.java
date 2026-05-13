@@ -8,6 +8,7 @@ import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -17,22 +18,12 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class MailDraftCommandService {
 
     private final MailDraftRateLimitCachePort rateLimitCachePort;
 
-    public MailDraftCommandService() {
-        this.rateLimitCachePort = null;
-    }
-
-    public MailDraftCommandService(MailDraftRateLimitCachePort rateLimitCachePort) {
-        this.rateLimitCachePort = rateLimitCachePort;
-    }
-
     public void validateMonthlyRateLimit(UUID userId) {
-        if (rateLimitCachePort == null) {
-            return;
-        }
         validateMonthlyCount(rateLimitCachePort.incrementMonthlyCount(userId));
     }
 

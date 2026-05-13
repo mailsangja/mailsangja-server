@@ -39,6 +39,9 @@ public class MailDraftQueryService {
     }
 
     public void validatePromptInjection(String query) {
+        if (query == null) {
+            throw new MailDraftException(MailDraftErrorCode.PROMPT_INJECTION_DETECTED);
+        }
         String normalized = query.toLowerCase();
         if (isPromptInjection(normalized)) {
             throw new MailDraftException(MailDraftErrorCode.PROMPT_INJECTION_DETECTED);
@@ -76,7 +79,11 @@ public class MailDraftQueryService {
     private boolean isPromptInjection(String query) {
         return query.contains("ignore all previous")
                 || query.contains("hidden context")
-                || query.contains("token map");
+                || query.contains("token map")
+                || query.contains("system instruction")
+                || query.contains("developer instruction")
+                || query.contains("과거 이메일 전체")
+                || query.contains("모두 유출");
     }
 
     private String buildUserPrompt(MailDraftCommand command, MailDraftRagContextResult context) {

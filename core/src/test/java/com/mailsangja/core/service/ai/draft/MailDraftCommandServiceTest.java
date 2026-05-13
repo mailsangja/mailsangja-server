@@ -50,7 +50,7 @@ class MailDraftCommandServiceTest {
     void subject는eventName과payloadPhase로구분한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
-        MailDraftCommandService service = new MailDraftCommandService();
+        MailDraftCommandService service = createService();
 
         // when
         service.sendDelta(emitter, MailDraftPhase.SUBJECT, "제목");
@@ -65,7 +65,7 @@ class MailDraftCommandServiceTest {
     void body는eventName과payloadPhase로구분한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
-        MailDraftCommandService service = new MailDraftCommandService();
+        MailDraftCommandService service = createService();
 
         // when
         service.sendDelta(emitter, MailDraftPhase.BODY, "본문");
@@ -80,7 +80,7 @@ class MailDraftCommandServiceTest {
     void 응답delta에대해서만토큰을복원한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
-        MailDraftCommandService service = new MailDraftCommandService();
+        MailDraftCommandService service = createService();
         MailDraftRestoreContextResult restoreContext = new MailDraftRestoreContextResult(Map.of("[EMAIL_1]", "alice@example.com"));
 
         // when
@@ -88,6 +88,10 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals("수신자 alice@example.com", emitter.payload().delta());
+    }
+
+    private MailDraftCommandService createService() {
+        return new MailDraftCommandService(mock(MailDraftRateLimitCachePort.class));
     }
 
     private static final class CapturingSseEmitter extends SseEmitter {
