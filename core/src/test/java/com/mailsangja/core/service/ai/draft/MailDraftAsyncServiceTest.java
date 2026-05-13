@@ -2,7 +2,6 @@ package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.common.exception.mail.MailDraftException;
 import com.mailsangja.core.dto.mail.MailDraftCommand;
-import com.mailsangja.core.dto.mail.MailDraftPhase;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
@@ -35,11 +34,11 @@ class MailDraftAsyncServiceTest {
         emitter.disconnect();
 
         // then
-        verify(fixture.commandService()).cancel(command);
+        verify(fixture.commandService()).cancel();
     }
 
     @Test
-    void subject성공후body실패시subject사용량과body실패를기록하고error를보낸다() {
+    void subject성공후body실패시error를보내고완료한다() {
         // given
         Fixture fixture = createFixture();
         SseEmitter emitter = new SseEmitter();
@@ -52,8 +51,6 @@ class MailDraftAsyncServiceTest {
         fixture.asyncService().streamGeneral(emitter, command);
 
         // then
-        verify(fixture.commandService()).recordSuccess(command, MailDraftPhase.SUBJECT, subjectUsage);
-        verify(fixture.commandService()).recordFailure(eq(command), eq(MailDraftPhase.BODY), any());
         verify(fixture.commandService()).sendError(eq(emitter), any());
         verify(fixture.commandService()).complete(emitter);
     }

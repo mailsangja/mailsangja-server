@@ -2,7 +2,6 @@ package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.common.exception.mail.MailDraftErrorCode;
 import com.mailsangja.core.common.exception.mail.MailDraftException;
-import com.mailsangja.core.dto.mail.MailDraftCommand;
 import com.mailsangja.core.dto.mail.MailDraftDeltaEvent;
 import com.mailsangja.core.dto.mail.MailDraftDoneEvent;
 import com.mailsangja.core.dto.mail.MailDraftErrorEvent;
@@ -206,12 +205,6 @@ public class MailDraftCommandService {
         return usage.getTotalTokens();
     }
 
-    public void recordSuccess(MailDraftCommand command, MailDraftPhase phase, MailDraftUsageResult usage) {
-    }
-
-    public void recordFailure(MailDraftCommand command, MailDraftPhase phase, Exception exception) {
-    }
-
     public void sendUsage(SseEmitter emitter, MailDraftUsageResult subjectUsage, MailDraftUsageResult bodyUsage) {
         send(emitter, event("usage", MailDraftUsageEvent.of(subjectUsage, bodyUsage)));
     }
@@ -228,7 +221,7 @@ public class MailDraftCommandService {
         send(emitter, event("error", MailDraftErrorEvent.from(exception)));
     }
 
-    public void cancel(MailDraftCommand command) {
+    public void cancel() {
     }
 
     private SseEmitter.SseEventBuilder event(String name, Object data) {

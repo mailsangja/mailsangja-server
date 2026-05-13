@@ -1,7 +1,6 @@
 package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.dto.mail.MailDraftCommand;
-import com.mailsangja.core.dto.mail.MailDraftPhase;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
@@ -37,7 +36,7 @@ public class MailDraftAsyncService {
     private void registerCancelOnCompletion(SseEmitter emitter, MailDraftCommand command) {
         emitter.onCompletion(new Runnable() {
             public void run() {
-                mailDraftCommandService.cancel(command);
+                mailDraftCommandService.cancel();
             }
         });
     }
@@ -55,7 +54,6 @@ public class MailDraftAsyncService {
         mailDraftCommandService.validateMonthlyRateLimit(command.userId());
         MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
         MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext);
-        mailDraftCommandService.recordSuccess(command, MailDraftPhase.SUBJECT, subjectUsage);
         MailDraftUsageResult bodyUsage = streamBody(emitter, command, prompt, restoreContext);
         completeSuccess(emitter, subjectUsage, bodyUsage);
     }
@@ -63,11 +61,8 @@ public class MailDraftAsyncService {
     private MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
                                             MailDraftRestoreContextResult restoreContext) {
         try {
-            MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext);
-            mailDraftCommandService.recordSuccess(command, MailDraftPhase.BODY, bodyUsage);
-            return bodyUsage;
+            return mailDraftCommandService.streamBody(emitter, prompt, restoreContext);
         } catch (Exception exception) {
-            mailDraftCommandService.recordFailure(command, MailDraftPhase.BODY, exception);
             throw exception;
         }
     }
