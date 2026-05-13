@@ -113,6 +113,19 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
+    void 시스템프롬프트는임의placeholder생성을금지한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("Never create new placeholders"));
+        assertTrue(result.systemPrompt().contains("[사용자 이름]"));
+    }
+
+    @Test
     void general은최근작성메일6개와계정작성관련메일8개와사용자작성관련메일3개를조회한다() {
         // given
         Fixture fixture = createFixture();

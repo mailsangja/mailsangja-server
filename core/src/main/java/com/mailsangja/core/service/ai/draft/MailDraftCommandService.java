@@ -166,8 +166,14 @@ public class MailDraftCommandService {
     }
 
     public void sendDelta(SseEmitter emitter, MailDraftPhase phase, String delta, MailDraftRestoreContextResult restoreContext) {
-        MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restore(delta, restoreContext));
+        MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restoreAndValidate(delta, restoreContext));
         send(emitter, event(eventName(phase), event));
+    }
+
+    private String restoreAndValidate(String delta, MailDraftRestoreContextResult restoreContext) {
+        String restored = restore(delta, restoreContext);
+        validateNoUnresolvedPlaceholder(restored);
+        return restored;
     }
 
     private String restore(String delta, MailDraftRestoreContextResult restoreContext) {
@@ -183,6 +189,21 @@ public class MailDraftCommandService {
             restored = restored.replace(token, restoreContext.tokens().get(token));
         }
         return restored;
+    }
+
+    private void validateNoUnresolvedPlaceholder(String text) {
+        int startIndex = text.indexOf('[');
+        while (startIndex >= 0) {
+            int endIndex = text.indexOf(']', startIndex + 1);
+            validatePlaceholderEnd(endIndex);
+            throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
+        }
+    }
+
+    private void validatePlaceholderEnd(int endIndex) {
+        if (endIndex < 0) {
+            throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
+        }
     }
 
     private String eventName(MailDraftPhase phase) {
@@ -317,7 +338,7 @@ public class MailDraftCommandService {
         }
 
         private String flushSafeText() {
-            int keepLength = partialTokenLength();
+            int keepLength = Math.max(partialTokenLength(), partialBracketLength());
             return flush(pending.length() - keepLength);
         }
 
@@ -353,6 +374,18 @@ public class MailDraftCommandService {
                 }
             }
             return false;
+        }
+
+        private int partialBracketLength() {
+            int startIndex = pending.lastIndexOf("[");
+            if (startIndex < 0 || hasClosingBracketAfter(startIndex)) {
+                return 0;
+            }
+            return pending.length() - startIndex;
+        }
+
+        private boolean hasClosingBracketAfter(int startIndex) {
+            return pending.indexOf("]", startIndex + 1) >= 0;
         }
     }
 }

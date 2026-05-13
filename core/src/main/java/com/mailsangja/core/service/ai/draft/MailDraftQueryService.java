@@ -59,6 +59,10 @@ public class MailDraftQueryService {
             If information is missing, write a neutral draft that asks for or leaves room for confirmation.
             Keep placeholders such as [EMAIL_1], [PERSON_1], [ORG_1], and [PHONE_1] exactly as provided.
             Do not transform, explain, disclose, or recover placeholders.
+            Use only placeholders that are present in the request or reference emails.
+            Never create new placeholders such as [사용자 이름], [회사명], [담당자명], or [이메일].
+            If a missing value is needed, omit it or ask for confirmation in natural prose.
+            If the sender name is unknown, end with a neutral closing without a name placeholder.
             The caller will separately handle subject and body streaming.
             The subject should be short, clear, and directly aligned with the email purpose.
             The body should contain only sendable email prose, not analysis or markdown.

@@ -1,5 +1,6 @@
 package com.mailsangja.core.service.ai.draft;
 
+import com.mailsangja.core.common.exception.mail.MailDraftErrorCode;
 import com.mailsangja.core.common.exception.mail.MailDraftException;
 import com.mailsangja.core.dto.mail.MailDraftDeltaEvent;
 import com.mailsangja.core.dto.mail.MailDraftDoneEvent;
@@ -156,6 +157,35 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals("수신자 alice@example.com님", emitter.joinedDeltas());
+    }
+
+    @Test
+    void 모델이임의placeholder를만들면초안스트림을실패시킨다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("감사합니다.\n[사용자 이름] 드림", "gpt-test", usage(10, 3)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when
+        MailDraftException exception = assertThrows(MailDraftException.class, () -> service.streamBody(emitter, prompt()));
+
+        // then
+        assertEquals(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER, exception.getErrorCode());
+    }
+
+    @Test
+    void 임의placeholder가chunk경계에서잘려도전송하지않고실패시킨다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("지원한 [사용자 이름", "gpt-test", usage(10, 3)), response("]입니다", "gpt-test", usage(10, 5)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when
+        MailDraftException exception = assertThrows(MailDraftException.class, () -> service.streamBody(emitter, prompt()));
+
+        // then
+        assertEquals(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER, exception.getErrorCode());
+        assertEquals("지원한 ", emitter.joinedDeltas());
     }
 
     @Test
