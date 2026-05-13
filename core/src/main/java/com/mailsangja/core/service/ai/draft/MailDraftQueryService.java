@@ -36,6 +36,7 @@ public class MailDraftQueryService {
 
     private static final String FIELD_DELIMITER = "\n[MAIL_DRAFT_FIELD]\n";
     private static final int RECENT_WRITTEN_LIMIT = 6;
+    private static final int ENTITY_HINT_RELEVANT_LIMIT = 4;
     private static final int ACCOUNT_RELEVANT_WRITTEN_LIMIT = 8;
     private static final int USER_RELEVANT_WRITTEN_LIMIT = 3;
     private static final int VECTOR_SEARCH_LIMIT = 40;
@@ -210,9 +211,81 @@ public class MailDraftQueryService {
     }
 
     private List<MailDraftSearchContextResult> findGeneralRelevant(MailDraftCommand command) {
+        List<MailDraftSearchContextResult> entity = findEntityHintRelevant(command);
         List<MailDraftSearchContextResult> account = findAccountRelevantWritten(command);
         List<MailDraftSearchContextResult> user = findUserRelevantWritten(command);
-        return mergeRelevant(account, user);
+        return mergeRelevant(entity, mergeRelevant(account, user));
+    }
+
+    private List<MailDraftSearchContextResult> findEntityHintRelevant(MailDraftCommand command) {
+        List<String> hints = entityHints(command);
+        if (referenceQueryPort == null || hints.isEmpty()) {
+            return List.of();
+        }
+        return toMaskedContexts(referenceQueryPort.findWrittenMessagesByHints(
+                command.userId(), command.mailAccountId(), hints, ENTITY_HINT_RELEVANT_LIMIT
+        ), SOURCE_RELEVANT);
+    }
+
+    private List<String> entityHints(MailDraftCommand command) {
+        List<String> hints = new ArrayList<>();
+        for (String value : command.restoreTokenMap().values()) {
+            addEntityHint(hints, value);
+        }
+        addQueryHints(hints, command.maskedQuery());
+        return hints;
+    }
+
+    private void addQueryHints(List<String> hints, String query) {
+        for (String value : query.split("[^가-힣A-Za-z0-9@._+-]+")) {
+            addQueryHint(hints, value);
+        }
+    }
+
+    private void addQueryHint(List<String> hints, String value) {
+        String normalized = normalizeHint(value);
+        if (isSearchableQueryHint(normalized) && !hints.contains(normalized)) {
+            hints.add(normalized);
+        }
+        addParticleRemovedHint(hints, normalized);
+    }
+
+    private void addParticleRemovedHint(List<String> hints, String value) {
+        if (value.matches(".*[가-힣].*")) {
+            addEntityHint(hints, removeKoreanParticle(value));
+        }
+    }
+
+    private boolean isSearchableQueryHint(String value) {
+        return value.length() >= 2 && !value.startsWith("[") && containsHangulOrEmail(value);
+    }
+
+    private boolean containsHangulOrEmail(String value) {
+        return value.contains("@") || value.matches(".*[가-힣].*");
+    }
+
+    private String removeKoreanParticle(String value) {
+        List<String> particles = List.of("에게", "께", "으로", "로", "은", "는", "이", "가", "을", "를", "님", "씨");
+        for (String particle : particles) {
+            if (value.endsWith(particle) && value.length() > particle.length() + 1) {
+                return value.substring(0, value.length() - particle.length());
+            }
+        }
+        return value;
+    }
+
+    private void addEntityHint(List<String> hints, String value) {
+        String normalized = normalizeHint(value);
+        if (!normalized.isBlank() && !hints.contains(normalized)) {
+            hints.add(normalized);
+        }
+    }
+
+    private String normalizeHint(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.trim().toLowerCase();
     }
 
     private List<MailDraftSearchContextResult> findAccountRelevantWritten(MailDraftCommand command) {
@@ -411,6 +484,9 @@ public class MailDraftQueryService {
     }
 
     private List<MailDraftSearchContextResult> toMaskedContexts(List<MailDraftReferenceMessageResult> messages, String source) {
+        if (messages == null) {
+            return List.of();
+        }
         List<MailDraftSearchContextResult> contexts = new ArrayList<>();
         for (MailDraftReferenceMessageResult message : messages) {
             contexts.add(toMaskedContext(message, source));

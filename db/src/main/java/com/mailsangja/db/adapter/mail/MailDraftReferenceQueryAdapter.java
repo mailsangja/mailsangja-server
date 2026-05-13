@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +28,15 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
     }
 
     @Override
+    public List<MailDraftReferenceMessageResult> findWrittenMessagesByHints(UUID userId, UUID mailAccountId,
+                                                                            List<String> hints, int limit) {
+        if (hints == null || hints.isEmpty()) {
+            return List.of();
+        }
+        return toResults(findHintMessages(userId, mailAccountId, hints, limit));
+    }
+
+    @Override
     public List<MailDraftReferenceMessageResult> findMessagesByIds(List<UUID> messageIds) {
         if (messageIds == null || messageIds.isEmpty()) {
             return List.of();
@@ -37,6 +47,46 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
     @Override
     public List<MailDraftReferenceMessageResult> findThreadContextMessages(UUID replyMessageId) {
         return toResults(messageJpaRepositoryModule.findThreadContextByReplyMessageId(replyMessageId));
+    }
+
+    private List<Message> findHintMessages(UUID userId, UUID mailAccountId, List<String> hints, int limit) {
+        List<Message> messages = new ArrayList<>();
+        for (String hint : hints) {
+            addHintMessages(messages, userId, mailAccountId, hint, limit);
+        }
+        return messages;
+    }
+
+    private void addHintMessages(List<Message> messages, UUID userId, UUID mailAccountId, String hint, int limit) {
+        int remaining = limit - messages.size();
+        if (remaining <= 0 || hint == null || hint.isBlank()) {
+            return;
+        }
+        List<Message> found = messageJpaRepositoryModule.findWrittenByUserIdAndMailAccountIdAndHint(
+                userId.toString(), mailAccountId.toString(), hint, PageRequest.of(0, remaining)
+        );
+        addUniqueMessages(messages, found, limit);
+    }
+
+    private void addUniqueMessages(List<Message> messages, List<Message> found, int limit) {
+        for (Message message : found) {
+            addUniqueMessage(messages, message, limit);
+        }
+    }
+
+    private void addUniqueMessage(List<Message> messages, Message message, int limit) {
+        if (messages.size() < limit && !containsMessage(messages, message)) {
+            messages.add(message);
+        }
+    }
+
+    private boolean containsMessage(List<Message> messages, Message message) {
+        for (Message value : messages) {
+            if (value.getId().equals(message.getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<MailDraftReferenceMessageResult> toResults(List<Message> messages) {

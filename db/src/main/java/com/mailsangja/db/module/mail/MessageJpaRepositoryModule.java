@@ -363,6 +363,35 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             Pageable pageable
     );
 
+    @Query(value = """
+            SELECT m.*
+            FROM messages m
+            JOIN threads t ON m.thread_id = t.id
+            JOIN mail_accounts ma ON t.mail_account_id = ma.id
+            WHERE ma.user_id = :userId
+              AND ma.id = :mailAccountId
+              AND m.direction = 'OUTBOUND'
+              AND m.deleted_at IS NULL
+              AND t.deleted_at IS NULL
+              AND ma.deleted_at IS NULL
+              AND (
+                  LOWER(COALESCE(m.subject, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(m.body_text, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(m.from_name, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.to_names AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.to_addresses AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.cc_names AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.cc_addresses AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+              )
+            ORDER BY m.sent_at DESC NULLS LAST, m.id DESC
+            """, nativeQuery = true)
+    List<Message> findWrittenByUserIdAndMailAccountIdAndHint(
+            @Param("userId") String userId,
+            @Param("mailAccountId") String mailAccountId,
+            @Param("hint") String hint,
+            Pageable pageable
+    );
+
     @Query("""
             SELECT m
             FROM Message m

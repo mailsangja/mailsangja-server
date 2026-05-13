@@ -3,6 +3,7 @@ package com.mailsangja.worker.service.ai.embedding;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.worker.config.properties.MailEmbeddingMetadataHashProperties;
 import com.mailsangja.worker.common.exception.embedding.EmbeddingErrorCode;
 import com.mailsangja.worker.common.exception.embedding.EmbeddingException;
 import org.jsoup.Jsoup;
@@ -14,11 +15,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 public class MailEmbeddingQueryService {
@@ -27,6 +34,7 @@ public class MailEmbeddingQueryService {
     private static final int MIN_CHUNK_SIZE_CHARS = 350;
     private static final int MIN_CHUNK_LENGTH_TO_EMBED = 5;
     private static final int MAX_CHUNK_COUNT = 1_000;
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
 
     private static final Set<String> BLOCK_TAGS = Set.of(
             "p", "div", "section", "article", "header", "footer", "main", "aside",
@@ -42,6 +50,11 @@ public class MailEmbeddingQueryService {
             .withMaxNumChunks(MAX_CHUNK_COUNT)
             .withKeepSeparator(true)
             .build();
+    private final MailEmbeddingMetadataHashProperties metadataHashProperties;
+
+    public MailEmbeddingQueryService(MailEmbeddingMetadataHashProperties metadataHashProperties) {
+        this.metadataHashProperties = metadataHashProperties;
+    }
 
     public String extractEmbeddableText(Message message) {
         if (message == null) {
@@ -143,7 +156,9 @@ public class MailEmbeddingQueryService {
         metadata.put("MailAccountId", mailAccount.getId().toString());
         metadata.put("MessageId", message.getId().toString());
         metadata.put("ThreadId", thread.getId().toString());
+        metadata.put("Direction", message.getDirection().name());
         addAddressMetadata(metadata, message);
+        addSearchHashMetadata(metadata, message);
         return metadata;
     }
 
@@ -151,6 +166,81 @@ public class MailEmbeddingQueryService {
         metadata.put("ReceivedAt", receivedAt(message));
         metadata.put("FromMailAddress", message.getFromAddress());
         metadata.put("ToMailAddress", toMailAddresses(message));
+    }
+
+    private void addSearchHashMetadata(Map<String, Object> metadata, Message message) {
+        metadata.put("FromHash", hashValue(message.getFromAddress()));
+        metadata.put("ToHashes", hashValues(message.getToAddresses()));
+        metadata.put("CcHashes", hashValues(message.getCcAddresses()));
+        metadata.put("RecipientHashes", recipientHashes(message));
+        metadata.put("ParticipantNameHashes", participantNameHashes(message));
+    }
+
+    private List<String> recipientHashes(Message message) {
+        ArrayList<String> hashes = new ArrayList<>();
+        addHashes(hashes, message.getToAddresses());
+        addHashes(hashes, message.getCcAddresses());
+        return List.copyOf(hashes);
+    }
+
+    private List<String> participantNameHashes(Message message) {
+        ArrayList<String> hashes = new ArrayList<>();
+        addHash(hashes, message.getFromName());
+        addHashes(hashes, message.getToNames());
+        addHashes(hashes, message.getCcNames());
+        return List.copyOf(hashes);
+    }
+
+    private List<String> hashValues(List<String> values) {
+        ArrayList<String> hashes = new ArrayList<>();
+        addHashes(hashes, values);
+        return List.copyOf(hashes);
+    }
+
+    private void addHashes(List<String> hashes, List<String> values) {
+        if (values == null) {
+            return;
+        }
+        for (String value : values) {
+            addHash(hashes, value);
+        }
+    }
+
+    private void addHash(List<String> hashes, String value) {
+        String hash = hashValue(value);
+        if (hash != null && !hashes.contains(hash)) {
+            hashes.add(hash);
+        }
+    }
+
+    private String hashValue(String value) {
+        String normalized = normalizeHashSource(value);
+        if (normalized.isBlank() || metadataHashSecret().isBlank()) {
+            return null;
+        }
+        return hmacSha256(normalized);
+    }
+
+    private String normalizeHashSource(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().toLowerCase();
+    }
+
+    private String metadataHashSecret() {
+        String secret = metadataHashProperties.getSecret();
+        return secret == null ? "" : secret;
+    }
+
+    private String hmacSha256(String value) {
+        try {
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            mac.init(new SecretKeySpec(metadataHashSecret().getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException | InvalidKeyException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private String receivedAt(Message message) {

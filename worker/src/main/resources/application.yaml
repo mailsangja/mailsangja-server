@@ -75,6 +75,10 @@ scalar:
   page-title: MailSangja Worker API Reference
 
 mailsangja:
+  ai:
+    embedding:
+      metadata-hash:
+        secret: ${AI_METADATA_HASH_SECRET:}
   gmail:
     watch-renewal:
       enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}

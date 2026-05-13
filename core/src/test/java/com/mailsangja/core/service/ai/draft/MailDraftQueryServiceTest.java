@@ -163,6 +163,42 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
+    void general은복원토큰원문을힌트로작성메일을추가검색한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommandWithRestoreToken();
+        List<MailDraftReferenceMessageResult> hinted = List.of(reference(Direction.OUTBOUND, "hinted", "body"));
+        when(fixture.referenceQueryPort().findWrittenMessagesByHints(any(), any(), any(), eq(4))).thenReturn(hinted);
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        var captor = forClass(List.class);
+        verify(fixture.referenceQueryPort()).findWrittenMessagesByHints(eq(command.userId()), eq(command.mailAccountId()), captor.capture(), eq(4));
+        assertTrue(captor.getValue().contains("김철수"));
+        assertTrue(captor.getValue().contains("kim@example.com"));
+        assertEquals("hinted", result.relevantMessages().getFirst().subject());
+    }
+
+    @Test
+    void general은마스킹되지않은한글Query단어도힌트로사용한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommandWithKoreanHint();
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        // when
+        fixture.service().generalRagContext(command);
+
+        // then
+        var captor = forClass(List.class);
+        verify(fixture.referenceQueryPort()).findWrittenMessagesByHints(eq(command.userId()), eq(command.mailAccountId()), captor.capture(), eq(4));
+        assertTrue(captor.getValue().contains("김철수"));
+    }
+
+    @Test
     void reply는스레드컨텍스트와최근작성메일만조회한다() {
         // given
         Fixture fixture = createFixture();
@@ -315,6 +351,23 @@ class MailDraftQueryServiceTest {
 
     private MailDraftCommand createCommand(UUID replyMessageId) {
         return new MailDraftCommand(UUID.randomUUID(), UUID.randomUUID(), "masked query [EMAIL_1]", replyMessageId, List.of("[EMAIL_2]"), List.of());
+    }
+
+    private MailDraftCommand createCommandWithRestoreToken() {
+        return new MailDraftCommand(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "masked query [PERSON_1]",
+                null,
+                List.of(),
+                List.of(),
+                com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL,
+                Map.of("[PERSON_1]", "김철수", "[EMAIL_1]", "kim@example.com")
+        );
+    }
+
+    private MailDraftCommand createCommandWithKoreanHint() {
+        return new MailDraftCommand(UUID.randomUUID(), UUID.randomUUID(), "김철수에게 보냈던 메일 참고", null, List.of(), List.of());
     }
 
     private MailDraftSearchContextResult mail(String subject, String body) {

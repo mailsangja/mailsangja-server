@@ -8,6 +8,7 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
+import com.mailsangja.worker.config.properties.MailEmbeddingMetadataHashProperties;
 import com.mailsangja.worker.common.exception.embedding.EmbeddingErrorCode;
 import com.mailsangja.worker.common.exception.embedding.EmbeddingException;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MailEmbeddingQueryServiceTest {
 
-    private final MailEmbeddingQueryService service = new MailEmbeddingQueryService();
+    private final MailEmbeddingQueryService service = new MailEmbeddingQueryService(metadataHashProperties());
 
     @Test
     void extractEmbeddableText_bodyText가있으면공백을정리한본문을반환한다() {
@@ -222,6 +223,22 @@ class MailEmbeddingQueryServiceTest {
     }
 
     @Test
+    void buildDocument_검색용방향과주소해시metadata를추가한다() {
+        // given
+        Message message = createMessage(UUID.randomUUID(), UUID.randomUUID(), MailProvider.GMAIL,
+                "provider-message-id", Direction.OUTBOUND, "본문입니다.", null);
+
+        // when
+        Map<String, Object> metadata = service.buildDocument(message, UUID.randomUUID(), "마스킹된 본문입니다.").getMetadata();
+
+        // then
+        assertEquals(Direction.OUTBOUND.name(), metadata.get("Direction"));
+        assertFalse(metadata.get("FromHash").toString().contains("sender@example.com"));
+        assertEquals(metadata.get("ToHashes"), metadata.get("RecipientHashes"));
+        assertFalse(((List<?>) metadata.get("ToHashes")).isEmpty());
+    }
+
+    @Test
     void buildDocument_documentId가null이면커스텀예외를던진다() {
         // given
         Message message = createMessage(UUID.randomUUID(), UUID.randomUUID(), MailProvider.GMAIL,
@@ -260,6 +277,7 @@ class MailEmbeddingQueryServiceTest {
         assertEquals(mailAccount.getId().toString(), metadata.get("MailAccountId"));
         assertEquals(message.getId().toString(), metadata.get("MessageId"));
         assertEquals(thread.getId().toString(), metadata.get("ThreadId"));
+        assertEquals(message.getDirection().name(), metadata.get("Direction"));
         assertEquals(message.getSentAt().toString(), metadata.get("ReceivedAt"));
         assertEquals("sender@example.com", metadata.get("FromMailAddress"));
         assertEquals(List.of("to@example.com"), metadata.get("ToMailAddress"));
@@ -313,4 +331,11 @@ class MailEmbeddingQueryServiceTest {
                 .role(Role.USER)
                 .build();
     }
+
+    private MailEmbeddingMetadataHashProperties metadataHashProperties() {
+        MailEmbeddingMetadataHashProperties properties = new MailEmbeddingMetadataHashProperties();
+        properties.setSecret("test-secret");
+        return properties;
+    }
+
 }
