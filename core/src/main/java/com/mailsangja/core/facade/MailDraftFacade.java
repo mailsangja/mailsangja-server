@@ -25,10 +25,9 @@ public class MailDraftFacade {
     private final MailDraftAsyncService mailDraftAsyncService;
 
     public SseEmitter streamDraft(User user, MailDraftStreamRequest request) {
-        MailAccount account = mailAccountQueryService.findActiveById(request.mailAccountId());
-        validateAccountAccess(user, account);
+        MailAccount account = mailAccountQueryService.findActiveByUserIdAndEmailAddress(user.getId(), request.mailAddress());
         mailDraftQueryService.validatePromptInjection(request.query());
-        MailDraftCommand command = mailDraftQueryService.createCommand(user.getId(), request);
+        MailDraftCommand command = mailDraftQueryService.createCommand(user.getId(), account.getId(), request);
         return startStream(user, command);
     }
 

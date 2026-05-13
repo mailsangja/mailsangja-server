@@ -1,6 +1,8 @@
 package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailDraftException;
+import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
+import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.dto.mail.MailDraftCommand;
 import com.mailsangja.core.dto.mail.MailDraftMaskedContextResult;
 import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
@@ -42,7 +44,7 @@ class MailDraftFacadeTest {
         User user = createUser(UUID.randomUUID());
         MailAccount account = createMailAccount(user, UUID.randomUUID());
         FacadeFixture fixture = createFacade(account, null);
-        MailDraftStreamRequest request = createRequest(account.getId(), null);
+        MailDraftStreamRequest request = createRequest(account, null);
 
         // when
         SseEmitter emitter = fixture.facade().streamDraft(user, request);
@@ -61,7 +63,7 @@ class MailDraftFacadeTest {
         FacadeFixture fixture = createFacade(account, null);
 
         // when & then
-        assertThrows(MailDraftException.class, () -> fixture.facade().streamDraft(user, createRequest(account.getId(), null)));
+        assertThrows(MailAccountException.class, () -> fixture.facade().streamDraft(user, createRequest(account, null)));
 
         // then
         verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
@@ -76,7 +78,7 @@ class MailDraftFacadeTest {
         FacadeFixture fixture = createFacade(account, null);
 
         // when
-        fixture.facade().streamDraft(user, createRequest(account.getId(), null));
+        fixture.facade().streamDraft(user, createRequest(account, null));
 
         // then
         verify(fixture.mailQueryService(), never()).findReplyTargetMessage(any());
@@ -94,7 +96,7 @@ class MailDraftFacadeTest {
         UUID replyMessageId = replyTarget.getId();
 
         // when
-        fixture.facade().streamDraft(user, createRequest(account.getId(), replyMessageId));
+        fixture.facade().streamDraft(user, createRequest(account, replyMessageId));
 
         // then
         verify(fixture.mailQueryService()).findReplyTargetMessage(replyMessageId);
@@ -112,7 +114,7 @@ class MailDraftFacadeTest {
         FacadeFixture fixture = createFacade(account, deletedReplyTarget);
 
         // when & then
-        assertThrows(MailDraftException.class, () -> fixture.facade().streamDraft(user, createRequest(account.getId(), UUID.randomUUID())));
+        assertThrows(MailDraftException.class, () -> fixture.facade().streamDraft(user, createRequest(account, UUID.randomUUID())));
 
         // then
         verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
@@ -129,7 +131,7 @@ class MailDraftFacadeTest {
         ArgumentCaptor<MailDraftCommand> captor = ArgumentCaptor.forClass(MailDraftCommand.class);
 
         // when
-        fixture.facade().streamDraft(user, createRequest(requestAccount.getId(), UUID.randomUUID()));
+        fixture.facade().streamDraft(user, createRequest(requestAccount, UUID.randomUUID()));
 
         // then
         verify(fixture.draftAsyncService()).streamReply(any(), captor.capture());
@@ -146,7 +148,7 @@ class MailDraftFacadeTest {
         doThrow(mock(MailDraftException.class)).when(fixture.draftQueryService()).validatePromptInjection(any());
 
         // when & then
-        assertThrows(MailDraftException.class, () -> fixture.facade().streamDraft(user, createRequest(account.getId(), null)));
+        assertThrows(MailDraftException.class, () -> fixture.facade().streamDraft(user, createRequest(account, null)));
 
         // then
         verify(fixture.draftQueryService(), atLeastOnce()).validatePromptInjection(any());
@@ -158,9 +160,11 @@ class MailDraftFacadeTest {
         MailQueryService mailQueryService = mock(MailQueryService.class);
         MailDraftQueryService draftQueryService = mock(MailDraftQueryService.class);
         MailDraftAsyncService draftAsyncService = mock(MailDraftAsyncService.class);
-        when(accountQueryService.findActiveById(account.getId())).thenReturn(account);
+        when(accountQueryService.findActiveByUserIdAndEmailAddress(any(), eq(account.getEmailAddress())))
+                .thenAnswer(invocation -> findAccountForUser(account, invocation.getArgument(0)));
         when(mailQueryService.findReplyTargetMessage(any())).thenReturn(replyTarget);
-        when(draftQueryService.createCommand(any(), any())).thenAnswer(invocation -> createCommand(invocation.getArgument(0), invocation.getArgument(1)));
+        when(draftQueryService.createCommand(any(), any(), any()))
+                .thenAnswer(invocation -> createCommand(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2)));
         MailDraftFacade facade = new MailDraftFacade(
                 accountQueryService,
                 mailQueryService,
@@ -170,14 +174,21 @@ class MailDraftFacadeTest {
         return new FacadeFixture(facade, mailQueryService, draftQueryService, draftAsyncService);
     }
 
-    private MailDraftCommand createCommand(UUID userId, MailDraftStreamRequest request) {
+    private MailAccount findAccountForUser(MailAccount account, UUID userId) {
+        if (account.getUser().getId().equals(userId)) {
+            return account;
+        }
+        throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+    }
+
+    private MailDraftCommand createCommand(UUID userId, UUID mailAccountId, MailDraftStreamRequest request) {
         MailDraftMaskedContextResult maskedContext = new MailDraftMaskedContextResult(
                 request.query(),
                 request.to(),
                 request.cc() == null ? List.of() : request.cc(),
                 java.util.Map.of()
         );
-        return MailDraftCommand.of(userId, request, maskedContext);
+        return MailDraftCommand.of(userId, mailAccountId, request, maskedContext);
     }
 
     private record FacadeFixture(
@@ -188,8 +199,8 @@ class MailDraftFacadeTest {
     ) {
     }
 
-    private MailDraftStreamRequest createRequest(UUID mailAccountId, UUID replyMessageId) {
-        return new MailDraftStreamRequest(mailAccountId, "답장 초안을 작성해줘", replyMessageId, List.of("to@example.com"), null);
+    private MailDraftStreamRequest createRequest(MailAccount account, UUID replyMessageId) {
+        return new MailDraftStreamRequest(account.getEmailAddress(), "답장 초안을 작성해줘", replyMessageId, List.of("to@example.com"), null);
     }
 
     private User createUser(UUID id) {

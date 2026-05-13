@@ -83,7 +83,7 @@ class MailControllerTest {
         MailController controller = new MailController(mailFacade, mailDraftFacade);
         User user = User.builder().id(UUID.randomUUID()).build();
         MailDraftStreamRequest request = new MailDraftStreamRequest(
-                UUID.randomUUID(),
+                "sender@example.com",
                 "거래처에 일정 조율 메일 초안 작성",
                 null,
                 List.of("to@example.com"),

@@ -32,10 +32,10 @@ public record MailDraftCommand(
         this(userId, mailAccountId, maskedQuery, replyMessageId, to, cc, purposeOf(replyMessageId), Map.of());
     }
 
-    public static MailDraftCommand from(UUID userId, MailDraftStreamRequest request) {
+    public static MailDraftCommand from(UUID userId, UUID mailAccountId, MailDraftStreamRequest request) {
         return new MailDraftCommand(
                 userId,
-                request.mailAccountId(),
+                mailAccountId,
                 request.query(),
                 request.replyMessageId(),
                 request.to(),
@@ -45,10 +45,11 @@ public record MailDraftCommand(
         );
     }
 
-    public static MailDraftCommand of(UUID userId, MailDraftStreamRequest request, MailDraftMaskedContextResult maskedContext) {
+    public static MailDraftCommand of(UUID userId, UUID mailAccountId, MailDraftStreamRequest request,
+                                      MailDraftMaskedContextResult maskedContext) {
         return new MailDraftCommand(
                 userId,
-                request.mailAccountId(),
+                mailAccountId,
                 maskedContext.maskedQuery(),
                 request.replyMessageId(),
                 maskedContext.maskedTo(),

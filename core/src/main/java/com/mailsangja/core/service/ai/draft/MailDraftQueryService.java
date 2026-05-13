@@ -108,9 +108,9 @@ public class MailDraftQueryService {
         return searchRelevantMessages(userId, mailAccountId, query, limit, Direction.OUTBOUND);
     }
 
-    public MailDraftCommand createCommand(UUID userId, MailDraftStreamRequest request) {
+    public MailDraftCommand createCommand(UUID userId, UUID mailAccountId, MailDraftStreamRequest request) {
         MailDraftMaskedContextResult maskedContext = maskCurrentContext(request);
-        return MailDraftCommand.of(userId, request, maskedContext);
+        return MailDraftCommand.of(userId, mailAccountId, request, maskedContext);
     }
 
     public MailDraftMaskedContextResult maskCurrentContext(MailDraftStreamRequest request) {

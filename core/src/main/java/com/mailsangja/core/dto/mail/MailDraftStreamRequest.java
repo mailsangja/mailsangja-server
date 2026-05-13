@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record MailDraftStreamRequest(
-        UUID mailAccountId,
+        String mailAddress,
         String query,
         UUID replyMessageId,
         List<String> to,
@@ -15,13 +15,13 @@ public record MailDraftStreamRequest(
 ) {
 
     public MailDraftStreamRequest {
-        validateMailAccountId(mailAccountId);
+        validateMailAddress(mailAddress);
         validateQuery(query);
         validateTo(to);
     }
 
-    private static void validateMailAccountId(UUID mailAccountId) {
-        if (mailAccountId == null) {
+    private static void validateMailAddress(String mailAddress) {
+        if (mailAddress == null || mailAddress.isBlank()) {
             throw new MailDraftException(MailDraftErrorCode.INVALID_REQUEST);
         }
     }

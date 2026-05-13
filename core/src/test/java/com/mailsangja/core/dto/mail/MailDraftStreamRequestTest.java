@@ -4,15 +4,13 @@ import com.mailsangja.core.common.exception.mail.MailDraftException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MailDraftStreamRequestTest {
 
     @Test
-    void mailAccountId가없으면실패한다() {
+    void mailAddress가없으면실패한다() {
         // given
 
         // when & then
@@ -31,7 +29,7 @@ class MailDraftStreamRequestTest {
 
         // when & then
         assertThrows(MailDraftException.class, () -> new MailDraftStreamRequest(
-                UUID.randomUUID(),
+                "sender@example.com",
                 " ",
                 null,
                 List.of("to@example.com"),
@@ -45,7 +43,7 @@ class MailDraftStreamRequestTest {
 
         // when & then
         assertThrows(MailDraftException.class, () -> new MailDraftStreamRequest(
-                UUID.randomUUID(),
+                "sender@example.com",
                 "일정 조율 메일 초안 작성",
                 null,
                 List.of(),
@@ -59,7 +57,7 @@ class MailDraftStreamRequestTest {
 
         // when & then
         assertThrows(MailDraftException.class, () -> new MailDraftStreamRequest(
-                UUID.randomUUID(),
+                "sender@example.com",
                 "일정 조율 메일 초안 작성",
                 null,
                 null,
@@ -73,7 +71,7 @@ class MailDraftStreamRequestTest {
 
         // when & then
         assertDoesNotThrow(() -> new MailDraftStreamRequest(
-                UUID.randomUUID(),
+                "sender@example.com",
                 "거래처에 일정 조율 메일 초안 작성",
                 null,
                 List.of("to@example.com"),
