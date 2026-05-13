@@ -2,40 +2,51 @@ package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.common.exception.mail.MailDraftErrorCode;
 import com.mailsangja.core.common.exception.mail.MailDraftException;
+import com.mailsangja.core.dto.ai.masking.MaskingCommand;
+import com.mailsangja.core.dto.ai.masking.MaskingResult;
 import com.mailsangja.core.dto.mail.MailDraftCommand;
+import com.mailsangja.core.dto.mail.MailDraftMaskedContextResult;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftSearchContextResult;
+import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
+import com.mailsangja.core.service.ai.masking.PhileasMaskingService;
 import com.mailsangja.db.port.MailDraftReferenceQueryPort;
+import lombok.RequiredArgsConstructor;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class MailDraftQueryService {
+
+    private static final String FIELD_DELIMITER = "\n[MAIL_DRAFT_FIELD]\n";
 
     private final MailDraftReferenceQueryPort referenceQueryPort;
     private final VectorStore vectorStore;
+    private final PhileasMaskingService maskingService;
 
     public MailDraftQueryService() {
-        this(null, null);
+        this(null, null, new PhileasMaskingService());
     }
 
     public MailDraftQueryService(VectorStore vectorStore) {
-        this(null, vectorStore);
+        this(null, vectorStore, new PhileasMaskingService());
     }
 
     public MailDraftQueryService(MailDraftReferenceQueryPort referenceQueryPort) {
-        this(referenceQueryPort, null);
+        this(referenceQueryPort, null, new PhileasMaskingService());
     }
 
     public MailDraftQueryService(MailDraftReferenceQueryPort referenceQueryPort, VectorStore vectorStore) {
-        this.referenceQueryPort = referenceQueryPort;
-        this.vectorStore = vectorStore;
+        this(referenceQueryPort, vectorStore, new PhileasMaskingService());
     }
 
     public void validatePromptInjection(String query) {
@@ -54,6 +65,22 @@ public class MailDraftQueryService {
         }
         vectorStore.similaritySearch(SearchRequest.builder().query(query).topK(limit).build());
         return List.of();
+    }
+
+    public MailDraftCommand createCommand(UUID userId, MailDraftStreamRequest request) {
+        MailDraftMaskedContextResult maskedContext = maskCurrentContext(request);
+        return MailDraftCommand.of(userId, request, maskedContext);
+    }
+
+    public MailDraftMaskedContextResult maskCurrentContext(MailDraftStreamRequest request) {
+        MaskingResult result = maskCurrent(joinCurrentContext(request));
+        List<String> fields = splitMaskedFields(result.maskedText());
+        return new MailDraftMaskedContextResult(
+                fields.getFirst(),
+                subFields(fields, 1, request.to()),
+                subFields(fields, 1 + nullToEmpty(request.to()).size(), request.cc()),
+                result.restoreTokenMap()
+        );
     }
 
     public MailDraftPromptResult generalPrompt(MailDraftCommand command, MailDraftRagContextResult context) {
@@ -84,6 +111,40 @@ public class MailDraftQueryService {
                 || query.contains("developer instruction")
                 || query.contains("과거 이메일 전체")
                 || query.contains("모두 유출");
+    }
+
+    private String joinCurrentContext(MailDraftStreamRequest request) {
+        StringBuilder builder = new StringBuilder(request.query());
+        appendFields(builder, request.to());
+        appendFields(builder, request.cc());
+        return builder.toString();
+    }
+
+    private void appendFields(StringBuilder builder, List<String> values) {
+        for (String value : nullToEmpty(values)) {
+            builder.append(FIELD_DELIMITER);
+            builder.append(value);
+        }
+    }
+
+    private MaskingResult maskCurrent(String text) {
+        return maskingService.mask(text, MaskingCommand.currentContext());
+    }
+
+    private List<String> splitMaskedFields(String maskedText) {
+        return new ArrayList<>(Arrays.asList(maskedText.split(Pattern.quote(FIELD_DELIMITER), -1)));
+    }
+
+    private List<String> subFields(List<String> fields, int startIndex, List<String> sourceValues) {
+        int endIndex = startIndex + nullToEmpty(sourceValues).size();
+        return List.copyOf(fields.subList(startIndex, endIndex));
+    }
+
+    private List<String> nullToEmpty(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values;
     }
 
     private String buildUserPrompt(MailDraftCommand command, MailDraftRagContextResult context) {

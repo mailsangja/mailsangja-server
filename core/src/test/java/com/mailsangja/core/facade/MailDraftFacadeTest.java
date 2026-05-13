@@ -2,6 +2,7 @@ package com.mailsangja.core.facade;
 
 import com.mailsangja.core.common.exception.mail.MailDraftException;
 import com.mailsangja.core.dto.mail.MailDraftCommand;
+import com.mailsangja.core.dto.mail.MailDraftMaskedContextResult;
 import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.service.ai.draft.MailDraftAsyncService;
 import com.mailsangja.core.service.ai.draft.MailDraftQueryService;
@@ -159,6 +160,7 @@ class MailDraftFacadeTest {
         MailDraftAsyncService draftAsyncService = mock(MailDraftAsyncService.class);
         when(accountQueryService.findActiveById(account.getId())).thenReturn(account);
         when(mailQueryService.findReplyTargetMessage(any())).thenReturn(replyTarget);
+        when(draftQueryService.createCommand(any(), any())).thenAnswer(invocation -> createCommand(invocation.getArgument(0), invocation.getArgument(1)));
         MailDraftFacade facade = new MailDraftFacade(
                 accountQueryService,
                 mailQueryService,
@@ -166,6 +168,16 @@ class MailDraftFacadeTest {
                 draftAsyncService
         );
         return new FacadeFixture(facade, mailQueryService, draftQueryService, draftAsyncService);
+    }
+
+    private MailDraftCommand createCommand(UUID userId, MailDraftStreamRequest request) {
+        MailDraftMaskedContextResult maskedContext = new MailDraftMaskedContextResult(
+                request.query(),
+                request.to(),
+                request.cc() == null ? List.of() : request.cc(),
+                java.util.Map.of()
+        );
+        return MailDraftCommand.of(userId, request, maskedContext);
     }
 
     private record FacadeFixture(

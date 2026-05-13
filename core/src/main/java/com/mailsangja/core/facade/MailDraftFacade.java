@@ -28,7 +28,8 @@ public class MailDraftFacade {
         MailAccount account = mailAccountQueryService.findActiveById(request.mailAccountId());
         validateAccountAccess(user, account);
         mailDraftQueryService.validatePromptInjection(request.query());
-        return startStream(user, request);
+        MailDraftCommand command = mailDraftQueryService.createCommand(user.getId(), request);
+        return startStream(user, command);
     }
 
     private void validateAccountAccess(User user, MailAccount account) {
@@ -37,15 +38,14 @@ public class MailDraftFacade {
         }
     }
 
-    private SseEmitter startStream(User user, MailDraftStreamRequest request) {
+    private SseEmitter startStream(User user, MailDraftCommand command) {
         SseEmitter emitter = new SseEmitter();
-        MailDraftCommand command = MailDraftCommand.from(user.getId(), request);
         streamByPurpose(user, emitter, command);
         return emitter;
     }
 
     private void streamByPurpose(User user, SseEmitter emitter, MailDraftCommand command) {
-        if (command.replyMessageId() == null) {
+        if (command.purpose() == com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL) {
             mailDraftAsyncService.streamGeneral(emitter, command);
             return;
         }
