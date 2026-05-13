@@ -17,7 +17,6 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
-import com.mailsangja.db.dto.MessageLabelView;
 import com.mailsangja.db.dto.ThreadMessageLabelView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Slice;
@@ -126,14 +125,13 @@ public class TrashFacade {
         List<String> emails = collectEmailsFromMessages(deletedMessages);
         Map<String, String> contactNameByEmail = trashQueryService.findContactNamesByEmails(user.getId(), emails);
 
-        List<UUID> messageIds = deletedMessages.stream().map(Message::getId).toList();
-        Map<UUID, List<MessageLabelView>> messageLabelsByMessageId =
-                trashQueryService.findMessageLabelsByMessageIds(messageIds);
+        List<ThreadMessageLabelView> labels = trashQueryService.findLabelsByThreadIds(List.of(thread.getId()))
+                .getOrDefault(thread.getId(), List.of());
         return TrashThreadDetailResponse.from(
                 thread,
                 deletedMessages,
                 contactNameByEmail,
-                messageLabelsByMessageId,
+                labels,
                 renderBodyHtmlByMessageId(deletedMessages)
         );
     }

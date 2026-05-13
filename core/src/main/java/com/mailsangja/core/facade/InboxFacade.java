@@ -84,7 +84,7 @@ public class InboxFacade {
                 result.thread(),
                 result.messages(),
                 result.contactNameByEmail(),
-                result.messageLabelsByMessageId(),
+                result.labels(),
                 renderBodyHtmlByMessageId(result.messages())
         );
     }
