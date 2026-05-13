@@ -126,27 +126,41 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
-    void general은최근작성메일6개와계정작성관련메일8개와사용자작성관련메일3개를조회한다() {
+    void 시스템프롬프트는메일source별역할을구분한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("relevant_received emails for factual background"));
+        assertTrue(result.systemPrompt().contains("recent_sent emails only to infer tone"));
+    }
+
+    @Test
+    void general은최근작성메일4개와작성메일5개와수신메일5개와사용자작성메일3개를조회한다() {
         // given
         Fixture fixture = createFixture();
         MailDraftCommand command = createCommand(null);
-        List<MailDraftReferenceMessageResult> recent = references(command.mailAccountId(), Direction.OUTBOUND, 6);
-        List<MailDraftReferenceMessageResult> accountRelevant = references(command.mailAccountId(), Direction.OUTBOUND, 8);
+        List<MailDraftReferenceMessageResult> recent = references(command.mailAccountId(), Direction.OUTBOUND, 4);
+        List<MailDraftReferenceMessageResult> accountSent = references(command.mailAccountId(), Direction.OUTBOUND, 5);
+        List<MailDraftReferenceMessageResult> accountReceived = references(command.mailAccountId(), Direction.INBOUND, 5);
         List<MailDraftReferenceMessageResult> userRelevant = references(UUID.randomUUID(), Direction.OUTBOUND, 3);
-        when(fixture.referenceQueryPort().findRecentWrittenMessages(command.userId(), command.mailAccountId(), 6)).thenReturn(recent);
-        stubVectorSearches(fixture, accountRelevant, userRelevant);
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(command.userId(), command.mailAccountId(), 4)).thenReturn(recent);
+        stubVectorSearches(fixture, merge(accountSent, accountReceived), userRelevant);
 
         // when
         MailDraftRagContextResult result = fixture.service().generalRagContext(command);
 
         // then
-        assertEquals(6, result.recentWrittenMessages().size());
-        assertEquals(11, result.relevantMessages().size());
+        assertEquals(4, result.recentWrittenMessages().size());
+        assertEquals(13, result.relevantMessages().size());
         verify(fixture.referenceQueryPort(), never()).findThreadContextMessages(any());
     }
 
     @Test
-    void general은받은메일을관련메일에서제외한다() {
+    void general은받은메일을맥락용관련메일로포함한다() {
         // given
         Fixture fixture = createFixture();
         MailDraftCommand command = createCommand(null);
@@ -158,7 +172,8 @@ class MailDraftQueryServiceTest {
         MailDraftRagContextResult result = fixture.service().generalRagContext(command);
 
         // then
-        assertEquals(5, result.relevantMessages().size());
+        assertEquals(8, result.relevantMessages().size());
+        assertTrue(result.relevantMessages().stream().anyMatch(message -> "relevant_received".equals(message.source())));
         verify(fixture.referenceQueryPort(), times(2)).findMessagesByIds(any());
     }
 
@@ -212,7 +227,7 @@ class MailDraftQueryServiceTest {
 
         // then
         assertEquals(1, result.threadMessages().size());
-        verify(fixture.referenceQueryPort()).findRecentWrittenMessages(command.userId(), command.mailAccountId(), 6);
+        verify(fixture.referenceQueryPort()).findRecentWrittenMessages(command.userId(), command.mailAccountId(), 4);
         verify(fixture.referenceQueryPort(), never()).findMessagesByIds(any());
     }
 
@@ -221,7 +236,7 @@ class MailDraftQueryServiceTest {
         // given
         Fixture fixture = createFixture();
         MailDraftCommand command = createCommand(null);
-        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6))).thenReturn(List.of());
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(4))).thenReturn(List.of());
         when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 
         // when
@@ -237,7 +252,7 @@ class MailDraftQueryServiceTest {
         // given
         Fixture fixture = createFixture();
         MailDraftCommand command = createCommand(null);
-        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6))).thenReturn(List.of());
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(4))).thenReturn(List.of());
         when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenThrow(new RuntimeException("vector failed"));
 
         // when
@@ -274,14 +289,14 @@ class MailDraftQueryServiceTest {
         fixture.service().replyRagContext(command);
 
         // then
-        verify(fixture.referenceQueryPort()).findRecentWrittenMessages(command.userId(), command.mailAccountId(), 6);
+        verify(fixture.referenceQueryPort()).findRecentWrittenMessages(command.userId(), command.mailAccountId(), 4);
     }
 
     @Test
     void 참고메일은최대15개까지만제공한다() {
         // given
         Fixture fixture = createFixture();
-        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6))).thenReturn(contexts("written", 10));
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(4))).thenReturn(contexts("written", 10));
         when(fixture.referenceQueryPort().findThreadContextMessages(any())).thenReturn(contexts("thread", 10));
 
         // when
@@ -298,7 +313,7 @@ class MailDraftQueryServiceTest {
         UUID duplicatedMessageId = UUID.randomUUID();
         MailDraftCommand command = createCommand(null);
         MailDraftReferenceMessageResult duplicated = reference(duplicatedMessageId, command.mailAccountId(), Direction.OUTBOUND);
-        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6))).thenReturn(List.of(duplicated));
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(4))).thenReturn(List.of(duplicated));
         stubVectorSearch(fixture, List.of(duplicated));
 
         // when
@@ -324,7 +339,7 @@ class MailDraftQueryServiceTest {
     void ragContext는마스킹된메일컨텍스트만반환한다() {
         // given
         Fixture fixture = createFixture();
-        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6)))
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(4)))
                 .thenReturn(List.of(reference(Direction.OUTBOUND, "masked [EMAIL_1]", "body")));
 
         // when
