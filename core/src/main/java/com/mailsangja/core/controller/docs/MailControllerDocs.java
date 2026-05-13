@@ -1,6 +1,7 @@
 package com.mailsangja.core.controller.docs;
 
 import com.mailsangja.core.common.auth.AuthUser;
+import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.UUID;
 
@@ -62,6 +64,17 @@ public interface MailControllerDocs {
                     )
             )
             MailSendRequest request
+    );
+
+    @Operation(
+            summary = "AI 메일 초안 스트리밍",
+            description = "사용자의 요청과 메일 컨텍스트를 기반으로 AI 메일 초안을 SSE로 스트리밍합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    ResponseEntity<SseEmitter> streamDraft(
+            @Parameter(hidden = true) @AuthUser User user,
+            @RequestBody(description = "AI 메일 초안 스트리밍 요청", required = true)
+            MailDraftStreamRequest request
     );
 
     @Operation(

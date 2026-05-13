@@ -3,7 +3,9 @@ package com.mailsangja.core.controller;
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.MailControllerDocs;
 import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
+import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.dto.mail.MailSendRequest;
+import com.mailsangja.core.facade.MailDraftFacade;
 import com.mailsangja.core.facade.MailFacade;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -27,6 +31,7 @@ import java.util.UUID;
 public class MailController implements MailControllerDocs {
 
     private final MailFacade mailFacade;
+    private final MailDraftFacade mailDraftFacade;
 
     @Override
     @PostMapping(value = "/api/v1/mail/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -41,6 +46,16 @@ public class MailController implements MailControllerDocs {
             mailFacade.replyMail(user, messageId, request);
         }
         return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @PostMapping("/api/v1/mail/drafts/stream")
+    public ResponseEntity<SseEmitter> streamDraft(
+            @AuthUser User user,
+            @RequestBody MailDraftStreamRequest request
+    ) {
+        SseEmitter emitter = mailDraftFacade.streamDraft(user, request);
+        return ResponseEntity.ok(emitter);
     }
 
     @Override
