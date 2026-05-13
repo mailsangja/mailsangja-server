@@ -55,7 +55,7 @@ public class LabelReclassifyPublisher {
         for (int start = 0; start < threadIds.size(); start += batchSize) {
             int end = Math.min(start + batchSize, threadIds.size());
             List<UUID> threadBatch = List.copyOf(threadIds.subList(start, end));
-            publishBatch(new LabelReclassifyMessage(userId, labelIds, threadBatch));
+            publishBatch(new LabelReclassifyMessage(userId, labelIds, threadBatch, null));
             batchCount++;
         }
 

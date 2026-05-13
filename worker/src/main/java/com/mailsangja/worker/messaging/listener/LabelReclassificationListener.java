@@ -8,6 +8,7 @@ import com.mailsangja.worker.dto.label.LabelReclassifyMessage;
 import com.mailsangja.worker.dto.label.MessageBatch;
 import com.mailsangja.worker.handler.label.LabelRuleCompiler;
 import com.mailsangja.worker.service.label.LabelQueryService;
+import com.mailsangja.worker.service.label.LabelReclassifyJobStore;
 import com.mailsangja.worker.service.label.MessageLabelCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +26,9 @@ import java.util.stream.Collectors;
  *
  * 흐름:
  * 1. Publisher가 스레드 ID를 threadBatchSize 단위로 나눠 이 큐에 N개 메시지로 발행한다.
- * 2. 각 메시지에 포함된 threadIds 기준으로 메시지를 로드하고, 라벨 규칙을 컴파일하여 적용한다.
- * 3. Thread 단위로 GmailThreadLock을 획득한 뒤 라벨을 반영한다.
+ * 2. Stale 체크: 메시지의 jobId가 Redis에 저장된 latestJobId와 다르면 무시한다.
+ * 3. 각 메시지에 포함된 threadIds 기준으로 메시지를 로드하고, 라벨 규칙을 컴파일하여 적용한다.
+ * 4. Thread 단위로 GmailThreadLock을 획득한 뒤 라벨을 반영한다.
  *
  * 재시도 / DLQ 정책은 labelReclassifyRabbitListenerContainerFactory에 위임한다.
  */
@@ -39,6 +41,7 @@ public class LabelReclassificationListener {
     private final MessageLabelCommandService messageLabelCommandService;
     private final LabelRuleCompiler labelRuleCompiler;
     private final LabelReclassifyRabbitProperties labelReclassifyRabbitProperties;
+    private final LabelReclassifyJobStore labelReclassifyJobStore;
 
     @RabbitListener(
             queues = "#{@labelReclassifyQueue.name}",
@@ -46,7 +49,25 @@ public class LabelReclassificationListener {
     )
     public void handle(LabelReclassifyMessage message) {
         UUID userId = message.userId();
-        Set<UUID> targetLabelIds = message.labelIds();
+        String messageJobId = message.jobId();
+
+        Set<UUID> targetLabelIds = message.labelIds().stream()
+                .filter(labelId -> {
+                    String latestJobId = labelReclassifyJobStore.getLatestJobId(labelId);
+                    boolean stale = latestJobId != null && !latestJobId.equals(messageJobId);
+                    if (stale) {
+                        log.info("Stale reclassify job skipped for labelId={}: jobId={} latestJobId={}",
+                                labelId, messageJobId, latestJobId);
+                    }
+                    return !stale;
+                })
+                .collect(Collectors.toSet());
+
+        if (targetLabelIds.isEmpty()) {
+            log.info("All labels stale, skipping batch: jobId={} userId={}", messageJobId, userId);
+            return;
+        }
+
         List<UUID> threadIds = message.threadIds();
 
         List<Label> activeLabels = labelQueryService.findAllActiveByUserId(userId);
@@ -71,8 +92,8 @@ public class LabelReclassificationListener {
 
         applyLabelsPerThread(messages, labelsByMessageId, targetLabelIds);
 
-        log.info("LabelReclassification batch processed: userId={} threadCount={} messageCount={}",
-                userId, threadIds.size(), messages.size());
+        log.info("LabelReclassification batch processed: userId={} threadCount={} messageCount={} jobId={}",
+                userId, threadIds.size(), messages.size(), messageJobId);
     }
 
     private void applyLabelsPerThread(

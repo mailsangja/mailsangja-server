@@ -10,7 +10,8 @@ import java.util.UUID;
 public record LabelReclassifyMessage(
         UUID userId,
         Set<UUID> labelIds,
-        List<UUID> threadIds
+        List<UUID> threadIds,
+        String jobId
 ) {
 
     public LabelReclassifyMessage {

@@ -11,8 +11,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -22,12 +24,24 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LabelReclassifyPublisher {
 
+    private static final String LATEST_JOB_ID_KEY_PREFIX = "LabelReclassify:latestJobId:";
+    private static final Duration LATEST_JOB_ID_TTL = Duration.ofDays(1);
+
     private final RabbitTemplate rabbitTemplate;
     private final MailTaskRabbitProperties mailTaskRabbitProperties;
     private final LabelReclassifyRabbitProperties labelReclassifyRabbitProperties;
     private final MessageRepositoryPort messageRepositoryPort;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    public void publish(UUID userId, Set<UUID> labelIds) {
+    public void publish(UUID userId, Set<UUID> labelIds, String jobId) {
+        for (UUID labelId : labelIds) {
+            stringRedisTemplate.opsForValue().set(
+                    LATEST_JOB_ID_KEY_PREFIX + labelId,
+                    jobId,
+                    LATEST_JOB_ID_TTL
+            );
+        }
+
         List<UUID> allThreadIds = messageRepositoryPort.findActiveThreadIdsByUserId(userId);
         if (allThreadIds.isEmpty()) {
             log.info("LabelReclassify skipped — no active threads for userId={}", userId);
@@ -42,12 +56,12 @@ public class LabelReclassifyPublisher {
         for (int start = 0; start < allThreadIds.size(); start += batchSize) {
             int end = Math.min(start + batchSize, allThreadIds.size());
             List<UUID> threadBatch = List.copyOf(allThreadIds.subList(start, end));
-            publishBatch(new LabelReclassifyMessage(userId, labelIds, threadBatch));
+            publishBatch(new LabelReclassifyMessage(userId, labelIds, threadBatch, jobId));
             batchCount++;
         }
 
-        log.info("Published label reclassify batches for userId={} labelCount={} totalThreads={} batchCount={}",
-                userId, labelIds.size(), allThreadIds.size(), batchCount);
+        log.info("Published label reclassify batches for userId={} labelCount={} totalThreads={} batchCount={} jobId={}",
+                userId, labelIds.size(), allThreadIds.size(), batchCount, jobId);
     }
 
     private void publishBatch(LabelReclassifyMessage message) {
