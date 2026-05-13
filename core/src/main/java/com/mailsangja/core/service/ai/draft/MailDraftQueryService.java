@@ -15,6 +15,7 @@ import com.mailsangja.db.dto.MailDraftReferenceMessageResult;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.port.MailDraftReferenceQueryPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -30,6 +31,7 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailDraftQueryService {
 
     private static final String FIELD_DELIMITER = "\n[MAIL_DRAFT_FIELD]\n";
@@ -271,6 +273,19 @@ public class MailDraftQueryService {
         if (vectorStore == null || referenceQueryPort == null) {
             return List.of();
         }
+        return findVectorMessagesOrEmpty(query, filter);
+    }
+
+    private List<MailDraftReferenceMessageResult> findVectorMessagesOrEmpty(String query, String filter) {
+        try {
+            return findVectorMessagesStrict(query, filter);
+        } catch (RuntimeException exception) {
+            log.warn("Mail draft vector search failed. filter={}", filter, exception);
+            return List.of();
+        }
+    }
+
+    private List<MailDraftReferenceMessageResult> findVectorMessagesStrict(String query, String filter) {
         List<UUID> messageIds = messageIdsFromVectorSearch(query, filter);
         return orderByMessageIds(referenceQueryPort.findMessagesByIds(messageIds), messageIds);
     }
@@ -305,9 +320,21 @@ public class MailDraftQueryService {
         if (messageId == null || messageId.isBlank()) {
             return;
         }
-        UUID id = UUID.fromString(messageId);
-        if (!messageIds.contains(id)) {
-            messageIds.add(id);
+        addValidMessageId(messageIds, messageId);
+    }
+
+    private void addValidMessageId(List<UUID> messageIds, String messageId) {
+        try {
+            UUID id = UUID.fromString(messageId);
+            addUniqueMessageId(messageIds, id);
+        } catch (IllegalArgumentException exception) {
+            log.warn("Mail draft vector document has invalid MessageId metadata. messageId={}", messageId);
+        }
+    }
+
+    private void addUniqueMessageId(List<UUID> messageIds, UUID messageId) {
+        if (!messageIds.contains(messageId)) {
+            messageIds.add(messageId);
         }
     }
 

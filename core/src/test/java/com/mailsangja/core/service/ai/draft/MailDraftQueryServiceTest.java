@@ -184,6 +184,38 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
+    void vector검색이실패해도관련컨텍스트없이초안을작성할수있다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommand(null);
+        when(fixture.referenceQueryPort().findRecentWrittenMessages(any(), any(), eq(6))).thenReturn(List.of());
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenThrow(new RuntimeException("vector failed"));
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        assertEquals(List.of(), result.relevantMessages());
+        verify(fixture.referenceQueryPort(), never()).findMessagesByIds(any());
+    }
+
+    @Test
+    void vector문서의messageId가잘못되어도해당문서만제외한다() {
+        // given
+        Fixture fixture = createFixture();
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenReturn(List.of(invalidMessageIdDocument()));
+
+        // when
+        List<MailDraftSearchContextResult> result = fixture.service().searchOwnWrittenMessages(
+                UUID.randomUUID(), UUID.randomUUID(), "masked query", 8
+        );
+
+        // then
+        assertEquals(List.of(), result);
+        verify(fixture.referenceQueryPort()).findMessagesByIds(List.of());
+    }
+
+    @Test
     void 답장대상계정과달라도작성어투는요청계정의작성메일로조회한다() {
         // given
         Fixture fixture = createFixture();
@@ -333,6 +365,10 @@ class MailDraftQueryServiceTest {
 
     private Document document(MailDraftReferenceMessageResult reference) {
         return new Document(reference.messageId().toString(), "text", Map.of("MessageId", reference.messageId().toString()));
+    }
+
+    private Document invalidMessageIdDocument() {
+        return new Document("invalid", "text", Map.of("MessageId", "not-a-uuid"));
     }
 
     private record Fixture(

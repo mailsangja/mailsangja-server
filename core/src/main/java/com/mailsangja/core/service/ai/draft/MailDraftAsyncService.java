@@ -6,6 +6,7 @@ import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -14,6 +15,7 @@ import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailDraftAsyncService {
 
     private final MailDraftQueryService mailDraftQueryService;
@@ -72,6 +74,8 @@ public class MailDraftAsyncService {
         try {
             streamAfterRateLimit(emitter, command, prompt, cancellation);
         } catch (Exception exception) {
+            log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
+                    command.userId(), command.mailAccountId(), command.purpose(), exception);
             mailDraftCommandService.sendError(emitter, exception);
             mailDraftCommandService.complete(emitter);
         }
