@@ -12,12 +12,18 @@ public record MailDraftRagContextResult(
         List<MailDraftSearchContextResult> threadMessages
 ) {
 
+    public MailDraftRagContextResult {
+        recentWrittenMessages = nullToEmpty(recentWrittenMessages);
+        relevantMessages = nullToEmpty(relevantMessages);
+        threadMessages = nullToEmpty(threadMessages);
+    }
+
     public static MailDraftRagContextResult empty() {
         return new MailDraftRagContextResult(List.of(), List.of(), List.of());
     }
 
     public static MailDraftRagContextResult of(List<MailDraftSearchContextResult> recent, List<MailDraftSearchContextResult> relevant, List<MailDraftSearchContextResult> thread) {
-        return new MailDraftRagContextResult(nullToEmpty(recent), nullToEmpty(relevant), nullToEmpty(thread));
+        return new MailDraftRagContextResult(recent, relevant, thread);
     }
 
     public List<MailDraftSearchContextResult> referenceMessages() {
@@ -36,7 +42,7 @@ public record MailDraftRagContextResult(
         if (values == null) {
             return List.of();
         }
-        return values;
+        return List.copyOf(values);
     }
 
     private static List<MailDraftSearchContextResult> deduplicateAndLimit(List<MailDraftSearchContextResult> values) {

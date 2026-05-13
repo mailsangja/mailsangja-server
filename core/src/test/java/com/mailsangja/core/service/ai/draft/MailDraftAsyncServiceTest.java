@@ -45,8 +45,8 @@ class MailDraftAsyncServiceTest {
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
         MailDraftUsageResult subjectUsage = new MailDraftUsageResult("gpt-4o-mini", 10, 5, 15);
-        when(fixture.commandService().streamSubject(eq(emitter), any())).thenReturn(subjectUsage);
-        doThrow(new RuntimeException("body failed")).when(fixture.commandService()).streamBody(eq(emitter), any());
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any())).thenReturn(subjectUsage);
+        doThrow(new RuntimeException("body failed")).when(fixture.commandService()).streamBody(eq(emitter), any(), any());
 
         // when
         fixture.asyncService().streamGeneral(emitter, command);
@@ -56,6 +56,27 @@ class MailDraftAsyncServiceTest {
         verify(fixture.commandService()).recordFailure(eq(command), eq(MailDraftPhase.BODY), any());
         verify(fixture.commandService()).sendError(eq(emitter), any());
         verify(fixture.commandService()).complete(emitter);
+    }
+
+    @Test
+    void subject와body성공시usage와done을보내고emitter를완료한다() {
+        // given
+        Fixture fixture = createFixture();
+        SseEmitter emitter = new SseEmitter();
+        MailDraftCommand command = createCommand();
+        MailDraftUsageResult subjectUsage = new MailDraftUsageResult("gpt-4o-mini", 10, 5, 15);
+        MailDraftUsageResult bodyUsage = new MailDraftUsageResult("gpt-4o-mini", 20, 10, 30);
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any())).thenReturn(subjectUsage);
+        when(fixture.commandService().streamBody(eq(emitter), any(), any())).thenReturn(bodyUsage);
+
+        // when
+        fixture.asyncService().streamGeneral(emitter, command);
+
+        // then
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.commandService());
+        inOrder.verify(fixture.commandService()).sendUsage(emitter, subjectUsage, bodyUsage);
+        inOrder.verify(fixture.commandService()).sendDone(emitter);
+        inOrder.verify(fixture.commandService()).complete(emitter);
     }
 
     @Test
@@ -72,7 +93,7 @@ class MailDraftAsyncServiceTest {
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.queryService(), fixture.commandService());
         inOrder.verify(fixture.queryService()).generalPrompt(eq(command), any());
         inOrder.verify(fixture.commandService()).validateMonthlyRateLimit(command.userId());
-        inOrder.verify(fixture.commandService()).streamSubject(eq(emitter), any());
+        inOrder.verify(fixture.commandService()).streamSubject(eq(emitter), any(), any());
     }
 
     @Test
@@ -87,8 +108,8 @@ class MailDraftAsyncServiceTest {
         fixture.asyncService().streamGeneral(emitter, command);
 
         // then
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any());
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any());
         verify(fixture.commandService()).sendError(eq(emitter), any());
         verify(fixture.commandService()).complete(emitter);
     }
@@ -106,7 +127,7 @@ class MailDraftAsyncServiceTest {
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
-        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture());
+        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture(), any());
         assertSame(prompt, captor.getValue());
     }
 
@@ -125,7 +146,7 @@ class MailDraftAsyncServiceTest {
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
-        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture());
+        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture(), any());
         assertSame(prompt, captor.getValue());
     }
 

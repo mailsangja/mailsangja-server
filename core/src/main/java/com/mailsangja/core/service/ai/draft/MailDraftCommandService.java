@@ -3,9 +3,13 @@ package com.mailsangja.core.service.ai.draft;
 import com.mailsangja.core.common.exception.mail.MailDraftErrorCode;
 import com.mailsangja.core.common.exception.mail.MailDraftException;
 import com.mailsangja.core.dto.mail.MailDraftCommand;
+import com.mailsangja.core.dto.mail.MailDraftDeltaEvent;
+import com.mailsangja.core.dto.mail.MailDraftDoneEvent;
+import com.mailsangja.core.dto.mail.MailDraftErrorEvent;
 import com.mailsangja.core.dto.mail.MailDraftPhase;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
+import com.mailsangja.core.dto.mail.MailDraftUsageEvent;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +22,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -38,66 +41,61 @@ public class MailDraftCommandService {
         validateMonthlyCount(rateLimitCachePort.incrementMonthlyCount(userId));
     }
 
-    public void sendDelta(SseEmitter emitter, MailDraftPhase phase, String delta) {
-        sendDelta(emitter, phase, delta, new MailDraftRestoreContextResult(null));
-    }
-
-    public void sendDelta(SseEmitter emitter, MailDraftPhase phase, String delta, MailDraftRestoreContextResult restoreContext) {
-        String restoredDelta = restore(delta, restoreContext);
-        MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restoredDelta);
-        send(emitter, new CapturedSseEventBuilder(eventName(phase), event));
-    }
-
-    public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt) {
-        return streamPhase(emitter, prompt, MailDraftPhase.SUBJECT);
-    }
-
-    public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt) {
-        return streamPhase(emitter, prompt, MailDraftPhase.BODY);
-    }
-
-    public void recordSuccess(MailDraftCommand command, MailDraftPhase phase, MailDraftUsageResult usage) {
-    }
-
-    public void recordFailure(MailDraftCommand command, MailDraftPhase phase, Exception exception) {
-    }
-
-    public void sendError(SseEmitter emitter, Exception exception) {
-    }
-
-    public void complete(SseEmitter emitter) {
-        emitter.complete();
-    }
-
-    public void cancel(MailDraftCommand command) {
-    }
-
-    public static CapturedEvent capture(SseEmitter.SseEventBuilder builder) {
-        return ((CapturedSseEventBuilder) builder).capturedEvent();
-    }
-
     private void validateMonthlyCount(long monthlyCount) {
         if (monthlyCount > 50) {
             throw new MailDraftException(MailDraftErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }
 
-    private MailDraftUsageResult streamPhase(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftPhase phase) {
+    public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt) {
+        return streamSubject(emitter, prompt, new MailDraftRestoreContextResult(null));
+    }
+
+    public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftRestoreContextResult restoreContext) {
+        return streamPhase(emitter, prompt, MailDraftPhase.SUBJECT, restoreContext);
+    }
+
+    public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt) {
+        return streamBody(emitter, prompt, new MailDraftRestoreContextResult(null));
+    }
+
+    public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftRestoreContextResult restoreContext) {
+        return streamPhase(emitter, prompt, MailDraftPhase.BODY, restoreContext);
+    }
+
+    private MailDraftUsageResult streamPhase(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftPhase phase,
+                                             MailDraftRestoreContextResult restoreContext) {
         ChatResponse lastResponse = null;
         Prompt phasePrompt = createPrompt(prompt, phase);
+        MailDraftTokenBoundaryBuffer buffer = tokenBuffer(restoreContext);
         for (ChatResponse response : chatModel().stream(phasePrompt).toIterable()) {
             lastResponse = response;
-            sendDelta(emitter, phase, responseText(response));
+            emitSafeDelta(emitter, phase, buffer.append(textOf(response)), restoreContext);
         }
+        emitSafeDelta(emitter, phase, buffer.finish(), restoreContext);
         return usageOf(lastResponse);
     }
 
     private Prompt createPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {
         List<Message> messages = List.of(
                 new SystemMessage(prompt.systemPrompt()),
-                new UserMessage(phaseUserPrompt(prompt, phase))
+                new UserMessage(userPrompt(prompt, phase))
         );
         return new Prompt(messages);
+    }
+
+    private String userPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {
+        if (phase == MailDraftPhase.SUBJECT) {
+            return prompt.userPrompt() + "\n\nReturn only the email subject.";
+        }
+        return prompt.userPrompt() + "\n\nReturn only the email body.";
+    }
+
+    private MailDraftTokenBoundaryBuffer tokenBuffer(MailDraftRestoreContextResult restoreContext) {
+        if (restoreContext == null || restoreContext.tokens() == null) {
+            return new MailDraftTokenBoundaryBuffer(Set.of());
+        }
+        return new MailDraftTokenBoundaryBuffer(restoreContext.tokens().keySet());
     }
 
     private ChatModel chatModel() {
@@ -108,18 +106,56 @@ public class MailDraftCommandService {
         return chatModel;
     }
 
-    private String phaseUserPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {
-        if (phase == MailDraftPhase.SUBJECT) {
-            return prompt.userPrompt() + "\n\nReturn only the email subject.";
-        }
-        return prompt.userPrompt() + "\n\nReturn only the email body.";
-    }
-
-    private String responseText(ChatResponse response) {
-        if (response == null || response.getResult() == null) {
+    private String textOf(ChatResponse response) {
+        if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
             return "";
         }
-        return response.getResult().getOutput().getText();
+        return safeText(response.getResult().getOutput().getText());
+    }
+
+    private String safeText(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text;
+    }
+
+    private void emitSafeDelta(SseEmitter emitter, MailDraftPhase phase, String delta,
+                               MailDraftRestoreContextResult restoreContext) {
+        if (!delta.isEmpty()) {
+            sendDelta(emitter, phase, delta, restoreContext);
+        }
+    }
+
+    public void sendDelta(SseEmitter emitter, MailDraftPhase phase, String delta) {
+        sendDelta(emitter, phase, delta, new MailDraftRestoreContextResult(null));
+    }
+
+    public void sendDelta(SseEmitter emitter, MailDraftPhase phase, String delta, MailDraftRestoreContextResult restoreContext) {
+        MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restore(delta, restoreContext));
+        send(emitter, event(eventName(phase), event));
+    }
+
+    private String restore(String delta, MailDraftRestoreContextResult restoreContext) {
+        if (restoreContext == null || restoreContext.tokens() == null) {
+            return delta;
+        }
+        return restoreTokens(delta, restoreContext);
+    }
+
+    private String restoreTokens(String delta, MailDraftRestoreContextResult restoreContext) {
+        String restored = delta;
+        for (String token : restoreContext.tokens().keySet()) {
+            restored = restored.replace(token, restoreContext.tokens().get(token));
+        }
+        return restored;
+    }
+
+    private String eventName(MailDraftPhase phase) {
+        if (phase == MailDraftPhase.SUBJECT) {
+            return "subject";
+        }
+        return "body";
     }
 
     private MailDraftUsageResult usageOf(ChatResponse response) {
@@ -170,26 +206,33 @@ public class MailDraftCommandService {
         return usage.getTotalTokens();
     }
 
-    private String restore(String delta, MailDraftRestoreContextResult restoreContext) {
-        if (restoreContext == null || restoreContext.tokens() == null) {
-            return delta;
-        }
-        return restoreTokens(delta, restoreContext);
+    public void recordSuccess(MailDraftCommand command, MailDraftPhase phase, MailDraftUsageResult usage) {
     }
 
-    private String restoreTokens(String delta, MailDraftRestoreContextResult restoreContext) {
-        String restored = delta;
-        for (String token : restoreContext.tokens().keySet()) {
-            restored = restored.replace(token, restoreContext.tokens().get(token));
-        }
-        return restored;
+    public void recordFailure(MailDraftCommand command, MailDraftPhase phase, Exception exception) {
     }
 
-    private String eventName(MailDraftPhase phase) {
-        if (phase == MailDraftPhase.SUBJECT) {
-            return "subject";
-        }
-        return "body";
+    public void sendUsage(SseEmitter emitter, MailDraftUsageResult subjectUsage, MailDraftUsageResult bodyUsage) {
+        send(emitter, event("usage", MailDraftUsageEvent.of(subjectUsage, bodyUsage)));
+    }
+
+    public void sendDone(SseEmitter emitter) {
+        send(emitter, event("done", MailDraftDoneEvent.success()));
+    }
+
+    public void complete(SseEmitter emitter) {
+        emitter.complete();
+    }
+
+    public void sendError(SseEmitter emitter, Exception exception) {
+        send(emitter, event("error", MailDraftErrorEvent.from(exception)));
+    }
+
+    public void cancel(MailDraftCommand command) {
+    }
+
+    private SseEmitter.SseEventBuilder event(String name, Object data) {
+        return SseEmitter.event().name(name).data(data);
     }
 
     private void send(SseEmitter emitter, SseEmitter.SseEventBuilder builder) {
@@ -200,41 +243,63 @@ public class MailDraftCommandService {
         }
     }
 
-    public record CapturedEvent(String name, Object data) {
-    }
+    private static final class MailDraftTokenBoundaryBuffer {
 
-    private record CapturedSseEventBuilder(String name, Object data) implements SseEmitter.SseEventBuilder {
+        private final Set<String> tokens;
+        private final StringBuilder pending = new StringBuilder();
 
-        private CapturedEvent capturedEvent() {
-            return new CapturedEvent(name, data);
+        private MailDraftTokenBoundaryBuffer(Set<String> tokens) {
+            this.tokens = tokens;
         }
 
-        public SseEmitter.SseEventBuilder id(String id) {
-            return this;
+        private String append(String delta) {
+            pending.append(delta);
+            return flushSafeText();
         }
 
-        public SseEmitter.SseEventBuilder name(String name) {
-            return new CapturedSseEventBuilder(name, data);
+        private String finish() {
+            String text = pending.toString();
+            pending.setLength(0);
+            return text;
         }
 
-        public SseEmitter.SseEventBuilder reconnectTime(long reconnectTime) {
-            return this;
+        private String flushSafeText() {
+            int keepLength = partialTokenLength();
+            return flush(pending.length() - keepLength);
         }
 
-        public SseEmitter.SseEventBuilder comment(String comment) {
-            return this;
+        private String flush(int flushEnd) {
+            String text = pending.substring(0, flushEnd);
+            pending.delete(0, flushEnd);
+            return text;
         }
 
-        public SseEmitter.SseEventBuilder data(Object data) {
-            return new CapturedSseEventBuilder(name, data);
+        private int partialTokenLength() {
+            int length = Math.min(maxTokenLength() - 1, pending.length());
+            while (length > 0) {
+                if (isPartialToken(pending.substring(pending.length() - length))) {
+                    return length;
+                }
+                length--;
+            }
+            return 0;
         }
 
-        public SseEmitter.SseEventBuilder data(Object data, MediaType mediaType) {
-            return data(data);
+        private int maxTokenLength() {
+            int max = 1;
+            for (String token : tokens) {
+                max = Math.max(max, token.length());
+            }
+            return max;
         }
 
-        public Set<org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter.DataWithMediaType> build() {
-            return Set.of();
+        private boolean isPartialToken(String suffix) {
+            for (String token : tokens) {
+                if (token.startsWith(suffix) && !token.equals(suffix)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

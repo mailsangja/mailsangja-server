@@ -1,9 +1,12 @@
 package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.common.exception.mail.MailDraftException;
+import com.mailsangja.core.dto.mail.MailDraftDeltaEvent;
+import com.mailsangja.core.dto.mail.MailDraftDoneEvent;
 import com.mailsangja.core.dto.mail.MailDraftPhase;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
+import com.mailsangja.core.dto.mail.MailDraftUsageEvent;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
 import org.junit.jupiter.api.Test;
@@ -15,9 +18,11 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,8 +75,8 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals("subject", emitter.eventName());
-        assertEquals(MailDraftPhase.SUBJECT, emitter.payload().phase());
-        assertEquals("제목", emitter.payload().delta());
+        assertEquals(MailDraftPhase.SUBJECT, emitter.deltaPayload().phase());
+        assertEquals("제목", emitter.deltaPayload().delta());
     }
 
     @Test
@@ -85,8 +90,8 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals("body", emitter.eventName());
-        assertEquals(MailDraftPhase.BODY, emitter.payload().phase());
-        assertEquals("본문", emitter.payload().delta());
+        assertEquals(MailDraftPhase.BODY, emitter.deltaPayload().phase());
+        assertEquals("본문", emitter.deltaPayload().delta());
     }
 
     @Test
@@ -100,7 +105,7 @@ class MailDraftCommandServiceTest {
         service.sendDelta(emitter, MailDraftPhase.BODY, "수신자 [EMAIL_1]", restoreContext);
 
         // then
-        assertEquals("수신자 alice@example.com", emitter.payload().delta());
+        assertEquals("수신자 alice@example.com", emitter.deltaPayload().delta());
     }
 
     @Test
@@ -115,7 +120,7 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals("subject", emitter.eventName());
-        assertEquals("제목", emitter.payload().delta());
+        assertEquals("제목", emitter.deltaPayload().delta());
         assertEquals(new MailDraftUsageResult("gpt-test", 10, 3, 13), result);
     }
 
@@ -131,8 +136,54 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals("body", emitter.eventName());
-        assertEquals("본문", emitter.payload().delta());
+        assertEquals("본문", emitter.deltaPayload().delta());
         assertEquals(new MailDraftUsageResult("gpt-test", 20, 7, 27), result);
+    }
+
+    @Test
+    void 마스킹토큰이chunk경계에서잘려도정확히복원한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(
+                response("수신자 [EMA", "gpt-test", usage(10, 3)),
+                response("IL_1]님", "gpt-test", usage(10, 5))
+        );
+        MailDraftCommandService service = createService(chatModel);
+        MailDraftRestoreContextResult context = new MailDraftRestoreContextResult(Map.of("[EMAIL_1]", "alice@example.com"));
+
+        // when
+        service.streamBody(emitter, prompt(), context);
+
+        // then
+        assertEquals("수신자 alice@example.com님", emitter.joinedDeltas());
+    }
+
+    @Test
+    void usage이벤트는subject와body사용량을합산해서전송한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        MailDraftCommandService service = createService();
+
+        // when
+        service.sendUsage(emitter, usageResult("gpt-test", 10, 3), usageResult("gpt-test", 20, 7));
+
+        // then
+        assertEquals("usage", emitter.eventName());
+        assertEquals(new MailDraftUsageEvent("gpt-test", 30, 10, 40), emitter.payload());
+    }
+
+    @Test
+    void done이벤트를전송한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        MailDraftCommandService service = createService();
+
+        // when
+        service.sendDone(emitter);
+
+        // then
+        assertEquals("done", emitter.eventName());
+        assertEquals(MailDraftDoneEvent.success(), emitter.payload());
     }
 
     private MailDraftCommandService createService() {
@@ -154,9 +205,9 @@ class MailDraftCommandServiceTest {
         return provider;
     }
 
-    private ChatModel chatModel(ChatResponse response) {
+    private ChatModel chatModel(ChatResponse... responses) {
         ChatModel chatModel = mock(ChatModel.class);
-        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(response));
+        when(chatModel.stream(any(Prompt.class))).thenReturn(Flux.just(responses));
         return chatModel;
     }
 
@@ -174,24 +225,78 @@ class MailDraftCommandServiceTest {
         return new MailDraftPromptResult("system", "user");
     }
 
+    private MailDraftUsageResult usageResult(String model, int inputTokens, int outputTokens) {
+        return new MailDraftUsageResult(model, inputTokens, outputTokens, inputTokens + outputTokens);
+    }
+
     private static final class CapturingSseEmitter extends SseEmitter {
 
+        private final List<CapturedEvent> events = new ArrayList<>();
         private String eventName;
-        private MailDraftDeltaEvent payload;
+        private Object payload;
 
         @Override
         public synchronized void send(SseEventBuilder builder) {
-            MailDraftCommandService.CapturedEvent event = MailDraftCommandService.capture(builder);
+            CapturedEvent event = capture(builder);
+            this.events.add(event);
             this.eventName = event.name();
-            this.payload = (MailDraftDeltaEvent) event.data();
+            this.payload = event.data();
         }
 
         private String eventName() {
             return eventName;
         }
 
-        private MailDraftDeltaEvent payload() {
+        private MailDraftDeltaEvent deltaPayload() {
+            return (MailDraftDeltaEvent) payload;
+        }
+
+        private String joinedDeltas() {
+            StringBuilder builder = new StringBuilder();
+            for (CapturedEvent event : events) {
+                builder.append(((MailDraftDeltaEvent) event.data()).delta());
+            }
+            return builder.toString();
+        }
+
+        private Object payload() {
             return payload;
+        }
+
+        private CapturedEvent capture(SseEventBuilder builder) {
+            String eventName = null;
+            Object eventData = null;
+            for (ResponseBodyEmitter.DataWithMediaType data : builder.build()) {
+                eventName = captureEventName(eventName, data.getData());
+                eventData = captureEventData(eventData, data.getData());
+            }
+            return new CapturedEvent(eventName, eventData);
+        }
+
+        private String captureEventName(String currentName, Object data) {
+            if (data instanceof String text && text.startsWith("event:")) {
+                return parseEventName(text);
+            }
+            return currentName;
+        }
+
+        private String parseEventName(String text) {
+            return text.substring("event:".length(), eventNameEndIndex(text)).trim();
+        }
+
+        private int eventNameEndIndex(String text) {
+            int endIndex = text.indexOf('\n');
+            if (endIndex < 0) {
+                return text.length();
+            }
+            return endIndex;
+        }
+
+        private Object captureEventData(Object currentData, Object data) {
+            if (data instanceof String) {
+                return currentData;
+            }
+            return data;
         }
     }
 
@@ -200,5 +305,8 @@ class MailDraftCommandServiceTest {
         public Object getNativeUsage() {
             return null;
         }
+    }
+
+    private record CapturedEvent(String name, Object data) {
     }
 }

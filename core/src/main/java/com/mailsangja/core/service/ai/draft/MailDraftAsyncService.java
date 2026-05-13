@@ -4,6 +4,7 @@ import com.mailsangja.core.dto.mail.MailDraftCommand;
 import com.mailsangja.core.dto.mail.MailDraftPhase;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
+import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
@@ -52,18 +53,28 @@ public class MailDraftAsyncService {
 
     private void streamAfterRateLimit(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt) {
         mailDraftCommandService.validateMonthlyRateLimit(command.userId());
-        MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt);
+        MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
+        MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext);
         mailDraftCommandService.recordSuccess(command, MailDraftPhase.SUBJECT, subjectUsage);
-        streamBody(emitter, command, prompt);
+        MailDraftUsageResult bodyUsage = streamBody(emitter, command, prompt, restoreContext);
+        completeSuccess(emitter, subjectUsage, bodyUsage);
     }
 
-    private void streamBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt) {
+    private MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
+                                            MailDraftRestoreContextResult restoreContext) {
         try {
-            MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt);
+            MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext);
             mailDraftCommandService.recordSuccess(command, MailDraftPhase.BODY, bodyUsage);
+            return bodyUsage;
         } catch (Exception exception) {
             mailDraftCommandService.recordFailure(command, MailDraftPhase.BODY, exception);
             throw exception;
         }
+    }
+
+    private void completeSuccess(SseEmitter emitter, MailDraftUsageResult subjectUsage, MailDraftUsageResult bodyUsage) {
+        mailDraftCommandService.sendUsage(emitter, subjectUsage, bodyUsage);
+        mailDraftCommandService.sendDone(emitter);
+        mailDraftCommandService.complete(emitter);
     }
 }
