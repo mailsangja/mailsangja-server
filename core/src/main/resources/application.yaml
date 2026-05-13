@@ -99,6 +99,15 @@ mailsangja:
         - openid
         - email
         - https://mail.google.com/
+        - https://www.googleapis.com/auth/contacts.readonly
+        - https://www.googleapis.com/auth/contacts.other.readonly
+  google:
+    people:
+      connections-uri: ${GOOGLE_PEOPLE_CONNECTIONS_URI:https://people.googleapis.com/v1/people/me/connections}
+      other-contacts-uri: ${GOOGLE_PEOPLE_OTHER_CONTACTS_URI:https://people.googleapis.com/v1/otherContacts}
+      page-size: ${GOOGLE_PEOPLE_CONTACTS_PAGE_SIZE:1000}
+      connect-timeout: ${GOOGLE_PEOPLE_CONNECT_TIMEOUT:3s}
+      read-timeout: ${GOOGLE_PEOPLE_READ_TIMEOUT:10s}
   gmail:
     google-watch:
       topic-name: ${GOOGLE_GMAIL_WATCH_TOPIC_NAME:projects/local/topics/mailbox-gmail-watch}

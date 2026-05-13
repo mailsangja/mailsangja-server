@@ -61,7 +61,7 @@ public class InboxQueryService {
                 markerId,
                 pageable
         );
-        return buildThreadListResult(threads);
+        return buildThreadListResult(userId, threads);
     }
 
     public ThreadListResult findSentThreadsResult(
@@ -78,13 +78,16 @@ public class InboxQueryService {
                 markerId,
                 pageable
         );
-        return buildThreadListResult(threads);
+        return buildThreadListResult(userId, threads);
     }
 
     public ThreadDetailResult findThreadDetailResult(Thread thread) {
         List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
                 thread.getMailAccount().getId(), thread.getGmailThreadId());
-        Map<String, String> contactNameByEmail = findContactNamesByEmails(collectEmailsFromMessages(messages));
+        Map<String, String> contactNameByEmail = findContactNamesByEmails(
+                thread.getMailAccount().getUser().getId(),
+                collectEmailsFromMessages(messages)
+        );
         List<UUID> messageIds = messages.stream().map(Message::getId).toList();
         Map<UUID, List<MessageLabelView>> messageLabelsByMessageId = messageRepositoryPort
                 .findMessageLabelsByMessageIds(messageIds)
@@ -123,7 +126,7 @@ public class InboxQueryService {
                 .toList();
     }
 
-    private ThreadListResult buildThreadListResult(Slice<Thread> threads) {
+    private ThreadListResult buildThreadListResult(UUID userId, Slice<Thread> threads) {
         List<UUID> threadIds = threads.getContent().stream().map(Thread::getId).toList();
         Map<UUID, List<Attachment>> attachmentsByThreadId = findAttachmentsByThreadIds(threadIds);
         Map<UUID, List<ThreadMessageLabelView>> labelsByThreadId = findLabelsByThreadIds(threadIds);
@@ -133,7 +136,7 @@ public class InboxQueryService {
                 .filter(email -> email != null && !email.isBlank())
                 .distinct()
                 .toList();
-        Map<String, String> contactNameByEmail = findContactNamesByEmails(participantEmails);
+        Map<String, String> contactNameByEmail = findContactNamesByEmails(userId, participantEmails);
 
         return new ThreadListResult(threads, attachmentsByThreadId, contactNameByEmail, labelsByThreadId);
     }
@@ -176,11 +179,11 @@ public class InboxQueryService {
                 .toList();
     }
 
-    private Map<String, String> findContactNamesByEmails(List<String> emails) {
+    private Map<String, String> findContactNamesByEmails(UUID userId, List<String> emails) {
         if (emails.isEmpty()) {
             return Map.of();
         }
-        return contactRepositoryPort.findAllByEmailInAndDeletedAtIsNull(emails)
+        return contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(userId, emails)
                 .stream()
                 .collect(Collectors.toMap(Contact::getEmail, Contact::getName));
     }

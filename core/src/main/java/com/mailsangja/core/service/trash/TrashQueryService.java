@@ -114,11 +114,11 @@ public class TrashQueryService {
                 .collect(Collectors.groupingBy(MessageLabelView::messageId));
     }
 
-    public Map<String, String> findContactNamesByEmails(List<String> emails) {
+    public Map<String, String> findContactNamesByEmails(UUID userId, List<String> emails) {
         if (emails.isEmpty()) {
             return Map.of();
         }
-        return contactRepositoryPort.findAllByEmailInAndDeletedAtIsNull(emails)
+        return contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(userId, emails)
                 .stream()
                 .collect(Collectors.toMap(Contact::getEmail, Contact::getName));
     }
