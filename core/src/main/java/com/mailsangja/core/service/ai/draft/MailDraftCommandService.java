@@ -12,6 +12,7 @@ import com.mailsangja.core.dto.mail.MailDraftUsageEvent;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailDraftCommandService {
 
     private final MailDraftRateLimitCachePort rateLimitCachePort;
@@ -172,7 +174,7 @@ public class MailDraftCommandService {
 
     private String restoreAndValidate(String delta, MailDraftRestoreContextResult restoreContext) {
         String restored = restore(delta, restoreContext);
-        validateNoUnresolvedPlaceholder(restored);
+        validateNoUnresolvedPlaceholder(delta, restored);
         return restored;
     }
 
@@ -191,19 +193,53 @@ public class MailDraftCommandService {
         return restored;
     }
 
-    private void validateNoUnresolvedPlaceholder(String text) {
-        int startIndex = text.indexOf('[');
-        while (startIndex >= 0) {
-            int endIndex = text.indexOf(']', startIndex + 1);
-            validatePlaceholderEnd(endIndex);
-            throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
+    private void validateNoUnresolvedPlaceholder(String rawDelta, String restoredDelta) {
+        int startIndex = restoredDelta.indexOf('[');
+        if (startIndex < 0) {
+            return;
         }
+        int endIndex = restoredDelta.indexOf(']', startIndex + 1);
+        logUnresolvedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
+        validatePlaceholderEnd(endIndex);
+        throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
     }
 
     private void validatePlaceholderEnd(int endIndex) {
         if (endIndex < 0) {
             throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
         }
+    }
+
+    private void logUnresolvedPlaceholder(String rawDelta, String restoredDelta, int startIndex, int endIndex) {
+        log.warn("Mail draft unresolved placeholder. placeholder={} rawDelta={} restoredDelta={}",
+                placeholderOf(restoredDelta, startIndex, endIndex), logPreview(rawDelta), logPreview(restoredDelta));
+    }
+
+    private String placeholderOf(String text, int startIndex, int endIndex) {
+        if (endIndex < 0) {
+            return logPreview(text.substring(startIndex));
+        }
+        return logPreview(text.substring(startIndex, endIndex + 1));
+    }
+
+    private String logPreview(String text) {
+        return limitLogText(redactLogText(normalizeLogText(text)));
+    }
+
+    private String normalizeLogText(String text) {
+        return safeText(text).replace('\n', ' ').replace('\r', ' ').strip();
+    }
+
+    private String redactLogText(String text) {
+        String redacted = text.replaceAll("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+", "[EMAIL]");
+        return redacted.replaceAll("\\d{2,3}[- .]?\\d{3,4}[- .]?\\d{4}", "[PHONE]");
+    }
+
+    private String limitLogText(String text) {
+        if (text.length() <= 300) {
+            return text;
+        }
+        return text.substring(0, 300) + "...";
     }
 
     private String eventName(MailDraftPhase phase) {

@@ -239,6 +239,52 @@ class MailEmbeddingQueryServiceTest {
     }
 
     @Test
+    void buildDocument_sentAt이null이면ReceivedAt만제외하고Document를생성한다() {
+        // given
+        Message message = createMessageWithoutSentAt();
+
+        // when
+        Map<String, Object> metadata = service.buildDocument(message, UUID.randomUUID(), "마스킹된 본문입니다.").getMetadata();
+
+        // then
+        assertFalse(metadata.containsKey("ReceivedAt"));
+        assertEquals("sender@example.com", metadata.get("FromMailAddress"));
+        assertFalse(metadata.get("FromHash").toString().contains("sender@example.com"));
+    }
+
+    @Test
+    void buildDocument_fromAddress가null이면커스텀예외를던진다() {
+        // given
+        Message message = createMessageWithoutFromAddress();
+
+        // when
+        EmbeddingException exception = assertThrows(
+                EmbeddingException.class,
+                () -> service.buildDocument(message, UUID.randomUUID(), "마스킹된 본문입니다.")
+        );
+
+        // then
+        assertEquals(EmbeddingErrorCode.INVALID_MAIL_EMBEDDING_MESSAGE, exception.getErrorCode());
+    }
+
+    @Test
+    void buildDocument_metadataHashSecret이blank이면커스텀예외를던진다() {
+        // given
+        MailEmbeddingQueryService service = new MailEmbeddingQueryService(blankMetadataHashProperties());
+        Message message = createMessage(UUID.randomUUID(), UUID.randomUUID(), MailProvider.GMAIL,
+                "provider-message-id", Direction.INBOUND, "본문입니다.", null);
+
+        // when
+        EmbeddingException exception = assertThrows(
+                EmbeddingException.class,
+                () -> service.buildDocument(message, UUID.randomUUID(), "마스킹된 본문입니다.")
+        );
+
+        // then
+        assertEquals(EmbeddingErrorCode.METADATA_HASH_SECRET_NOT_CONFIGURED, exception.getErrorCode());
+    }
+
+    @Test
     void buildDocument_documentId가null이면커스텀예외를던진다() {
         // given
         Message message = createMessage(UUID.randomUUID(), UUID.randomUUID(), MailProvider.GMAIL,
@@ -312,6 +358,44 @@ class MailEmbeddingQueryServiceTest {
                 .build();
     }
 
+    private Message createMessageWithoutSentAt() {
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(createMailAccount(UUID.randomUUID(), MailProvider.GMAIL))
+                .gmailThreadId("gmail-thread-id")
+                .direction(Direction.INBOUND)
+                .build();
+
+        return Message.builder()
+                .id(UUID.randomUUID())
+                .thread(thread)
+                .gmailMessageId("provider-message-id")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .toAddresses(List.of("to@example.com"))
+                .bodyText("본문입니다.")
+                .build();
+    }
+
+    private Message createMessageWithoutFromAddress() {
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(createMailAccount(UUID.randomUUID(), MailProvider.GMAIL))
+                .gmailThreadId("gmail-thread-id")
+                .direction(Direction.INBOUND)
+                .build();
+
+        return Message.builder()
+                .id(UUID.randomUUID())
+                .thread(thread)
+                .gmailMessageId("provider-message-id")
+                .direction(Direction.INBOUND)
+                .toAddresses(List.of("to@example.com"))
+                .sentAt(LocalDateTime.of(2026, 5, 4, 10, 0))
+                .bodyText("본문입니다.")
+                .build();
+    }
+
     private MailAccount createMailAccount(UUID mailAccountId, MailProvider provider) {
         return MailAccount.builder()
                 .id(mailAccountId)
@@ -335,6 +419,12 @@ class MailEmbeddingQueryServiceTest {
     private MailEmbeddingMetadataHashProperties metadataHashProperties() {
         MailEmbeddingMetadataHashProperties properties = new MailEmbeddingMetadataHashProperties();
         properties.setSecret("test-secret");
+        return properties;
+    }
+
+    private MailEmbeddingMetadataHashProperties blankMetadataHashProperties() {
+        MailEmbeddingMetadataHashProperties properties = new MailEmbeddingMetadataHashProperties();
+        properties.setSecret(" ");
         return properties;
     }
 

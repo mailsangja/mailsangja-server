@@ -128,7 +128,9 @@ public class MailEmbeddingQueryService {
                 || message.getThread() == null
                 || message.getThread().getMailAccount() == null
                 || message.getThread().getMailAccount().getProvider() == null
-                || message.getId() == null) {
+                || message.getId() == null
+                || message.getDirection() == null
+                || isBlank(message.getFromAddress())) {
             throw new EmbeddingException(EmbeddingErrorCode.INVALID_MAIL_EMBEDDING_MESSAGE);
         }
     }
@@ -163,7 +165,7 @@ public class MailEmbeddingQueryService {
     }
 
     private void addAddressMetadata(Map<String, Object> metadata, Message message) {
-        metadata.put("ReceivedAt", receivedAt(message));
+        putIfNotNull(metadata, "ReceivedAt", receivedAt(message));
         metadata.put("FromMailAddress", message.getFromAddress());
         metadata.put("ToMailAddress", toMailAddresses(message));
     }
@@ -174,6 +176,12 @@ public class MailEmbeddingQueryService {
         metadata.put("CcHashes", hashValues(message.getCcAddresses()));
         metadata.put("RecipientHashes", recipientHashes(message));
         metadata.put("ParticipantNameHashes", participantNameHashes(message));
+    }
+
+    private void putIfNotNull(Map<String, Object> metadata, String key, Object value) {
+        if (value != null) {
+            metadata.put(key, value);
+        }
     }
 
     private List<String> recipientHashes(Message message) {
@@ -215,10 +223,17 @@ public class MailEmbeddingQueryService {
 
     private String hashValue(String value) {
         String normalized = normalizeHashSource(value);
-        if (normalized.isBlank() || metadataHashSecret().isBlank()) {
+        if (normalized.isBlank()) {
             return null;
         }
+        validateMetadataHashSecret();
         return hmacSha256(normalized);
+    }
+
+    private void validateMetadataHashSecret() {
+        if (metadataHashSecret().isBlank()) {
+            throw new EmbeddingException(EmbeddingErrorCode.METADATA_HASH_SECRET_NOT_CONFIGURED);
+        }
     }
 
     private String normalizeHashSource(String value) {
