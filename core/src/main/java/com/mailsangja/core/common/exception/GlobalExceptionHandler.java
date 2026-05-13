@@ -10,9 +10,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -28,18 +25,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(LabelException.class)
-    public ResponseEntity<Map<String, Object>> handleLabelException(LabelException e) {
+    public ResponseEntity<ErrorResponse> handleLabelException(LabelException e) {
         log.warn("LabelException: {}", e.getMessage());
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", e.getErrorCode().getStatus());
-        body.put("code", e.getErrorCode().getCode());
-        body.put("message", e.getErrorCode().getMessage());
-        if (e.getRetryAfterSeconds() != null) {
-            body.put("retryAfterSeconds", e.getRetryAfterSeconds());
-        }
         return ResponseEntity
                 .status(e.getErrorCode().getStatus())
-                .body(body);
+                .body(ErrorResponse.withRetryAfter(e.getErrorCode(), e.getRetryAfterSeconds()));
     }
 
     @ExceptionHandler(BaseException.class)

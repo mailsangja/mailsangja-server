@@ -6,6 +6,7 @@ import com.mailsangja.db.common.label.LabelRule;
 import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.user.User;
+import com.mailsangja.db.port.LabelGroupRepositoryPort;
 import com.mailsangja.db.port.LabelRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class LabelCommandServiceTest {
 
     @Mock
     private MessageRepositoryPort messageRepositoryPort;
+
+    @Mock
+    private LabelGroupRepositoryPort labelGroupRepositoryPort;
 
     @InjectMocks
     private LabelCommandService labelCommandService;
@@ -100,10 +104,13 @@ class LabelCommandServiceTest {
                 .id(labelId)
                 .name("삭제 대상")
                 .build();
+        when(labelGroupRepositoryPort.findActiveGroupsByLabelId(labelId)).thenReturn(List.of());
 
         labelCommandService.delete(label);
 
         verify(messageRepositoryPort).deleteMessageLabelsByLabelId(labelId);
+        verify(labelGroupRepositoryPort).findActiveGroupsByLabelId(labelId);
+        verify(labelGroupRepositoryPort).saveAll(List.of());
         ArgumentCaptor<Label> labelCaptor = ArgumentCaptor.forClass(Label.class);
         verify(labelRepositoryPort).save(labelCaptor.capture());
         assertSame(label, labelCaptor.getValue());

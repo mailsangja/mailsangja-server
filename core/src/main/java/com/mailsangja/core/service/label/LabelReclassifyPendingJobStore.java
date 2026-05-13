@@ -5,6 +5,7 @@ import com.mailsangja.core.dto.label.LabelReclassifyPendingJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,13 @@ public class LabelReclassifyPendingJobStore {
     private static final String FIELD_LABEL_IDS = "labelIds";
     private static final String FIELD_LAST_UPDATED_AT = "lastUpdatedAt";
     private static final Duration PENDING_TTL = Duration.ofHours(1);
+    private static final DefaultRedisScript<Long> RATE_LIMIT_SCRIPT = new DefaultRedisScript<>("""
+            local count = redis.call('INCR', KEYS[1])
+            if count == 1 then
+                redis.call('EXPIRE', KEYS[1], ARGV[1])
+            end
+            return count
+            """, Long.class);
 
     private final StringRedisTemplate stringRedisTemplate;
     private final LabelDebounceProperties labelDebounceProperties;
@@ -38,12 +46,13 @@ public class LabelReclassifyPendingJobStore {
      */
     public void checkRateLimit(UUID userId) {
         String key = RATE_LIMIT_KEY_PREFIX + userId;
-        Long count = stringRedisTemplate.opsForValue().increment(key);
+        Long count = stringRedisTemplate.execute(
+                RATE_LIMIT_SCRIPT,
+                List.of(key),
+                String.valueOf(labelDebounceProperties.getRateLimitWindowSeconds())
+        );
         if (count == null) {
             return;
-        }
-        if (count == 1L) {
-            stringRedisTemplate.expire(key, Duration.ofSeconds(labelDebounceProperties.getRateLimitWindowSeconds()));
         }
         if (count > labelDebounceProperties.getRateLimitMaxRequests()) {
             Long ttl = stringRedisTemplate.getExpire(key);
