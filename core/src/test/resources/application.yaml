@@ -31,6 +31,12 @@ spring:
       configure-action: none
 
 mailsangja:
+  label:
+    debounce:
+      debounce-seconds: 60
+      scheduler-fixed-delay-seconds: 10
+      rate-limit-window-seconds: 60
+      rate-limit-max-requests: 20
   portone:
     api-secret: test-api-secret
     payment-query-uri: https://api.portone.io/payments
