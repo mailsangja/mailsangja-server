@@ -23,11 +23,15 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +55,13 @@ public class MailDraftCommandService {
     }
 
     public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftRestoreContextResult restoreContext) {
-        return streamPhase(emitter, prompt, MailDraftPhase.SUBJECT, restoreContext);
+        return streamSubject(emitter, prompt, restoreContext, createCancellation());
+    }
+
+    public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt,
+                                              MailDraftRestoreContextResult restoreContext,
+                                              StreamCancellation cancellation) {
+        return streamPhase(emitter, prompt, MailDraftPhase.SUBJECT, restoreContext, cancellation);
     }
 
     public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt) {
@@ -59,20 +69,45 @@ public class MailDraftCommandService {
     }
 
     public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftRestoreContextResult restoreContext) {
-        return streamPhase(emitter, prompt, MailDraftPhase.BODY, restoreContext);
+        return streamBody(emitter, prompt, restoreContext, createCancellation());
+    }
+
+    public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt,
+                                           MailDraftRestoreContextResult restoreContext,
+                                           StreamCancellation cancellation) {
+        return streamPhase(emitter, prompt, MailDraftPhase.BODY, restoreContext, cancellation);
     }
 
     private MailDraftUsageResult streamPhase(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftPhase phase,
-                                             MailDraftRestoreContextResult restoreContext) {
+                                             MailDraftRestoreContextResult restoreContext,
+                                             StreamCancellation cancellation) {
+        if (cancellation.isCancelled()) {
+            return usageOf((ChatResponse) null);
+        }
         ChatResponse lastResponse = null;
         Prompt phasePrompt = createPrompt(prompt, phase);
         MailDraftTokenBoundaryBuffer buffer = tokenBuffer(restoreContext);
-        for (ChatResponse response : chatModel().stream(phasePrompt).toIterable()) {
+        for (ChatResponse response : cancellableStream(phasePrompt, cancellation).toIterable()) {
+            if (cancellation.isCancelled()) {
+                break;
+            }
             lastResponse = response;
             emitSafeDelta(emitter, phase, buffer.append(textOf(response)), restoreContext);
         }
-        emitSafeDelta(emitter, phase, buffer.finish(), restoreContext);
+        flushIfActive(emitter, phase, restoreContext, cancellation, buffer);
         return usageOf(lastResponse);
+    }
+
+    private Flux<ChatResponse> cancellableStream(Prompt prompt, StreamCancellation cancellation) {
+        return chatModel().stream(prompt).takeUntilOther(cancellation.cancelSignal());
+    }
+
+    private void flushIfActive(SseEmitter emitter, MailDraftPhase phase, MailDraftRestoreContextResult restoreContext,
+                               StreamCancellation cancellation, MailDraftTokenBoundaryBuffer buffer) {
+        if (cancellation.isCancelled()) {
+            return;
+        }
+        emitSafeDelta(emitter, phase, buffer.finish(), restoreContext);
     }
 
     private Prompt createPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {
@@ -221,7 +256,12 @@ public class MailDraftCommandService {
         send(emitter, event("error", MailDraftErrorEvent.from(exception)));
     }
 
-    public void cancel() {
+    public StreamCancellation createCancellation() {
+        return new StreamCancellation();
+    }
+
+    public void cancel(StreamCancellation cancellation) {
+        cancellation.cancel();
     }
 
     private SseEmitter.SseEventBuilder event(String name, Object data) {
@@ -233,6 +273,26 @@ public class MailDraftCommandService {
             emitter.send(builder);
         } catch (IOException exception) {
             throw new IllegalStateException(exception);
+        }
+    }
+
+    public static final class StreamCancellation {
+
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        private final Sinks.Empty<Void> cancelSink = Sinks.empty();
+
+        private void cancel() {
+            if (cancelled.compareAndSet(false, true)) {
+                cancelSink.tryEmitEmpty();
+            }
+        }
+
+        private Mono<Void> cancelSignal() {
+            return cancelSink.asMono();
+        }
+
+        public boolean isCancelled() {
+            return cancelled.get();
         }
     }
 

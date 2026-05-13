@@ -159,6 +159,22 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
+    void 취소되면이후delta와잔여버퍼를전송하지않는다() {
+        // given
+        ChatModel chatModel = chatModel(response("안녕 [EMA", "gpt-test", usage(10, 3)), response("IL_1]", "gpt-test", usage(10, 5)));
+        MailDraftCommandService service = createService(chatModel);
+        MailDraftCommandService.StreamCancellation cancellation = service.createCancellation();
+        CapturingSseEmitter emitter = new CancelingSseEmitter(service, cancellation);
+        MailDraftRestoreContextResult context = new MailDraftRestoreContextResult(Map.of("[EMAIL_1]", "alice@example.com"));
+
+        // when
+        service.streamBody(emitter, prompt(), context, cancellation);
+
+        // then
+        assertEquals("안녕 ", emitter.joinedDeltas());
+    }
+
+    @Test
     void usage이벤트는subject와body사용량을합산해서전송한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
@@ -229,7 +245,7 @@ class MailDraftCommandServiceTest {
         return new MailDraftUsageResult(model, inputTokens, outputTokens, inputTokens + outputTokens);
     }
 
-    private static final class CapturingSseEmitter extends SseEmitter {
+    private static class CapturingSseEmitter extends SseEmitter {
 
         private final List<CapturedEvent> events = new ArrayList<>();
         private String eventName;
@@ -297,6 +313,24 @@ class MailDraftCommandServiceTest {
                 return currentData;
             }
             return data;
+        }
+    }
+
+    private static final class CancelingSseEmitter extends CapturingSseEmitter {
+
+        private final MailDraftCommandService service;
+        private final MailDraftCommandService.StreamCancellation cancellation;
+
+        private CancelingSseEmitter(MailDraftCommandService service,
+                                    MailDraftCommandService.StreamCancellation cancellation) {
+            this.service = service;
+            this.cancellation = cancellation;
+        }
+
+        @Override
+        public synchronized void send(SseEventBuilder builder) {
+            super.send(builder);
+            service.cancel(cancellation);
         }
     }
 

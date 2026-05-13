@@ -10,6 +10,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.function.Consumer;
+
 @Service
 @RequiredArgsConstructor
 public class MailDraftAsyncService {
@@ -19,52 +21,75 @@ public class MailDraftAsyncService {
 
     @Async
     public void streamGeneral(SseEmitter emitter, MailDraftCommand command) {
-        registerCancelOnCompletion(emitter, command);
+        MailDraftCommandService.StreamCancellation cancellation = mailDraftCommandService.createCancellation();
+        registerCancel(emitter, cancellation);
         MailDraftRagContextResult context = mailDraftQueryService.generalRagContext(command);
         MailDraftPromptResult prompt = mailDraftQueryService.generalPrompt(command, context);
-        stream(emitter, command, prompt);
+        stream(emitter, command, prompt, cancellation);
     }
 
     @Async
     public void streamReply(SseEmitter emitter, MailDraftCommand command) {
-        registerCancelOnCompletion(emitter, command);
+        MailDraftCommandService.StreamCancellation cancellation = mailDraftCommandService.createCancellation();
+        registerCancel(emitter, cancellation);
         MailDraftRagContextResult context = mailDraftQueryService.replyRagContext(command);
         MailDraftPromptResult prompt = mailDraftQueryService.replyPrompt(command, context);
-        stream(emitter, command, prompt);
+        stream(emitter, command, prompt, cancellation);
     }
 
-    private void registerCancelOnCompletion(SseEmitter emitter, MailDraftCommand command) {
+    private void registerCancel(SseEmitter emitter, MailDraftCommandService.StreamCancellation cancellation) {
+        registerCompletionCancel(emitter, cancellation);
+        registerTimeoutCancel(emitter, cancellation);
+        registerErrorCancel(emitter, cancellation);
+    }
+
+    private void registerCompletionCancel(SseEmitter emitter, MailDraftCommandService.StreamCancellation cancellation) {
         emitter.onCompletion(new Runnable() {
             public void run() {
-                mailDraftCommandService.cancel();
+                mailDraftCommandService.cancel(cancellation);
             }
         });
     }
 
-    private void stream(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt) {
+    private void registerTimeoutCancel(SseEmitter emitter, MailDraftCommandService.StreamCancellation cancellation) {
+        emitter.onTimeout(new Runnable() {
+            public void run() {
+                mailDraftCommandService.cancel(cancellation);
+            }
+        });
+    }
+
+    private void registerErrorCancel(SseEmitter emitter, MailDraftCommandService.StreamCancellation cancellation) {
+        emitter.onError(new Consumer<Throwable>() {
+            public void accept(Throwable throwable) {
+                mailDraftCommandService.cancel(cancellation);
+            }
+        });
+    }
+
+    private void stream(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
+                        MailDraftCommandService.StreamCancellation cancellation) {
         try {
-            streamAfterRateLimit(emitter, command, prompt);
+            streamAfterRateLimit(emitter, command, prompt, cancellation);
         } catch (Exception exception) {
             mailDraftCommandService.sendError(emitter, exception);
             mailDraftCommandService.complete(emitter);
         }
     }
 
-    private void streamAfterRateLimit(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt) {
+    private void streamAfterRateLimit(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
+                                      MailDraftCommandService.StreamCancellation cancellation) {
         mailDraftCommandService.validateMonthlyRateLimit(command.userId());
         MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
-        MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext);
-        MailDraftUsageResult bodyUsage = streamBody(emitter, command, prompt, restoreContext);
-        completeSuccess(emitter, subjectUsage, bodyUsage);
-    }
-
-    private MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
-                                            MailDraftRestoreContextResult restoreContext) {
-        try {
-            return mailDraftCommandService.streamBody(emitter, prompt, restoreContext);
-        } catch (Exception exception) {
-            throw exception;
+        MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext, cancellation);
+        if (cancellation.isCancelled()) {
+            return;
         }
+        MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation);
+        if (cancellation.isCancelled()) {
+            return;
+        }
+        completeSuccess(emitter, subjectUsage, bodyUsage);
     }
 
     private void completeSuccess(SseEmitter emitter, MailDraftUsageResult subjectUsage, MailDraftUsageResult bodyUsage) {
