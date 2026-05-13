@@ -160,6 +160,19 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
+    void 일반대괄호텍스트는placeholder로판단하지않는다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        MailDraftCommandService service = createService();
+
+        // when
+        service.sendDelta(emitter, MailDraftPhase.SUBJECT, "[캡스톤디자인] 출석 인정 요청");
+
+        // then
+        assertEquals("[캡스톤디자인] 출석 인정 요청", emitter.deltaPayload().delta());
+    }
+
+    @Test
     void 모델이임의placeholder를만들면초안스트림을실패시킨다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();

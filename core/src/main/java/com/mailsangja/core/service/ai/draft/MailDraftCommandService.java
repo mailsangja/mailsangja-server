@@ -194,20 +194,42 @@ public class MailDraftCommandService {
     }
 
     private void validateNoUnresolvedPlaceholder(String rawDelta, String restoredDelta) {
-        int startIndex = restoredDelta.indexOf('[');
-        if (startIndex < 0) {
-            return;
+        int searchIndex = 0;
+        while (searchIndex < restoredDelta.length()) {
+            int startIndex = restoredDelta.indexOf('[', searchIndex);
+            if (startIndex < 0) {
+                return;
+            }
+            searchIndex = validateBracketText(rawDelta, restoredDelta, startIndex);
         }
-        int endIndex = restoredDelta.indexOf(']', startIndex + 1);
-        logUnresolvedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
-        validatePlaceholderEnd(endIndex);
-        throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
     }
 
-    private void validatePlaceholderEnd(int endIndex) {
+    private int validateBracketText(String rawDelta, String restoredDelta, int startIndex) {
+        int endIndex = restoredDelta.indexOf(']', startIndex + 1);
         if (endIndex < 0) {
+            logUnresolvedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
             throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
         }
+        if (isUnresolvedPlaceholder(restoredDelta, startIndex, endIndex)) {
+            logUnresolvedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
+            throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
+        }
+        return endIndex + 1;
+    }
+
+    private boolean isUnresolvedPlaceholder(String text, int startIndex, int endIndex) {
+        String content = text.substring(startIndex + 1, endIndex).strip();
+        return isMaskingToken(content) || isGeneratedPlaceholder(content);
+    }
+
+    private boolean isMaskingToken(String content) {
+        return content.matches("[A-Z]+(?:_[A-Z]+)*_\\d+");
+    }
+
+    private boolean isGeneratedPlaceholder(String content) {
+        return content.contains("사용자") || content.contains("이름") || content.contains("담당자")
+                || content.contains("회사") || content.contains("소속") || content.contains("직함")
+                || content.contains("전화") || content.contains("연락처") || content.contains("이메일");
     }
 
     private void logUnresolvedPlaceholder(String rawDelta, String restoredDelta, int startIndex, int endIndex) {
