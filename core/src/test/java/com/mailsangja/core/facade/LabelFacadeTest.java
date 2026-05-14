@@ -31,6 +31,8 @@ import static com.mailsangja.db.common.label.LabelRule.Operator.CONTAINS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,7 +56,7 @@ class LabelFacadeTest {
     private LabelFacade labelFacade;
 
     @Test
-    void getLabels_mapsUnreadCountsAndDefaultsMissingCountToZero() {
+    void 라벨목록조회_미읽은스레드수매핑및누락시_0반환() {
         User user = user();
         Label first = label("업무", 1);
         Label second = label("개인", 2);
@@ -71,7 +73,7 @@ class LabelFacadeTest {
     }
 
     @Test
-    void getLabelDetail_returnsRuleFromLabel() {
+    void 라벨상세조회_라벨의규칙반환() {
         User user = user();
         LabelRule rule = rule("invoice");
         Label label = label("업무", 1, rule);
@@ -84,7 +86,7 @@ class LabelFacadeTest {
     }
 
     @Test
-    void createLabel_duplicateNameBeforeCreate_throwsDuplicateAndDoesNotCreate() {
+    void 라벨생성_생성전이름중복시_예외발생하고생성안됨() {
         User user = user();
         LabelCreateRequest request = new LabelCreateRequest("  업무  ", "#3366FF", NotificationPolicy.INHERIT, 1, null);
         when(labelQueryService.existsByUserIdAndName(user.getId(), "업무")).thenReturn(true);
@@ -96,7 +98,7 @@ class LabelFacadeTest {
     }
 
     @Test
-    void createLabel_ruleExists_validatesRuleAndMergesPendingJob() {
+    void 라벨생성_규칙있을때_규칙검증및PendingJob병합() {
         User user = user();
         LabelRule rule = rule("invoice");
         LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.URGENT, 1, rule);
@@ -114,7 +116,7 @@ class LabelFacadeTest {
     }
 
     @Test
-    void createLabel_withoutRule_doesNotCreatePendingJob() {
+    void 라벨생성_규칙없을때_PendingJob생성안됨() {
         User user = user();
         LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.INHERIT, 1, null);
         Label saved = label("업무", 1, null);
@@ -128,7 +130,7 @@ class LabelFacadeTest {
     }
 
     @Test
-    void createLabel_databaseDuplicate_throwsDuplicate() {
+    void 라벨생성_DB중복시_이름중복예외발생() {
         User user = user();
         LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.INHERIT, 1, null);
         when(labelCommandService.create(user, request)).thenThrow(new DataIntegrityViolationException("duplicate"));
@@ -139,7 +141,7 @@ class LabelFacadeTest {
     }
 
     @Test
-    void updateLabel_blankName_throwsNameBlank() {
+    void 라벨수정_이름이공백이면_이름공백예외발생() {
         User user = user();
         Label label = label("기존", 1);
         LabelUpdateRequest request = new LabelUpdateRequest("  ", null, null, null);
@@ -152,7 +154,25 @@ class LabelFacadeTest {
     }
 
     @Test
-    void updateLabelRule_updatesRuleAndMergesPendingJob() {
+    void 라벨생성_RateLimit초과시_예외전파되고PendingJob병합안됨() {
+        User user = user();
+        LabelRule rule = rule("invoice");
+        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.URGENT, 1, rule);
+        Label saved = label("업무", 1, rule);
+        when(labelQueryService.existsByUserIdAndName(user.getId(), "업무")).thenReturn(false);
+        when(labelCommandService.create(user, request)).thenReturn(saved);
+        doThrow(new LabelException(LabelErrorCode.LABEL_RECLASSIFY_RATE_LIMITED, 45L))
+                .when(pendingJobStore).checkRateLimit(user.getId());
+
+        LabelException exception = assertThrows(LabelException.class, () -> labelFacade.createLabel(user, request));
+
+        assertEquals(LabelErrorCode.LABEL_RECLASSIFY_RATE_LIMITED, exception.getErrorCode());
+        assertEquals(45L, exception.getRetryAfterSeconds());
+        verify(pendingJobStore, never()).mergePendingJob(any(), any());
+    }
+
+    @Test
+    void 라벨규칙수정_규칙업데이트및PendingJob병합() {
         User user = user();
         LabelRule rule = rule("invoice");
         Label label = label("업무", 1, null);
@@ -170,7 +190,27 @@ class LabelFacadeTest {
     }
 
     @Test
-    void deleteLabel_delegatesToCommandService() {
+    void updateLabelRule_rateLimit초과_예외전파되고PendingJob병합안됨() {
+        User user = user();
+        LabelRule rule = rule("invoice");
+        Label label = label("업무", 1, null);
+        Label updated = label("업무", 1, rule);
+        LabelRuleUpdateRequest request = new LabelRuleUpdateRequest(rule);
+        when(labelQueryService.findActiveByIdAndUserId(label.getId(), user.getId())).thenReturn(label);
+        when(labelCommandService.updateRule(label, rule)).thenReturn(updated);
+        doThrow(new LabelException(LabelErrorCode.LABEL_RECLASSIFY_RATE_LIMITED, 30L))
+                .when(pendingJobStore).checkRateLimit(user.getId());
+
+        LabelException exception = assertThrows(LabelException.class,
+                () -> labelFacade.updateLabelRule(user, label.getId(), request));
+
+        assertEquals(LabelErrorCode.LABEL_RECLASSIFY_RATE_LIMITED, exception.getErrorCode());
+        assertEquals(30L, exception.getRetryAfterSeconds());
+        verify(pendingJobStore, never()).mergePendingJob(any(), any());
+    }
+
+    @Test
+    void 라벨삭제_CommandService에위임() {
         User user = user();
         Label label = label("삭제", 1);
         when(labelQueryService.findActiveByIdAndUserId(label.getId(), user.getId())).thenReturn(label);
