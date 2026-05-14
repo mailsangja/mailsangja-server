@@ -46,6 +46,13 @@ public class Label extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private LabelRule rule;
 
+    @Column(name = "confirmed", nullable = false)
+    private boolean confirmed;
+
+    public void confirm() {
+        this.confirmed = true;
+    }
+
     public void updateName(String name) {
         this.name = name;
     }

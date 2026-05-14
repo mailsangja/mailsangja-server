@@ -29,13 +29,18 @@ public class LabelRepositoryAdapter implements LabelRepositoryPort {
     }
 
     @Override
+    public List<Label> findAllConfirmedByUserIdAndDeletedAtIsNull(UUID userId) {
+        return labelJpaRepositoryModule.findAllConfirmedByUserIdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
     public List<Label> findAllByUserIdAndIdInAndDeletedAtIsNull(UUID userId, List<UUID> ids) {
         return labelJpaRepositoryModule.findAllByUserIdAndIdInAndDeletedAtIsNull(userId, ids);
     }
 
     @Override
-    public List<Label> findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(UUID userId) {
-        return labelJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(userId);
+    public List<Label> findAllConfirmedByUserIdAndDeletedAtIsNullOrderByDisplayOrder(UUID userId) {
+        return labelJpaRepositoryModule.findAllConfirmedByUserIdAndDeletedAtIsNullOrderByDisplayOrder(userId);
     }
 
     @Override
@@ -46,6 +51,11 @@ public class LabelRepositoryAdapter implements LabelRepositoryPort {
     @Override
     public Optional<Label> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId) {
         return labelJpaRepositoryModule.findByIdAndUserIdAndDeletedAtIsNull(id, userId);
+    }
+
+    @Override
+    public Optional<Label> findConfirmedByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId) {
+        return labelJpaRepositoryModule.findConfirmedByIdAndUserIdAndDeletedAtIsNull(id, userId);
     }
 
     @Override
@@ -66,5 +76,20 @@ public class LabelRepositoryAdapter implements LabelRepositoryPort {
                         p -> p.getLabelId(),
                         p -> p.getUnreadCount()
                 ));
+    }
+
+    @Override
+    public List<Label> findAllSuggestionsByUserIdAndDeletedAtIsNull(UUID userId) {
+        return labelJpaRepositoryModule.findAllSuggestionsByUserIdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
+    public Optional<Label> findSuggestionByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId) {
+        return labelJpaRepositoryModule.findSuggestionByIdAndUserIdAndDeletedAtIsNull(id, userId);
+    }
+
+    @Override
+    public boolean existsSuggestionByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(UUID userId, String name) {
+        return labelJpaRepositoryModule.existsSuggestionByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(userId, name);
     }
 }
