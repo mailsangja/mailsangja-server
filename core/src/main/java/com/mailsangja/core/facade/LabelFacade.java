@@ -3,10 +3,13 @@ package com.mailsangja.core.facade;
 import com.mailsangja.core.common.exception.label.LabelErrorCode;
 import com.mailsangja.core.common.exception.label.LabelException;
 import com.mailsangja.core.common.util.LabelRuleValidator;
+import com.mailsangja.core.common.util.LabelSuggestionLoader;
 import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
+import com.mailsangja.core.dto.label.LabelSuggestionApproveRequest;
+import com.mailsangja.core.dto.label.LabelSuggestionResponse;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.service.label.LabelCommandService;
 import com.mailsangja.core.service.label.LabelQueryService;
@@ -29,6 +32,7 @@ public class LabelFacade {
     private final LabelCommandService labelCommandService;
     private final LabelReclassifyPendingJobStore pendingJobStore;
     private final LabelRuleValidator labelRuleValidator;
+    private final LabelSuggestionLoader labelSuggestionLoader;
 
     public List<LabelListResponse> getLabels(User user) {
         List<Label> labels = labelQueryService.findAllActiveByUserId(user.getId());
@@ -82,6 +86,54 @@ public class LabelFacade {
     public void deleteLabel(User user, UUID labelId) {
         Label label = labelQueryService.findActiveByIdAndUserId(labelId, user.getId());
         labelCommandService.delete(label);
+    }
+
+    public List<LabelSuggestionResponse> createSuggestions(User user) {
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        List<LabelCreateRequest> suggestions = labelSuggestionLoader.load();
+        return suggestions.stream()
+                .filter(request -> !labelQueryService.existsSuggestionByUserIdAndName(user.getId(), request.name().trim()))
+                .map(request -> {
+                    Label suggestion = labelCommandService.createSuggestion(user, request);
+                    return LabelSuggestionResponse.from(suggestion);
+                })
+                .toList();
+    }
+
+    public List<LabelSuggestionResponse> getSuggestions(User user) {
+        return labelQueryService.findAllSuggestionsByUserId(user.getId()).stream()
+                .map(LabelSuggestionResponse::from)
+                .toList();
+    }
+
+    public List<LabelDetailResponse> approveSuggestions(User user, LabelSuggestionApproveRequest request) {
+        validateApproveRequest(request);
+        return request.ids().stream()
+                .map(id -> {
+                    Label suggestion = labelQueryService.findSuggestionByIdAndUserId(id, user.getId());
+                    Label approved = labelCommandService.approveSuggestion(suggestion);
+                    if (approved.getRule() != null) {
+                        pendingJobStore.checkRateLimit(user.getId());
+                        pendingJobStore.mergePendingJob(user.getId(), approved.getId());
+                    }
+                    return LabelDetailResponse.of(approved, approved.getRule());
+                })
+                .toList();
+    }
+
+    public void deleteSuggestion(User user, UUID suggestionId) {
+        Label suggestion = labelQueryService.findSuggestionByIdAndUserId(suggestionId, user.getId());
+        labelCommandService.delete(suggestion);
+    }
+
+    private void validateApproveRequest(LabelSuggestionApproveRequest request) {
+        if (request.ids() == null || request.ids().isEmpty()) {
+            throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_APPROVE_EMPTY);
+        }
     }
 
     private void validateCreateRequest(User user, LabelCreateRequest request) {

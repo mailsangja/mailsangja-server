@@ -28,7 +28,10 @@ public enum LabelErrorCode implements ErrorCode {
     LABEL_GROUP_LABELS_EMPTY(400, "MS-LABEL-GROUP-LABELS-EMPTY", "라벨 그룹에는 하나 이상의 라벨이 필요합니다."),
     LABEL_GROUP_LABELS_INVALID(400, "MS-LABEL-GROUP-LABELS-INVALID", "라벨 그룹의 라벨 목록이 올바르지 않습니다."),
     LABEL_GROUP_LABEL_NOT_FOUND(404, "MS-LABEL-GROUP-LABEL-NOT-FOUND", "라벨 그룹에 포함할 라벨을 찾을 수 없습니다."),
-    LABEL_GROUP_NAME_DUPLICATE(409, "MS-LABEL-GROUP-NAME-DUPLICATE", "동일한 이름의 라벨 그룹이 이미 존재합니다.");
+    LABEL_GROUP_NAME_DUPLICATE(409, "MS-LABEL-GROUP-NAME-DUPLICATE", "동일한 이름의 라벨 그룹이 이미 존재합니다."),
+    LABEL_SUGGESTION_NOT_FOUND(404, "MS-LABEL-SUGGESTION-NOT-FOUND", "라벨 제안을 찾을 수 없습니다."),
+    LABEL_SUGGESTION_APPROVE_EMPTY(400, "MS-LABEL-SUGGESTION-APPROVE-EMPTY", "승인할 라벨 제안 ID 목록이 비어 있습니다."),
+    LABEL_SUGGESTION_LOAD_FAILED(500, "MS-LABEL-SUGGESTION-LOAD-FAILED", "라벨 제안 파일을 읽는 데 실패했습니다.");
 
     private final int status;
     private final String code;

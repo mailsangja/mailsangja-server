@@ -5,6 +5,8 @@ import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
+import com.mailsangja.core.dto.label.LabelSuggestionApproveRequest;
+import com.mailsangja.core.dto.label.LabelSuggestionResponse;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -132,5 +134,71 @@ public interface LabelControllerDocs {
     ResponseEntity<Void> deleteLabel(
             @Parameter(hidden = true) @AuthUser User user,
             @Parameter(description = "라벨 ID", required = true) @PathVariable UUID labelId
+    );
+
+    @Operation(
+            summary = "라벨 제안 생성",
+            description = "하드코딩된 JSON 파일에서 라벨 제안 목록을 읽어 DB에 confirmed=false 상태로 저장합니다. 이미 제안 상태(confirmed=false)로 동일한 이름의 라벨이 존재하면 중복 저장하지 않습니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "라벨 제안 생성 성공 (새로 저장된 제안 목록만 반환)"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "500", description = "제안 JSON 파일 읽기 실패",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<List<LabelSuggestionResponse>> createSuggestions(
+            @Parameter(hidden = true) @AuthUser User user
+    );
+
+    @Operation(
+            summary = "라벨 제안 목록 조회",
+            description = "현재 사용자의 미승인(confirmed=false) 라벨 제안 목록을 반환합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "라벨 제안 목록 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<List<LabelSuggestionResponse>> getSuggestions(
+            @Parameter(hidden = true) @AuthUser User user
+    );
+
+    @Operation(
+            summary = "라벨 제안 승인",
+            description = "선택한 라벨 제안을 confirmed=true로 전환합니다. rule이 있는 라벨은 승인 후 과거 메일 재분류 작업이 비동기로 발행됩니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "라벨 제안 승인 성공"),
+            @ApiResponse(responseCode = "400", description = "승인할 ID 목록이 비어 있음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "라벨 제안을 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<List<LabelDetailResponse>> approveSuggestions(
+            @Parameter(hidden = true) @AuthUser User user,
+            @RequestBody LabelSuggestionApproveRequest request
+    );
+
+    @Operation(
+            summary = "라벨 제안 삭제",
+            description = "라벨 제안을 soft delete 처리합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "라벨 제안 삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "라벨 제안을 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<Void> deleteSuggestion(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "라벨 제안 ID", required = true) @PathVariable UUID suggestionId
     );
 }

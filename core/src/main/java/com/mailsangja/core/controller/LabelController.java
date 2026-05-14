@@ -6,6 +6,8 @@ import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
+import com.mailsangja.core.dto.label.LabelSuggestionApproveRequest;
+import com.mailsangja.core.dto.label.LabelSuggestionResponse;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.facade.LabelFacade;
 import com.mailsangja.db.entity.user.User;
@@ -80,6 +82,41 @@ public class LabelController implements LabelControllerDocs {
             @PathVariable UUID labelId
     ) {
         labelFacade.deleteLabel(user, labelId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    @PostMapping("/api/v1/labels/suggestions")
+    public ResponseEntity<List<LabelSuggestionResponse>> createSuggestions(
+            @AuthUser User user
+    ) {
+        return ResponseEntity.ok(labelFacade.createSuggestions(user));
+    }
+
+    @Override
+    @GetMapping("/api/v1/labels/suggestions")
+    public ResponseEntity<List<LabelSuggestionResponse>> getSuggestions(
+            @AuthUser User user
+    ) {
+        return ResponseEntity.ok(labelFacade.getSuggestions(user));
+    }
+
+    @Override
+    @PostMapping("/api/v1/labels/suggestions/approve")
+    public ResponseEntity<List<LabelDetailResponse>> approveSuggestions(
+            @AuthUser User user,
+            @Valid @RequestBody LabelSuggestionApproveRequest request
+    ) {
+        return ResponseEntity.ok(labelFacade.approveSuggestions(user, request));
+    }
+
+    @Override
+    @DeleteMapping("/api/v1/labels/suggestions/{suggestionId}")
+    public ResponseEntity<Void> deleteSuggestion(
+            @AuthUser User user,
+            @PathVariable UUID suggestionId
+    ) {
+        labelFacade.deleteSuggestion(user, suggestionId);
         return ResponseEntity.noContent().build();
     }
 }

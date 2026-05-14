@@ -38,8 +38,32 @@ public class LabelCommandService {
                 .notificationPolicy(policy)
                 .displayOrder(request.order())
                 .rule(request.rule())
+                .confirmed(true)
                 .build();
         return labelRepositoryPort.save(label);
+    }
+
+    @Transactional
+    public Label createSuggestion(User user, LabelCreateRequest request) {
+        NotificationPolicy policy = request.notificationPolicy() != null
+                ? request.notificationPolicy()
+                : NotificationPolicy.INHERIT;
+        Label label = Label.builder()
+                .user(user)
+                .name(request.name().trim())
+                .colorCode(request.colorCode())
+                .notificationPolicy(policy)
+                .displayOrder(request.order())
+                .rule(request.rule())
+                .confirmed(false)
+                .build();
+        return labelRepositoryPort.save(label);
+    }
+
+    @Transactional
+    public Label approveSuggestion(Label suggestion) {
+        suggestion.confirm();
+        return labelRepositoryPort.save(suggestion);
     }
 
     @Transactional
