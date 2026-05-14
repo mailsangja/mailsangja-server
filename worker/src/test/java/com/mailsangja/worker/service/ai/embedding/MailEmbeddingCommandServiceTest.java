@@ -93,15 +93,26 @@ class MailEmbeddingCommandServiceTest {
     }
 
     @Test
-    void embed_vectorStore에이미존재하면본문마스킹과임베딩을하지않는다() {
+    void embed_생성된모든Document가이미존재하면VectorStore에저장하지않는다() {
         // given
         UUID messageId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         Message message = createMessage(messageId, "본문입니다.", null);
+        Document document = Document.builder()
+                .id(documentId.toString())
+                .text("마스킹된 본문입니다.")
+                .metadata(Map.of("MessageId", messageId.toString()))
+                .build();
         MailEmbeddingCommandService service = createService();
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
         when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
+        when(phileasMaskingService.mask(any(), any(MaskingCommand.class)))
+                .thenReturn(maskingResult("마스킹된 본문입니다."));
+        when(mailEmbeddingQueryService.splitTextForEmbedding("마스킹된 본문입니다."))
+                .thenReturn(List.of("마스킹된 본문입니다."));
+        when(mailEmbeddingQueryService.buildDocument(message, documentId, "마스킹된 본문입니다.", documentId, 0, 1))
+                .thenReturn(document);
         when(vectorDocumentRepositoryPort.existsByDocumentId(documentId)).thenReturn(true);
 
         // when
@@ -109,8 +120,7 @@ class MailEmbeddingCommandServiceTest {
 
         // then
         verify(vectorDocumentRepositoryPort).existsByDocumentId(documentId);
-        verifyNoInteractions(phileasMaskingService, vectorStore);
-        verify(mailEmbeddingQueryService, never()).buildDocument(any(), any(), any());
+        verify(vectorStore, never()).add(any());
     }
 
     @Test
@@ -199,6 +209,37 @@ class MailEmbeddingCommandServiceTest {
     }
 
     @Test
+    void embed_첫번째청크만이미존재하면누락된청크만VectorStore에저장한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        UUID secondChunkDocumentId = UUID.randomUUID();
+        Message message = createMessage(messageId, "본문입니다.", null);
+        Document firstDocument = document(documentId, "첫 번째 청크입니다.", messageId);
+        Document secondDocument = document(secondChunkDocumentId, "두 번째 청크입니다.", messageId);
+        MailEmbeddingCommandService service = createService();
+        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
+        when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
+        when(mailEmbeddingQueryService.createChunkDocumentId(documentId, 1)).thenReturn(secondChunkDocumentId);
+        when(phileasMaskingService.mask(any(), any(MaskingCommand.class))).thenReturn(maskingResult("긴 본문입니다."));
+        when(mailEmbeddingQueryService.splitTextForEmbedding("긴 본문입니다."))
+                .thenReturn(List.of("첫 번째 청크입니다.", "두 번째 청크입니다."));
+        when(mailEmbeddingQueryService.buildDocument(message, documentId, "첫 번째 청크입니다.", documentId, 0, 2))
+                .thenReturn(firstDocument);
+        when(mailEmbeddingQueryService.buildDocument(message, secondChunkDocumentId, "두 번째 청크입니다.", documentId, 1, 2))
+                .thenReturn(secondDocument);
+        when(vectorDocumentRepositoryPort.existsByDocumentId(documentId)).thenReturn(true);
+        when(vectorDocumentRepositoryPort.existsByDocumentId(secondChunkDocumentId)).thenReturn(false);
+
+        // when
+        service.embed(messageId);
+
+        // then
+        verify(vectorStore).add(List.of(secondDocument));
+    }
+
+    @Test
     void embed_VectorStore저장에실패하면예외를전파한다() {
         // given
         UUID messageId = UUID.randomUUID();
@@ -247,6 +288,14 @@ class MailEmbeddingCommandServiceTest {
                 Collections.emptyMap(),
                 Collections.emptyMap()
         );
+    }
+
+    private Document document(UUID documentId, String text, UUID messageId) {
+        return Document.builder()
+                .id(documentId.toString())
+                .text(text)
+                .metadata(Map.of("MessageId", messageId.toString()))
+                .build();
     }
 
     private Message createMessage(UUID messageId, String bodyText, String bodyHtml) {

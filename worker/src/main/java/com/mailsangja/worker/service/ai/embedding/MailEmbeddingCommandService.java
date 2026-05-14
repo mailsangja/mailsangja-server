@@ -36,13 +36,28 @@ public class MailEmbeddingCommandService {
         }
 
         UUID documentId = mailEmbeddingQueryService.createDocumentId(message);
-        if (vectorDocumentRepositoryPort.existsByDocumentId(documentId)) {
-            return;
-        }
-
         MaskingResult maskingResult = phileasMaskingService.mask(embeddableText, MaskingCommand.pastContext());
         List<Document> documents = buildChunkDocuments(message, documentId, maskingResult.maskedText());
-        vectorStore.add(documents);
+        List<Document> missingDocuments = findMissingDocuments(documents);
+        if (missingDocuments.isEmpty()) {
+            return;
+        }
+        vectorStore.add(missingDocuments);
+    }
+
+    private List<Document> findMissingDocuments(List<Document> documents) {
+        List<Document> missingDocuments = new ArrayList<>();
+        for (Document document : documents) {
+            addIfMissing(missingDocuments, document);
+        }
+        return missingDocuments;
+    }
+
+    private void addIfMissing(List<Document> documents, Document document) {
+        UUID documentId = UUID.fromString(document.getId());
+        if (!vectorDocumentRepositoryPort.existsByDocumentId(documentId)) {
+            documents.add(document);
+        }
     }
 
     private List<Document> buildChunkDocuments(Message message, UUID documentId, String text) {
