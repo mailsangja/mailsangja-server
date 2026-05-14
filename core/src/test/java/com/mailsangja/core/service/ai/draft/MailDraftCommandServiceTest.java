@@ -45,13 +45,13 @@ class MailDraftCommandServiceTest {
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
         MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider());
-        when(cachePort.incrementMonthlyCount(userId)).thenReturn(50L);
+        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
 
         // when & then
         assertDoesNotThrow(() -> service.validateMonthlyRateLimit(userId));
 
         // then
-        verify(cachePort).incrementMonthlyCount(userId);
+        verify(cachePort).tryConsumeMonthlyLimit(userId);
     }
 
     @Test
@@ -60,7 +60,7 @@ class MailDraftCommandServiceTest {
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
         MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider());
-        when(cachePort.incrementMonthlyCount(userId)).thenReturn(51L);
+        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(false);
 
         // when & then
         assertThrows(MailDraftException.class, () -> service.validateMonthlyRateLimit(userId));

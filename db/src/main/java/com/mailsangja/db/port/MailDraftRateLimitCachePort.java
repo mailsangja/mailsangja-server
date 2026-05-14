@@ -4,5 +4,5 @@ import java.util.UUID;
 
 public interface MailDraftRateLimitCachePort {
 
-    long incrementMonthlyCount(UUID userId);
+    boolean tryConsumeMonthlyLimit(UUID userId);
 }

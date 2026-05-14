@@ -53,6 +53,7 @@ mailsangja:
   redis:
     rate-limit:
       enabled: true
+      monthly-limit: 50
   portone:
     api-secret: test-api-secret
     payment-query-uri: https://api.portone.io/payments

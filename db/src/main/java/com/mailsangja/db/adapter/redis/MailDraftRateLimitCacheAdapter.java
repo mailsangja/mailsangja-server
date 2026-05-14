@@ -1,5 +1,6 @@
 package com.mailsangja.db.adapter.redis;
 
+import com.mailsangja.db.common.redis.MailDraftRateLimitProperties;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -22,18 +23,23 @@ public class MailDraftRateLimitCacheAdapter implements MailDraftRateLimitCachePo
     private static final String KEY_PREFIX = "MailDraft:rate:month:";
 
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider;
+    private final MailDraftRateLimitProperties properties;
 
     @Override
-    public long incrementMonthlyCount(UUID userId) {
+    public boolean tryConsumeMonthlyLimit(UUID userId) {
         String key = monthlyKey(userId);
         StringRedisTemplate template = stringRedisTemplate();
         Long count = template.opsForValue().increment(key);
         expireIfFirstCount(key, count);
-        return safeCount(count);
+        return isMonthlyLimitAllowed(count);
     }
 
     private StringRedisTemplate stringRedisTemplate() {
         return stringRedisTemplateProvider.getObject();
+    }
+
+    private boolean isMonthlyLimitAllowed(Long count) {
+        return safeCount(count) <= properties.getMonthlyLimit();
     }
 
     private String monthlyKey(UUID userId) {

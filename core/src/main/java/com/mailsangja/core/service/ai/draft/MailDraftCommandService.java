@@ -43,11 +43,7 @@ public class MailDraftCommandService {
     private final ObjectProvider<ChatModel> chatModelProvider;
 
     public void validateMonthlyRateLimit(UUID userId) {
-        validateMonthlyCount(rateLimitCachePort.incrementMonthlyCount(userId));
-    }
-
-    private void validateMonthlyCount(long monthlyCount) {
-        if (monthlyCount > 50) {
+        if (!rateLimitCachePort.tryConsumeMonthlyLimit(userId)) {
             throw new MailDraftException(MailDraftErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }

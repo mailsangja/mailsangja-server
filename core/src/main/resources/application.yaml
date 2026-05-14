@@ -102,6 +102,7 @@ mailsangja:
   redis:
     rate-limit:
       enabled: true
+      monthly-limit: ${AI_DRAFT_MONTHLY_RATE_LIMIT:50}
   portone:
     plan-prices:
       pro: ${PORTONE_PLAN_PRICE_PRO:9900}
