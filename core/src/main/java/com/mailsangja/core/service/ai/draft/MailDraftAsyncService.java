@@ -25,18 +25,32 @@ public class MailDraftAsyncService {
     public void streamGeneral(SseEmitter emitter, MailDraftCommand command) {
         MailDraftCommandService.StreamCancellation cancellation = mailDraftCommandService.createCancellation();
         registerCancel(emitter, cancellation);
-        MailDraftRagContextResult context = mailDraftQueryService.generalRagContext(command);
-        MailDraftPromptResult prompt = mailDraftQueryService.generalPrompt(command, context);
-        stream(emitter, command, prompt, cancellation);
+        try {
+            MailDraftRagContextResult context = mailDraftQueryService.generalRagContext(command);
+            MailDraftPromptResult prompt = mailDraftQueryService.generalPrompt(command, context);
+            stream(emitter, command, prompt, cancellation);
+        } catch (Exception exception) {
+            log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
+                    command.userId(), command.mailAccountId(), command.purpose(), exception);
+            mailDraftCommandService.sendError(emitter, exception);
+            mailDraftCommandService.complete(emitter);
+        }
     }
 
     @Async
     public void streamReply(SseEmitter emitter, MailDraftCommand command) {
         MailDraftCommandService.StreamCancellation cancellation = mailDraftCommandService.createCancellation();
         registerCancel(emitter, cancellation);
-        MailDraftRagContextResult context = mailDraftQueryService.replyRagContext(command);
-        MailDraftPromptResult prompt = mailDraftQueryService.replyPrompt(command, context);
-        stream(emitter, command, prompt, cancellation);
+        try {
+            MailDraftRagContextResult context = mailDraftQueryService.replyRagContext(command);
+            MailDraftPromptResult prompt = mailDraftQueryService.replyPrompt(command, context);
+            stream(emitter, command, prompt, cancellation);
+        } catch (Exception exception) {
+            log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
+                    command.userId(), command.mailAccountId(), command.purpose(), exception);
+            mailDraftCommandService.sendError(emitter, exception);
+            mailDraftCommandService.complete(emitter);
+        }
     }
 
     private void registerCancel(SseEmitter emitter, MailDraftCommandService.StreamCancellation cancellation) {
