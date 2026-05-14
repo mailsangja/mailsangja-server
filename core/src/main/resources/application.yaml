@@ -99,6 +99,9 @@ scalar:
   page-title: MailSangja API Reference
 
 mailsangja:
+  redis:
+    rate-limit:
+      enabled: true
   portone:
     plan-prices:
       pro: ${PORTONE_PLAN_PRICE_PRO:9900}

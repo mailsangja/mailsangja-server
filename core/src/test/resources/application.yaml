@@ -50,6 +50,9 @@ spring:
       configure-action: none
 
 mailsangja:
+  redis:
+    rate-limit:
+      enabled: true
   portone:
     api-secret: test-api-secret
     payment-query-uri: https://api.portone.io/payments
