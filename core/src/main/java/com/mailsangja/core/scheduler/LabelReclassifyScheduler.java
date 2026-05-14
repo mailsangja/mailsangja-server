@@ -1,7 +1,9 @@
-package com.mailsangja.core.service.label;
+package com.mailsangja.core.scheduler;
 
 import com.mailsangja.core.config.properties.LabelDebounceProperties;
 import com.mailsangja.core.dto.label.LabelReclassifyPendingJob;
+import com.mailsangja.core.service.label.LabelReclassifyPendingJobStore;
+import com.mailsangja.core.service.label.LabelReclassifyPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
