@@ -90,6 +90,24 @@ class MailDraftAsyncServiceTest {
     }
 
     @Test
+    void error이벤트전송실패시에도emitter를완료한다() {
+        // given
+        Fixture fixture = createFixture();
+        SseEmitter emitter = new SseEmitter();
+        MailDraftCommand command = createCommand();
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any()))
+                .thenThrow(new RuntimeException("subject failed"));
+        doThrow(new IllegalStateException("send failed")).when(fixture.commandService()).sendError(eq(emitter), any());
+
+        // when
+        fixture.asyncService().streamGeneral(emitter, command);
+
+        // then
+        verify(fixture.commandService()).sendError(eq(emitter), any());
+        verify(fixture.commandService()).complete(emitter);
+    }
+
+    @Test
     void subject와body성공시usage와done을보내고emitter를완료한다() {
         // given
         Fixture fixture = createFixture();

@@ -30,10 +30,7 @@ public class MailDraftAsyncService {
             MailDraftPromptResult prompt = mailDraftQueryService.generalPrompt(command, context);
             stream(emitter, command, prompt, cancellation);
         } catch (Exception exception) {
-            log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
-                    command.userId(), command.mailAccountId(), command.purpose(), exception);
-            mailDraftCommandService.sendError(emitter, exception);
-            mailDraftCommandService.complete(emitter);
+            handleFailure(emitter, command, exception);
         }
     }
 
@@ -46,10 +43,7 @@ public class MailDraftAsyncService {
             MailDraftPromptResult prompt = mailDraftQueryService.replyPrompt(command, context);
             stream(emitter, command, prompt, cancellation);
         } catch (Exception exception) {
-            log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
-                    command.userId(), command.mailAccountId(), command.purpose(), exception);
-            mailDraftCommandService.sendError(emitter, exception);
-            mailDraftCommandService.complete(emitter);
+            handleFailure(emitter, command, exception);
         }
     }
 
@@ -88,9 +82,18 @@ public class MailDraftAsyncService {
         try {
             streamAfterRateLimit(emitter, command, prompt, cancellation);
         } catch (Exception exception) {
-            log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
-                    command.userId(), command.mailAccountId(), command.purpose(), exception);
+            handleFailure(emitter, command, exception);
+        }
+    }
+
+    private void handleFailure(SseEmitter emitter, MailDraftCommand command, Exception exception) {
+        log.error("Mail draft stream failed. userId={} mailAccountId={} purpose={}",
+                command.userId(), command.mailAccountId(), command.purpose(), exception);
+        try {
             mailDraftCommandService.sendError(emitter, exception);
+        } catch (Exception sendException) {
+            log.warn("Mail draft error event send failed.", sendException);
+        } finally {
             mailDraftCommandService.complete(emitter);
         }
     }

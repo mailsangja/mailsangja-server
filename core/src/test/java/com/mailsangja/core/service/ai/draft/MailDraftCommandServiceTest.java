@@ -23,6 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -245,6 +246,16 @@ class MailDraftCommandServiceTest {
         assertEquals(MailDraftDoneEvent.success(), emitter.payload());
     }
 
+    @Test
+    void error이벤트전송실패는예외로전파하지않는다() {
+        // given
+        FailingSseEmitter emitter = new FailingSseEmitter();
+        MailDraftCommandService service = createService();
+
+        // when & then
+        assertDoesNotThrow(() -> service.sendError(emitter, new RuntimeException("failed")));
+    }
+
     private MailDraftCommandService createService() {
         return new MailDraftCommandService(mock(MailDraftRateLimitCachePort.class), chatModelProvider());
     }
@@ -374,6 +385,14 @@ class MailDraftCommandServiceTest {
         public synchronized void send(SseEventBuilder builder) {
             super.send(builder);
             service.cancel(cancellation);
+        }
+    }
+
+    private static final class FailingSseEmitter extends SseEmitter {
+
+        @Override
+        public synchronized void send(SseEventBuilder builder) throws IOException {
+            throw new IOException("disconnected");
         }
     }
 

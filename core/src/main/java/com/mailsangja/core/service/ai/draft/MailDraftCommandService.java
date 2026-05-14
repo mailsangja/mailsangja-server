@@ -332,7 +332,7 @@ public class MailDraftCommandService {
     }
 
     public void sendError(SseEmitter emitter, Exception exception) {
-        send(emitter, event("error", MailDraftErrorEvent.from(exception)));
+        trySend(emitter, event("error", MailDraftErrorEvent.from(exception)));
     }
 
     public StreamCancellation createCancellation() {
@@ -348,10 +348,19 @@ public class MailDraftCommandService {
     }
 
     private void send(SseEmitter emitter, SseEmitter.SseEventBuilder builder) {
+        IOException exception = trySend(emitter, builder);
+        if (exception != null) {
+            throw new IllegalStateException("Mail draft SSE send failed.", exception);
+        }
+    }
+
+    private IOException trySend(SseEmitter emitter, SseEmitter.SseEventBuilder builder) {
         try {
             emitter.send(builder);
+            return null;
         } catch (IOException exception) {
-            throw new IllegalStateException(exception);
+            log.warn("Mail draft SSE send failed.", exception);
+            return exception;
         }
     }
 
