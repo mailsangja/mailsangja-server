@@ -25,8 +25,8 @@ public class VectorDocumentRepositoryAdapter implements VectorDocumentRepository
     }
 
     @Override
-    public boolean existsById(UUID messageId) {
-        Boolean exists = jdbcTemplate.queryForObject(existsSql(), Boolean.class, messageId);
+    public boolean existsByDocumentId(UUID documentId) {
+        Boolean exists = jdbcTemplate.queryForObject(existsSql(), Boolean.class, documentId);
         return Boolean.TRUE.equals(exists);
     }
 

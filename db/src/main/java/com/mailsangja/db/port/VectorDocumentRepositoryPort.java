@@ -4,5 +4,5 @@ import java.util.UUID;
 
 public interface VectorDocumentRepositoryPort {
 
-    boolean existsById(UUID messageId);
+    boolean existsByDocumentId(UUID documentId);
 }

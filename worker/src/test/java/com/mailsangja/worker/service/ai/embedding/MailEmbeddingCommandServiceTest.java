@@ -102,13 +102,13 @@ class MailEmbeddingCommandServiceTest {
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
         when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
-        when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(true);
+        when(vectorDocumentRepositoryPort.existsByDocumentId(documentId)).thenReturn(true);
 
         // when
         service.embed(messageId);
 
         // then
-        verify(vectorDocumentRepositoryPort).existsById(documentId);
+        verify(vectorDocumentRepositoryPort).existsByDocumentId(documentId);
         verifyNoInteractions(phileasMaskingService, vectorStore);
         verify(mailEmbeddingQueryService, never()).buildDocument(any(), any(), any());
     }
@@ -128,7 +128,7 @@ class MailEmbeddingCommandServiceTest {
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("전화번호는 010-1234-5678 입니다.");
         when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
-        when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
+        when(vectorDocumentRepositoryPort.existsByDocumentId(documentId)).thenReturn(false);
         when(phileasMaskingService.mask(
                 eq("전화번호는 010-1234-5678 입니다."),
                 argThat(command -> command != null && command.scope() == MaskingScope.PAST_CONTEXT)
@@ -179,7 +179,7 @@ class MailEmbeddingCommandServiceTest {
         when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
         when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
         when(mailEmbeddingQueryService.createChunkDocumentId(documentId, 1)).thenReturn(secondChunkDocumentId);
-        when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
+        when(vectorDocumentRepositoryPort.existsByDocumentId(documentId)).thenReturn(false);
         when(phileasMaskingService.mask(any(), any(MaskingCommand.class)))
                 .thenReturn(maskingResult(longMaskedText));
         when(mailEmbeddingQueryService.splitTextForEmbedding(longMaskedText))
@@ -214,7 +214,7 @@ class MailEmbeddingCommandServiceTest {
         when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
         when(mailEmbeddingQueryService.extractEmbeddableText(message)).thenReturn("본문입니다.");
         when(mailEmbeddingQueryService.createDocumentId(message)).thenReturn(documentId);
-        when(vectorDocumentRepositoryPort.existsById(documentId)).thenReturn(false);
+        when(vectorDocumentRepositoryPort.existsByDocumentId(documentId)).thenReturn(false);
         when(phileasMaskingService.mask(any(), any(MaskingCommand.class)))
                 .thenReturn(maskingResult("마스킹된 본문입니다."));
         when(mailEmbeddingQueryService.splitTextForEmbedding("마스킹된 본문입니다."))

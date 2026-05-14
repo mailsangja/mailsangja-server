@@ -36,7 +36,7 @@ public class MailEmbeddingCommandService {
         }
 
         UUID documentId = mailEmbeddingQueryService.createDocumentId(message);
-        if (vectorDocumentRepositoryPort.existsById(documentId)) {
+        if (vectorDocumentRepositoryPort.existsByDocumentId(documentId)) {
             return;
         }
 

@@ -22,25 +22,25 @@ class VectorDocumentRepositoryAdapterTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void existsById_returnsTrueWhenVectorRowExists() {
-        UUID messageId = UUID.randomUUID();
+    void existsByDocumentId_returnsTrueWhenVectorRowExists() {
+        UUID documentId = UUID.randomUUID();
         VectorDocumentRepositoryAdapter adapter = createAdapter("vector_store");
-        when(jdbcTemplate.queryForObject(contains("vector_store"), eq(Boolean.class), eq(messageId)))
+        when(jdbcTemplate.queryForObject(contains("vector_store"), eq(Boolean.class), eq(documentId)))
                 .thenReturn(true);
 
-        boolean exists = adapter.existsById(messageId);
+        boolean exists = adapter.existsByDocumentId(documentId);
 
         assertTrue(exists);
     }
 
     @Test
-    void existsById_returnsFalseWhenVectorRowDoesNotExist() {
-        UUID messageId = UUID.randomUUID();
+    void existsByDocumentId_returnsFalseWhenVectorRowDoesNotExist() {
+        UUID documentId = UUID.randomUUID();
         VectorDocumentRepositoryAdapter adapter = createAdapter("vector_store");
-        when(jdbcTemplate.queryForObject(contains("vector_store"), eq(Boolean.class), eq(messageId)))
+        when(jdbcTemplate.queryForObject(contains("vector_store"), eq(Boolean.class), eq(documentId)))
                 .thenReturn(false);
 
-        boolean exists = adapter.existsById(messageId);
+        boolean exists = adapter.existsByDocumentId(documentId);
 
         assertFalse(exists);
     }
