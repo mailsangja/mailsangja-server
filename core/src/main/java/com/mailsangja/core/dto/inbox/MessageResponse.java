@@ -46,12 +46,31 @@ public record MessageResponse(
 
     public static MessageResponse from(
             Message message,
+            Map<String, String> contactNameByEmail,
+            List<AttachmentResponse> attachments
+    ) {
+        return from(message, message.getBodyHtml(), contactNameByEmail, attachments);
+    }
+
+    public static MessageResponse from(
+            Message message,
             String renderedBodyHtml,
             Map<String, String> contactNameByEmail
     ) {
         List<AttachmentResponse> attachmentResponses = message.getAttachments().stream()
                 .map(AttachmentResponse::from)
                 .toList();
+
+        return from(message, renderedBodyHtml, contactNameByEmail, attachmentResponses);
+    }
+
+    public static MessageResponse from(
+            Message message,
+            String renderedBodyHtml,
+            Map<String, String> contactNameByEmail,
+            List<AttachmentResponse> attachments
+    ) {
+        List<AttachmentResponse> attachmentResponses = attachments == null ? List.of() : attachments;
 
         List<MailAddressResponse> toAddresses = toMailAddressResponses(
                 message.getToAddresses(),
