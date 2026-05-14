@@ -165,7 +165,7 @@ public class MailEmbeddingQueryService {
     }
 
     private void addAddressMetadata(Map<String, Object> metadata, Message message) {
-        putIfNotNull(metadata, "ReceivedAt", receivedAt(message));
+        putIfNotNull(metadata, "SentAt", sentAt(message));
         metadata.put("FromMailAddress", message.getFromAddress());
         metadata.put("ToMailAddress", toMailAddresses(message));
     }
@@ -258,7 +258,7 @@ public class MailEmbeddingQueryService {
         }
     }
 
-    private String receivedAt(Message message) {
+    private String sentAt(Message message) {
         if (message.getSentAt() == null) {
             return null;
         }

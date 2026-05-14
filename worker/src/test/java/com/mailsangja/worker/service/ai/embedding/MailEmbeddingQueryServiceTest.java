@@ -239,7 +239,7 @@ class MailEmbeddingQueryServiceTest {
     }
 
     @Test
-    void buildDocument_sentAt이null이면ReceivedAt만제외하고Document를생성한다() {
+    void buildDocument_sentAt이null이면SentAt만제외하고Document를생성한다() {
         // given
         Message message = createMessageWithoutSentAt();
 
@@ -247,7 +247,7 @@ class MailEmbeddingQueryServiceTest {
         Map<String, Object> metadata = service.buildDocument(message, UUID.randomUUID(), "마스킹된 본문입니다.").getMetadata();
 
         // then
-        assertFalse(metadata.containsKey("ReceivedAt"));
+        assertFalse(metadata.containsKey("SentAt"));
         assertEquals("sender@example.com", metadata.get("FromMailAddress"));
         assertFalse(metadata.get("FromHash").toString().contains("sender@example.com"));
     }
@@ -324,7 +324,7 @@ class MailEmbeddingQueryServiceTest {
         assertEquals(message.getId().toString(), metadata.get("MessageId"));
         assertEquals(thread.getId().toString(), metadata.get("ThreadId"));
         assertEquals(message.getDirection().name(), metadata.get("Direction"));
-        assertEquals(message.getSentAt().toString(), metadata.get("ReceivedAt"));
+        assertEquals(message.getSentAt().toString(), metadata.get("SentAt"));
         assertEquals("sender@example.com", metadata.get("FromMailAddress"));
         assertEquals(List.of("to@example.com"), metadata.get("ToMailAddress"));
     }
