@@ -15,7 +15,7 @@ public record MaskingCommand(
         if (scope == null) {
             throw new MaskingException(MaskingErrorCode.INVALID_SCOPE);
         }
-        if (enabledTypes != null && enabledTypes.contains(null)) {
+        if (hasNullEnabledType(enabledTypes)) {
             throw new MaskingException(MaskingErrorCode.INVALID_TOKEN_TYPE);
         }
         enabledTypes = enabledTypes == null || enabledTypes.isEmpty()
@@ -33,5 +33,17 @@ public record MaskingCommand(
 
     public boolean isEnabled(PiiType piiType) {
         return enabledTypes.contains(piiType);
+    }
+
+    private static boolean hasNullEnabledType(Set<PiiType> enabledTypes) {
+        if (enabledTypes == null) {
+            return false;
+        }
+        for (PiiType enabledType : enabledTypes) {
+            if (enabledType == null) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -17,12 +17,21 @@ public record MaskingResult(
         if (maskedText == null || tokens == null || restoreTokenMap == null || redactedTokenMap == null) {
             throw new MaskingException(MaskingErrorCode.INVALID_RESULT);
         }
-        if (tokens.contains(null) || hasNullEntry(restoreTokenMap) || hasNullEntry(redactedTokenMap)) {
+        if (hasNullToken(tokens) || hasNullEntry(restoreTokenMap) || hasNullEntry(redactedTokenMap)) {
             throw new MaskingException(MaskingErrorCode.INVALID_RESULT);
         }
         tokens = List.copyOf(tokens);
         restoreTokenMap = Map.copyOf(restoreTokenMap);
         redactedTokenMap = Map.copyOf(redactedTokenMap);
+    }
+
+    private static boolean hasNullToken(List<MaskingTokenResult> tokens) {
+        for (MaskingTokenResult token : tokens) {
+            if (token == null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasNullEntry(Map<String, String> tokenMap) {

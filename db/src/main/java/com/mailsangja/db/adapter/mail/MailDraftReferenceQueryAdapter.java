@@ -6,6 +6,7 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
 import com.mailsangja.db.port.MailDraftReferenceQueryPort;
 import lombok.RequiredArgsConstructor;
+import org.jsoup.Jsoup;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
@@ -109,6 +110,13 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
         if (message.getBodyText() != null && !message.getBodyText().isBlank()) {
             return message.getBodyText();
         }
-        return message.getBodyHtml();
+        return htmlTextOf(message.getBodyHtml());
+    }
+
+    private String htmlTextOf(String bodyHtml) {
+        if (bodyHtml == null || bodyHtml.isBlank()) {
+            return "";
+        }
+        return Jsoup.parse(bodyHtml).text();
     }
 }

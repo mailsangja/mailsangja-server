@@ -1,0 +1,71 @@
+package com.mailsangja.db.adapter.mail;
+
+import com.mailsangja.db.dto.MailDraftReferenceMessageResult;
+import com.mailsangja.db.entity.mail.Direction;
+import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Proxy;
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class MailDraftReferenceQueryAdapterTest {
+
+    @Test
+    void bodyText가없으면Html을텍스트로변환한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        Message message = createHtmlMessage(messageId);
+        MailDraftReferenceQueryAdapter adapter = createAdapter(message);
+
+        // when
+        List<MailDraftReferenceMessageResult> results = adapter.findMessagesByIds(List.of(messageId));
+
+        // then
+        assertEquals("문의 user@example.com 감사합니다.", results.getFirst().body());
+    }
+
+    private MailDraftReferenceQueryAdapter createAdapter(Message message) {
+        MessageJpaRepositoryModule module = (MessageJpaRepositoryModule) Proxy.newProxyInstance(
+                MessageJpaRepositoryModule.class.getClassLoader(),
+                new Class<?>[]{MessageJpaRepositoryModule.class},
+                (proxy, method, args) -> findActiveByIdIn(method.getName(), message)
+        );
+        return new MailDraftReferenceQueryAdapter(module);
+    }
+
+    private Object findActiveByIdIn(String methodName, Message message) {
+        if ("findActiveByIdIn".equals(methodName)) {
+            return List.of(message);
+        }
+        throw new UnsupportedOperationException(methodName);
+    }
+
+    private Message createHtmlMessage(UUID messageId) {
+        return Message.builder()
+                .id(messageId)
+                .thread(createThread())
+                .gmailMessageId("gmail-message-id")
+                .direction(Direction.OUTBOUND)
+                .subject("subject")
+                .fromAddress("from@example.com")
+                .bodyHtml("<p>문의 <span>user</span>@example.com</p><p>감사합니다.</p>")
+                .build();
+    }
+
+    private Thread createThread() {
+        return Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(MailAccount.builder().id(UUID.randomUUID()).build())
+                .gmailThreadId("gmail-thread-id")
+                .direction(Direction.OUTBOUND)
+                .read(true)
+                .messageCount(1)
+                .build();
+    }
+}

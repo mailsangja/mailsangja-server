@@ -1,14 +1,21 @@
 package com.mailsangja.core.service.ai.masking;
 
+import com.mailsangja.core.common.exception.masking.MaskingException;
 import com.mailsangja.core.dto.ai.masking.MaskingCommand;
 import com.mailsangja.core.dto.ai.masking.MaskingResult;
+import com.mailsangja.core.dto.ai.masking.MaskingScope;
 import com.mailsangja.core.dto.ai.masking.MaskingTokenResult;
 import com.mailsangja.core.dto.ai.masking.PiiType;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PhileasMaskingServiceTest {
 
@@ -94,5 +101,33 @@ class PhileasMaskingServiceTest {
         String restored = service.restore("과거 발신자는 [EMAIL_1]입니다.", result);
 
         assertThat(restored).isEqualTo("과거 발신자는 [EMAIL_1]입니다.");
+    }
+
+    @Test
+    void immutableSet입력도Null검사에서예외가발생하지않는다() {
+        assertDoesNotThrow(() -> new MaskingCommand(MaskingScope.CURRENT_CONTEXT, Set.of(PiiType.EMAIL)));
+    }
+
+    @Test
+    void enabledTypes에Null이있으면MaskingException을던진다() {
+        Set<PiiType> enabledTypes = new HashSet<>();
+        enabledTypes.add(null);
+
+        assertThrows(MaskingException.class, () -> new MaskingCommand(MaskingScope.CURRENT_CONTEXT, enabledTypes));
+    }
+
+    @Test
+    void immutableList토큰입력도Null검사에서예외가발생하지않는다() {
+        MaskingTokenResult token = new MaskingTokenResult(PiiType.EMAIL, "[EMAIL_1]", "a@test.com", 0, 10);
+
+        assertDoesNotThrow(() -> new MaskingResult("masked", List.of(token), Map.of(), Map.of()));
+    }
+
+    @Test
+    void tokens에Null이있으면MaskingException을던진다() {
+        List<MaskingTokenResult> tokens = new java.util.ArrayList<>();
+        tokens.add(null);
+
+        assertThrows(MaskingException.class, () -> new MaskingResult("masked", tokens, Map.of(), Map.of()));
     }
 }
