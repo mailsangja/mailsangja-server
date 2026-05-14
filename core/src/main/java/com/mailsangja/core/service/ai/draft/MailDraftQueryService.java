@@ -18,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
@@ -364,14 +366,14 @@ public class MailDraftQueryService {
         return findVectorMessages(command.maskedQuery(), userVectorFilter(command.userId()));
     }
 
-    private List<MailDraftReferenceMessageResult> findVectorMessages(String query, String filter) {
+    private List<MailDraftReferenceMessageResult> findVectorMessages(String query, Filter.Expression filter) {
         if (vectorStore == null || referenceQueryPort == null) {
             return List.of();
         }
         return findVectorMessagesOrEmpty(query, filter);
     }
 
-    private List<MailDraftReferenceMessageResult> findVectorMessagesOrEmpty(String query, String filter) {
+    private List<MailDraftReferenceMessageResult> findVectorMessagesOrEmpty(String query, Filter.Expression filter) {
         try {
             return findVectorMessagesStrict(query, filter);
         } catch (RuntimeException exception) {
@@ -380,12 +382,12 @@ public class MailDraftQueryService {
         }
     }
 
-    private List<MailDraftReferenceMessageResult> findVectorMessagesStrict(String query, String filter) {
+    private List<MailDraftReferenceMessageResult> findVectorMessagesStrict(String query, Filter.Expression filter) {
         List<UUID> messageIds = messageIdsFromVectorSearch(query, filter);
         return orderByMessageIds(referenceQueryPort.findMessagesByIds(messageIds), messageIds);
     }
 
-    private List<UUID> messageIdsFromVectorSearch(String query, String filter) {
+    private List<UUID> messageIdsFromVectorSearch(String query, Filter.Expression filter) {
         List<Document> documents = vectorStore.similaritySearch(searchRequest(query, filter));
         List<UUID> messageIds = new ArrayList<>();
         for (Document document : documents) {
@@ -394,7 +396,7 @@ public class MailDraftQueryService {
         return messageIds;
     }
 
-    private SearchRequest searchRequest(String query, String filter) {
+    private SearchRequest searchRequest(String query, Filter.Expression filter) {
         return SearchRequest.builder()
                 .query(query)
                 .topK(VECTOR_SEARCH_LIMIT)
@@ -402,12 +404,18 @@ public class MailDraftQueryService {
                 .build();
     }
 
-    private String accountVectorFilter(UUID userId, UUID mailAccountId) {
-        return "UserId == '%s' && MailAccountId == '%s'".formatted(userId, mailAccountId);
+    private Filter.Expression accountVectorFilter(UUID userId, UUID mailAccountId) {
+        FilterExpressionBuilder builder = new FilterExpressionBuilder();
+        return builder.and(
+                builder.eq("UserId", userId.toString()),
+                builder.eq("MailAccountId", mailAccountId.toString())
+        ).build();
     }
 
-    private String userVectorFilter(UUID userId) {
-        return "UserId == '%s'".formatted(userId);
+    private Filter.Expression userVectorFilter(UUID userId) {
+        return new FilterExpressionBuilder()
+                .eq("UserId", userId.toString())
+                .build();
     }
 
     private void addMessageId(List<UUID> messageIds, Document document) {

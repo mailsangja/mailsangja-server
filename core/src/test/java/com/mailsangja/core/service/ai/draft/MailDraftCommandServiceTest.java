@@ -111,6 +111,23 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
+    void 긴토큰을짧은토큰보다먼저복원한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        MailDraftCommandService service = createService();
+        MailDraftRestoreContextResult restoreContext = new MailDraftRestoreContextResult(Map.of(
+                "[EMAIL_1]", "one@example.com",
+                "[EMAIL_10]", "ten@example.com"
+        ));
+
+        // when
+        service.sendDelta(emitter, MailDraftPhase.BODY, "수신자 [EMAIL_10], 참조 [EMAIL_1]", restoreContext);
+
+        // then
+        assertEquals("수신자 ten@example.com, 참조 one@example.com", emitter.deltaPayload().delta());
+    }
+
+    @Test
     void subject스트림은ChatModel응답을subject이벤트로전송하고사용량을반환한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();

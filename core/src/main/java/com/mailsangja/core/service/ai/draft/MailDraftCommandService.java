@@ -187,10 +187,16 @@ public class MailDraftCommandService {
 
     private String restoreTokens(String delta, MailDraftRestoreContextResult restoreContext) {
         String restored = delta;
-        for (String token : restoreContext.tokens().keySet()) {
+        for (String token : orderedRestoreTokens(restoreContext)) {
             restored = restored.replace(token, restoreContext.tokens().get(token));
         }
         return restored;
+    }
+
+    private List<String> orderedRestoreTokens(MailDraftRestoreContextResult restoreContext) {
+        return restoreContext.tokens().keySet().stream()
+                .sorted(java.util.Comparator.comparingInt(String::length).reversed())
+                .toList();
     }
 
     private void validateNoUnresolvedPlaceholder(String rawDelta, String restoredDelta) {
