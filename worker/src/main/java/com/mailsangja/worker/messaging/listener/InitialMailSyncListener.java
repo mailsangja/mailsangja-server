@@ -2,13 +2,16 @@ package com.mailsangja.worker.messaging.listener;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
+import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailMessageListResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadSaveCommand;
 import com.mailsangja.worker.messaging.publisher.InitialMailSyncThreadBatchPublisher;
 import com.mailsangja.worker.messaging.publisher.LabelReclassifyPublisher;
+import com.mailsangja.worker.messaging.publisher.MailEmbeddingPublisher;
 import com.mailsangja.worker.service.google.GmailMessageApiService;
 import com.mailsangja.worker.service.label.LabelQueryService;
 import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
@@ -38,6 +41,7 @@ public class InitialMailSyncListener {
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
     private final LabelQueryService labelQueryService;
     private final LabelReclassifyPublisher labelReclassifyPublisher;
+    private final MailEmbeddingPublisher mailEmbeddingPublisher;
 
     @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
     public void handle(InitialMailSyncMessage message) {
@@ -90,11 +94,12 @@ public class InitialMailSyncListener {
                 .map(InitialMailSyncThreadSaveCommand::from)
                 .toList();
 
-        List<UUID> savedThreadIds = initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
+        InitialMailSyncSaveResult saveResult = initialMailSyncCommandService.saveThreadBatch(mailAccount, commands);
+        publishEmbeddingMessages(saveResult.messageIds());
 
         Set<UUID> activeLabelIds = labelQueryService.findActiveLabelIdsByUserId(message.userId());
-        if (!activeLabelIds.isEmpty() && !savedThreadIds.isEmpty()) {
-            labelReclassifyPublisher.publish(message.userId(), activeLabelIds, savedThreadIds);
+        if (!activeLabelIds.isEmpty() && !saveResult.threadIds().isEmpty()) {
+            labelReclassifyPublisher.publish(message.userId(), activeLabelIds, saveResult.threadIds());
         }
 
         log.info(
@@ -103,6 +108,12 @@ public class InitialMailSyncListener {
                 message.emailAddress(),
                 message.threadIds().size()
         );
+    }
+
+    private void publishEmbeddingMessages(List<UUID> messageIds) {
+        messageIds.stream()
+                .map(MailEmbeddingMessage::new)
+                .forEach(mailEmbeddingPublisher::publish);
     }
 
     private List<String> extractThreadIds(GoogleMailMessageListResult result) {

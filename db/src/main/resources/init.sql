@@ -1,3 +1,7 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_devices_fcm_token_active
     ON user_devices (fcm_token)
     WHERE deleted_at IS NULL;

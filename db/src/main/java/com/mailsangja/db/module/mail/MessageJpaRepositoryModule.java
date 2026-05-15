@@ -2,6 +2,7 @@ package com.mailsangja.db.module.mail;
 
 import com.mailsangja.db.dto.MessageLabelProjection;
 import com.mailsangja.db.dto.ThreadMessageLabelProjection;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -343,4 +344,77 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             ORDER BY m.id ASC
             """)
     List<Message> findActiveMessagesWithLabelsByUserIdPaged(@Param("userId") UUID userId, Pageable pageable);
+
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.thread.mailAccount.user.id = :userId
+              AND m.thread.mailAccount.id = :mailAccountId
+              AND m.direction = :direction
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
+            ORDER BY m.sentAt DESC, m.id DESC
+            """)
+    List<Message> findRecentByUserIdAndMailAccountIdAndDirection(
+            @Param("userId") UUID userId,
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("direction") Direction direction,
+            Pageable pageable
+    );
+
+    @Query(value = """
+            SELECT m.*
+            FROM messages m
+            JOIN threads t ON m.thread_id = t.id
+            JOIN mail_accounts ma ON t.mail_account_id = ma.id
+            WHERE ma.user_id = :userId
+              AND ma.id = :mailAccountId
+              AND m.direction = 'OUTBOUND'
+              AND m.deleted_at IS NULL
+              AND t.deleted_at IS NULL
+              AND ma.deleted_at IS NULL
+              AND (
+                  LOWER(COALESCE(m.subject, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(m.body_text, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(m.from_name, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.to_names AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.to_addresses AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.cc_names AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+                  OR LOWER(COALESCE(CAST(m.cc_addresses AS text), '')) LIKE LOWER(CONCAT('%', :hint, '%'))
+              )
+            ORDER BY m.sent_at DESC NULLS LAST, m.id DESC
+            """, nativeQuery = true)
+    List<Message> findWrittenByUserIdAndMailAccountIdAndHint(
+            @Param("userId") String userId,
+            @Param("mailAccountId") String mailAccountId,
+            @Param("hint") String hint,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.id IN :messageIds
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
+            """)
+    List<Message> findActiveByIdIn(@Param("messageIds") List<UUID> messageIds);
+
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.thread.mailAccount.id = (
+                SELECT target.thread.mailAccount.id FROM Message target WHERE target.id = :replyMessageId
+            )
+              AND m.thread.gmailThreadId = (
+                SELECT target.thread.gmailThreadId FROM Message target WHERE target.id = :replyMessageId
+            )
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
+            ORDER BY m.sentAt ASC, m.id ASC
+            """)
+    List<Message> findThreadContextByReplyMessageId(@Param("replyMessageId") UUID replyMessageId);
 }
