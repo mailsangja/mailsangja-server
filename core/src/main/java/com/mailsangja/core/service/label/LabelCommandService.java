@@ -61,7 +61,14 @@ public class LabelCommandService {
     }
 
     @Transactional
-    public Label approveSuggestion(Label suggestion) {
+    public Label approveSuggestion(Label suggestion, LabelCreateRequest request) {
+        suggestion.updateName(request.name().trim());
+        suggestion.updateColorCode(request.colorCode());
+        suggestion.updateNotificationPolicy(
+                request.notificationPolicy() != null ? request.notificationPolicy() : NotificationPolicy.INHERIT
+        );
+        suggestion.updateDisplayOrder(request.order());
+        suggestion.updateRule(request.rule());
         suggestion.confirm();
         return labelRepositoryPort.save(suggestion);
     }

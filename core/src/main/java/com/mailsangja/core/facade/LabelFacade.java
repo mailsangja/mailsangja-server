@@ -8,8 +8,6 @@ import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
-import com.mailsangja.core.dto.label.LabelSuggestionApproveRequest;
-import com.mailsangja.core.dto.label.LabelSuggestionResponse;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.service.label.LabelCommandService;
 import com.mailsangja.core.service.label.LabelQueryService;
@@ -88,7 +86,7 @@ public class LabelFacade {
         labelCommandService.delete(label);
     }
 
-    public List<LabelSuggestionResponse> createSuggestions(User user) {
+    public List<LabelListResponse> createSuggestions(User user) {
         try {
             Thread.sleep(10000);
         } catch (InterruptedException e) {
@@ -99,30 +97,31 @@ public class LabelFacade {
                 .filter(request -> !labelQueryService.existsSuggestionByUserIdAndName(user.getId(), request.name().trim()))
                 .map(request -> {
                     Label suggestion = labelCommandService.createSuggestion(user, request);
-                    return LabelSuggestionResponse.from(suggestion);
+                    return LabelListResponse.of(suggestion, 0L);
                 })
                 .toList();
     }
 
-    public List<LabelSuggestionResponse> getSuggestions(User user) {
+    public List<LabelListResponse> getSuggestions(User user) {
         return labelQueryService.findAllSuggestionsByUserId(user.getId()).stream()
-                .map(LabelSuggestionResponse::from)
+                .map(label -> LabelListResponse.of(label, 0L))
                 .toList();
     }
 
-    public List<LabelDetailResponse> approveSuggestions(User user, LabelSuggestionApproveRequest request) {
-        validateApproveRequest(request);
-        return request.ids().stream()
-                .map(id -> {
-                    Label suggestion = labelQueryService.findSuggestionByIdAndUserId(id, user.getId());
-                    Label approved = labelCommandService.approveSuggestion(suggestion);
-                    if (approved.getRule() != null) {
-                        pendingJobStore.checkRateLimit(user.getId());
-                        pendingJobStore.mergePendingJob(user.getId(), approved.getId());
-                    }
-                    return LabelDetailResponse.of(approved, approved.getRule());
-                })
-                .toList();
+    public LabelDetailResponse approveSuggestion(User user, UUID suggestionId, LabelCreateRequest request) {
+        validateApprovalRequest(user, suggestionId, request);
+        Label suggestion = labelQueryService.findSuggestionByIdAndUserId(suggestionId, user.getId());
+        Label approved;
+        try {
+            approved = labelCommandService.approveSuggestion(suggestion, request);
+        } catch (DataIntegrityViolationException e) {
+            throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
+        }
+        if (approved.getRule() != null) {
+            pendingJobStore.checkRateLimit(user.getId());
+            pendingJobStore.mergePendingJob(user.getId(), approved.getId());
+        }
+        return LabelDetailResponse.of(approved, approved.getRule());
     }
 
     public void deleteSuggestion(User user, UUID suggestionId) {
@@ -130,10 +129,11 @@ public class LabelFacade {
         labelCommandService.delete(suggestion);
     }
 
-    private void validateApproveRequest(LabelSuggestionApproveRequest request) {
-        if (request.ids() == null || request.ids().isEmpty()) {
-            throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_APPROVE_EMPTY);
+    private void validateApprovalRequest(User user, UUID suggestionId, LabelCreateRequest request) {
+        if (labelQueryService.existsByUserIdAndNameExcludingId(user.getId(), request.name().trim(), suggestionId)) {
+            throw new LabelException(LabelErrorCode.LABEL_NAME_DUPLICATE);
         }
+        labelRuleValidator.validate(request.rule());
     }
 
     private void validateCreateRequest(User user, LabelCreateRequest request) {

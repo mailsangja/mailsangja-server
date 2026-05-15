@@ -6,8 +6,6 @@ import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
-import com.mailsangja.core.dto.label.LabelSuggestionApproveRequest;
-import com.mailsangja.core.dto.label.LabelSuggestionResponse;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
 import com.mailsangja.core.facade.LabelFacade;
 import com.mailsangja.db.entity.user.User;
@@ -87,7 +85,7 @@ public class LabelController implements LabelControllerDocs {
 
     @Override
     @PostMapping("/api/v1/labels/suggestions")
-    public ResponseEntity<List<LabelSuggestionResponse>> createSuggestions(
+    public ResponseEntity<List<LabelListResponse>> createSuggestions(
             @AuthUser User user
     ) {
         return ResponseEntity.ok(labelFacade.createSuggestions(user));
@@ -95,19 +93,20 @@ public class LabelController implements LabelControllerDocs {
 
     @Override
     @GetMapping("/api/v1/labels/suggestions")
-    public ResponseEntity<List<LabelSuggestionResponse>> getSuggestions(
+    public ResponseEntity<List<LabelListResponse>> getSuggestions(
             @AuthUser User user
     ) {
         return ResponseEntity.ok(labelFacade.getSuggestions(user));
     }
 
     @Override
-    @PostMapping("/api/v1/labels/suggestions/approve")
-    public ResponseEntity<List<LabelDetailResponse>> approveSuggestions(
+    @PostMapping("/api/v1/labels/suggestions/{suggestionId}/approve")
+    public ResponseEntity<LabelDetailResponse> approveSuggestion(
             @AuthUser User user,
-            @Valid @RequestBody LabelSuggestionApproveRequest request
+            @PathVariable UUID suggestionId,
+            @Valid @RequestBody LabelCreateRequest request
     ) {
-        return ResponseEntity.ok(labelFacade.approveSuggestions(user, request));
+        return ResponseEntity.ok(labelFacade.approveSuggestion(user, suggestionId, request));
     }
 
     @Override
