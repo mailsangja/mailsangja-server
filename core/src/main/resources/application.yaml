@@ -7,6 +7,49 @@ spring:
       max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
       max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:20MB}
 
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: ${AI_CHAT_PROVIDER:openai}
+      embedding: ${AI_EMBEDDING_PROVIDER:openai}
+      embedding.text: ${AI_EMBEDDING_PROVIDER:openai}
+      image: none
+      moderation: none
+    vectorstore:
+      type: ${AI_VECTORSTORE_TYPE:pgvector}
+      pgvector:
+        table-name: ${AI_PGVECTOR_TABLE_NAME:vector_store}
+        dimensions: ${AI_PGVECTOR_DIMENSIONS:1536}
+        index-type: ${AI_PGVECTOR_INDEX_TYPE:HNSW}
+        distance-type: ${AI_PGVECTOR_DISTANCE_TYPE:COSINE_DISTANCE}
+        id-type: ${AI_PGVECTOR_ID_TYPE:UUID}
+        initialize-schema: ${AI_PGVECTOR_INITIALIZE_SCHEMA:true}
+        remove-existing-vector-store-table: false
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+          dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
+    google:
+      genai:
+        api-key: ${GOOGLE_GENAI_API_KEY:unused-google-genai-api-key}
+        chat:
+          options:
+            model: ${GOOGLE_GENAI_CHAT_MODEL:gemini-2.0-flash}
+        embedding:
+          api-key: ${GOOGLE_GENAI_API_KEY:unused-google-genai-api-key}
+          text:
+            options:
+              model: ${GOOGLE_GENAI_EMBEDDING_MODEL:text-embedding-004}
+              dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -24,7 +67,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     defer-datasource-initialization: true
     show-sql: true
     properties:

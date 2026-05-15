@@ -9,6 +9,7 @@ import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,6 +17,8 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+
+import static org.mockito.Mockito.mock;
 
 @SpringBootTest(classes = CoreApplicationTests.TestApplication.class)
 class CoreApplicationTests {
@@ -51,6 +54,11 @@ class CoreApplicationTests {
         @Bean
         SecurityContextRepository securityContextRepository() {
             return new HttpSessionSecurityContextRepository();
+        }
+
+        @Bean
+        VectorStore vectorStore() {
+            return mock(VectorStore.class);
         }
     }
 

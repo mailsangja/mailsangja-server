@@ -1,4 +1,23 @@
 spring:
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: none
+      embedding: none
+      embedding.text: none
+      image: none
+      moderation: none
+    vectorstore:
+      type: none
+      pgvector:
+        initialize-schema: false
+    google:
+      genai:
+        embedding:
+          api-key: unused-google-genai-api-key
+
   servlet:
     multipart:
       max-file-size: 10MB
@@ -31,6 +50,10 @@ spring:
       configure-action: none
 
 mailsangja:
+  redis:
+    rate-limit:
+      enabled: true
+      monthly-limit: 50
   label:
     debounce:
       debounce-seconds: 60
