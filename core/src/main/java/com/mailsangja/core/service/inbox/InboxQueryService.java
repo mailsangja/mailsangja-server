@@ -10,7 +10,6 @@ import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.port.ContactRepositoryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
-import com.mailsangja.db.dto.MessageLabelView;
 import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.port.ThreadRepositoryPort;
 import lombok.RequiredArgsConstructor;
@@ -88,12 +87,9 @@ public class InboxQueryService {
                 thread.getMailAccount().getUser().getId(),
                 collectEmailsFromMessages(messages)
         );
-        List<UUID> messageIds = messages.stream().map(Message::getId).toList();
-        Map<UUID, List<MessageLabelView>> messageLabelsByMessageId = messageRepositoryPort
-                .findMessageLabelsByMessageIds(messageIds)
-                .stream()
-                .collect(Collectors.groupingBy(MessageLabelView::messageId));
-        return new ThreadDetailResult(thread, messages, contactNameByEmail, messageLabelsByMessageId);
+        List<ThreadMessageLabelView> labels = findLabelsByThreadIds(List.of(thread.getId()))
+                .getOrDefault(thread.getId(), List.of());
+        return new ThreadDetailResult(thread, messages, contactNameByEmail, labels);
     }
 
     public long countUnreadInbox(UUID userId) {

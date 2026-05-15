@@ -22,6 +22,7 @@ public enum LabelErrorCode implements ErrorCode {
     LABEL_RULE_INVALID_BOOLEAN_VALUE(400, "MS-LABEL-RULE-INVALID-BOOLEAN-VALUE", "BOOLEAN operator의 value는 'true' 또는 'false'이어야 합니다."),
     LABEL_RECLASSIFY_INVALID_REQUEST(400, "MS-LABEL-RECLASSIFY-INVALID-REQUEST", "라벨 재분류 요청 값이 올바르지 않습니다."),
     LABEL_RECLASSIFY_INVALID_CONFIG(500, "MS-LABEL-RECLASSIFY-INVALID-CONFIG", "라벨 재분류 설정 값이 올바르지 않습니다."),
+    LABEL_RECLASSIFY_RATE_LIMITED(429, "MS-LABEL-RECLASSIFY-RATE-LIMITED", "라벨 재분류 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     LABEL_GROUP_NOT_FOUND(404, "MS-LABEL-GROUP-NOT-FOUND", "라벨 그룹을 찾을 수 없습니다."),
     LABEL_GROUP_NAME_BLANK(400, "MS-LABEL-GROUP-NAME-BLANK", "라벨 그룹 이름은 비어있을 수 없습니다."),
     LABEL_GROUP_LABELS_EMPTY(400, "MS-LABEL-GROUP-LABELS-EMPTY", "라벨 그룹에는 하나 이상의 라벨이 필요합니다."),
