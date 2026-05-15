@@ -5,6 +5,42 @@ spring:
   application:
     name: worker
 
+  ai:
+    model:
+      audio:
+        speech: none
+        transcription: none
+      chat: none
+      embedding: ${AI_EMBEDDING_PROVIDER:openai}
+      embedding.text: ${AI_EMBEDDING_PROVIDER:openai}
+      image: none
+      moderation: none
+    vectorstore:
+      type: ${AI_VECTORSTORE_TYPE:pgvector}
+      pgvector:
+        table-name: ${AI_PGVECTOR_TABLE_NAME:vector_store}
+        dimensions: ${AI_PGVECTOR_DIMENSIONS:1536}
+        index-type: ${AI_PGVECTOR_INDEX_TYPE:HNSW}
+        distance-type: ${AI_PGVECTOR_DISTANCE_TYPE:COSINE_DISTANCE}
+        id-type: ${AI_PGVECTOR_ID_TYPE:UUID}
+        initialize-schema: ${AI_PGVECTOR_INITIALIZE_SCHEMA:true}
+        remove-existing-vector-store-table: false
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+          dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
+    google:
+      genai:
+        embedding:
+          api-key: ${GOOGLE_GENAI_API_KEY:unused-google-genai-api-key}
+          text:
+            options:
+              model: ${GOOGLE_GENAI_EMBEDDING_MODEL:text-embedding-004}
+              dimensions: ${AI_EMBEDDING_DIMENSIONS:1536}
+
   config:
     import: "classpath:application-mq.yaml"
 
@@ -39,6 +75,10 @@ scalar:
   page-title: MailSangja Worker API Reference
 
 mailsangja:
+  ai:
+    embedding:
+      metadata-hash:
+        secret: ${AI_METADATA_HASH_SECRET:}
   gmail:
     watch-renewal:
       enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}
