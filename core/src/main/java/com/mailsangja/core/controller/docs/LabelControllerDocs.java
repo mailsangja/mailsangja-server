@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -72,7 +73,7 @@ public interface LabelControllerDocs {
     })
     ResponseEntity<LabelDetailResponse> createLabel(
             @Parameter(hidden = true) @AuthUser User user,
-            @RequestBody LabelCreateRequest request
+            @Valid @RequestBody LabelCreateRequest request
     );
 
     @Operation(
@@ -183,7 +184,7 @@ public interface LabelControllerDocs {
     ResponseEntity<LabelDetailResponse> approveSuggestion(
             @Parameter(hidden = true) @AuthUser User user,
             @Parameter(description = "라벨 제안 ID", required = true) @PathVariable UUID suggestionId,
-            @RequestBody LabelCreateRequest request
+            @Valid @RequestBody LabelCreateRequest request
     );
 
     @Operation(
