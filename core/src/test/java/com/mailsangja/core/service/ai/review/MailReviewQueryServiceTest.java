@@ -26,7 +26,9 @@ class MailReviewQueryServiceTest {
         MailReviewCommand command = new MailReviewCommand(
                 UUID.randomUUID(),
                 "회의 일정 확입 요청",
-                "안녕하새요.\n  내일 회의 가능하신지 확인 부탁드림니다.\n"
+                "안녕하새요.\n  내일 회의 가능하신지 확인 부탁드림니다.\n",
+                0,
+                List.of()
         );
 
         // when
