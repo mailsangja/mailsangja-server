@@ -4,6 +4,7 @@ import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.facade.MailFacade;
 import com.mailsangja.core.facade.MailDraftFacade;
+import com.mailsangja.core.facade.MailReviewFacade;
 import com.mailsangja.db.entity.user.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ class MailControllerTest {
         // given
         MailFacade mailFacade = mock(MailFacade.class);
         MailDraftFacade mailDraftFacade = mock(MailDraftFacade.class);
-        MailController controller = new MailController(mailFacade, mailDraftFacade);
+        MailController controller = new MailController(mailFacade, mailDraftFacade, mock(MailReviewFacade.class));
         User user = User.builder().id(UUID.randomUUID()).build();
         MailSendRequest request = new MailSendRequest(
                 "\"Sender\" <sender@example.com>",
@@ -53,7 +54,7 @@ class MailControllerTest {
         // given
         MailFacade mailFacade = mock(MailFacade.class);
         MailDraftFacade mailDraftFacade = mock(MailDraftFacade.class);
-        MailController controller = new MailController(mailFacade, mailDraftFacade);
+        MailController controller = new MailController(mailFacade, mailDraftFacade, mock(MailReviewFacade.class));
         User user = User.builder().id(UUID.randomUUID()).build();
         UUID messageId = UUID.randomUUID();
         MailSendRequest request = new MailSendRequest(
@@ -80,7 +81,7 @@ class MailControllerTest {
         // given
         MailFacade mailFacade = mock(MailFacade.class);
         MailDraftFacade mailDraftFacade = mock(MailDraftFacade.class);
-        MailController controller = new MailController(mailFacade, mailDraftFacade);
+        MailController controller = new MailController(mailFacade, mailDraftFacade, mock(MailReviewFacade.class));
         User user = User.builder().id(UUID.randomUUID()).build();
         MailDraftStreamRequest request = new MailDraftStreamRequest(
                 "sender@example.com",
