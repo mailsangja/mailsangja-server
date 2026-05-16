@@ -81,7 +81,7 @@ public interface MailControllerDocs {
 
     @Operation(
             summary = "AI 메일 전송 전 검토",
-            description = "메일 제목과 본문을 segment 단위로 나누어 AI가 맞춤법, 띄어쓰기, 문맥, 톤 문제를 검토하고 적용 가능한 수정 후보와 위치 정보를 반환합니다.",
+            description = "메일 제목과 본문을 segment 단위로 나누어 AI가 맞춤법, 띄어쓰기, 문맥, 톤, 첨부파일 누락 문제를 검토하고 적용 가능한 수정 후보와 위치 정보를 반환합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({

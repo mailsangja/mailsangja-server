@@ -54,13 +54,141 @@ class MailReviewCommandServiceTest {
         );
 
         // when
-        MailReviewResult result = service.review(new MailReviewCommand(userId, "회의 일정 확입 요청", ""));
+        MailReviewResult result = service.review(new MailReviewCommand(userId, "회의 일정 확입 요청", "", 0, List.of()));
 
         // then
         assertEquals(1, result.issues().size());
         assertEquals(MailReviewIssueType.SPELLING, result.issues().getFirst().type());
         assertEquals(6, result.issues().getFirst().globalStartOffset());
         assertEquals("확인", result.issues().getFirst().replacementText());
+    }
+
+    @Test
+    void 첨부를언급했지만첨부파일이없으면첨부누락이슈를반환한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
+        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        ChatModel chatModel = chatModel("""
+                {
+                  "issues": [
+                    {
+                      "segmentId": "BODY:000:7a0427592046ec48",
+                      "type": "ATTACHMENT_MISSING",
+                      "severity": "HIGH",
+                      "originalText": "자료를 첨부드립니다",
+                      "replacementText": "첨부파일을 추가해 주세요",
+                      "contextBefore": "요청하신 ",
+                      "contextAfter": ".",
+                      "reason": "본문에서 첨부를 언급했지만 첨부파일이 없습니다."
+                    }
+                  ]
+                }
+                """);
+        MailReviewCommandService service = new MailReviewCommandService(
+                cachePort,
+                chatModelProvider(chatModel),
+                new ObjectMapper(),
+                new MailReviewQueryService()
+        );
+
+        // when
+        MailReviewResult result = service.review(new MailReviewCommand(
+                userId,
+                "",
+                "요청하신 자료를 첨부드립니다.",
+                0,
+                List.of()
+        ));
+
+        // then
+        assertEquals(1, result.issues().size());
+        assertEquals(MailReviewIssueType.ATTACHMENT_MISSING, result.issues().getFirst().type());
+    }
+
+    @Test
+    void 첨부파일이있으면llm의첨부누락이슈를폐기한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
+        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        ChatModel chatModel = chatModel("""
+                {
+                  "issues": [
+                    {
+                      "segmentId": "BODY:000:7a0427592046ec48",
+                      "type": "ATTACHMENT_MISSING",
+                      "severity": "HIGH",
+                      "originalText": "자료를 첨부드립니다",
+                      "replacementText": "첨부파일을 추가해 주세요",
+                      "contextBefore": "요청하신 ",
+                      "contextAfter": ".",
+                      "reason": "본문에서 첨부를 언급했지만 첨부파일이 없습니다."
+                    }
+                  ]
+                }
+                """);
+        MailReviewCommandService service = new MailReviewCommandService(
+                cachePort,
+                chatModelProvider(chatModel),
+                new ObjectMapper(),
+                new MailReviewQueryService()
+        );
+
+        // when
+        MailReviewResult result = service.review(new MailReviewCommand(
+                userId,
+                "",
+                "요청하신 자료를 첨부드립니다.",
+                1,
+                List.of("자료.pdf")
+        ));
+
+        // then
+        assertEquals(0, result.issues().size());
+    }
+
+    @Test
+    void replacementText가빈문자열인삭제제안도파싱하고반환한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
+        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        ChatModel chatModel = chatModel("""
+                {
+                  "issues": [
+                    {
+                      "segmentId": "BODY:000:7103778b4ffb3901",
+                      "type": "SPELLING",
+                      "severity": "MEDIUM",
+                      "originalText": "ㅜ",
+                      "replacementText": "",
+                      "contextBefore": "제",
+                      "contextAfter": " 이름은",
+                      "reason": "불필요한 자음이 포함되어 있습니다."
+                    }
+                  ]
+                }
+                """);
+        MailReviewCommandService service = new MailReviewCommandService(
+                cachePort,
+                chatModelProvider(chatModel),
+                new ObjectMapper(),
+                new MailReviewQueryService()
+        );
+
+        // when
+        MailReviewResult result = service.review(new MailReviewCommand(
+                userId,
+                "",
+                "제ㅜ 이름은 천진강입니다.",
+                0,
+                List.of()
+        ));
+
+        // then
+        assertEquals(1, result.issues().size());
+        assertEquals("", result.issues().getFirst().replacementText());
     }
 
     @SuppressWarnings("unchecked")

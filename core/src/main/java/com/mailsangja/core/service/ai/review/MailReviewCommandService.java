@@ -8,6 +8,7 @@ import com.mailsangja.core.dto.mail.LlmMailReviewRequest;
 import com.mailsangja.core.dto.mail.LlmMailReviewResult;
 import com.mailsangja.core.dto.mail.MailReviewCommand;
 import com.mailsangja.core.dto.mail.MailReviewIssueResult;
+import com.mailsangja.core.dto.mail.MailReviewIssueType;
 import com.mailsangja.core.dto.mail.MailReviewResult;
 import com.mailsangja.core.dto.mail.MailReviewSegment;
 import com.mailsangja.db.port.MailReviewRateLimitCachePort;
@@ -39,9 +40,15 @@ public class MailReviewCommandService {
             Do not invent facts, promises, schedules, attachments, names, links, or email addresses.
             Do not rewrite the whole email. Return only minimal replacement candidates.
             Each issue.originalText must be an exact contiguous substring of the matching segment.text.
+            replacementText may be an empty string only when the correct fix is to delete originalText.
             Prefer contextBefore and contextAfter when originalText may appear multiple times.
+            contextBefore and contextAfter must be exact substrings from the original segment.text, not from a corrected version.
             Do not calculate offsets.
             Do not modify URLs, email addresses, code, quoted text, or identifiers unless they are obvious prose typos.
+            Use metadata.attachmentCount and metadata.attachmentNames only to detect missing attachments.
+            If the email implies that files are attached, but metadata.attachmentCount is 0, return an ATTACHMENT_MISSING issue.
+            For ATTACHMENT_MISSING, originalText must be the exact phrase in the segment that implies an attachment.
+            Do not report ATTACHMENT_MISSING when the text clearly says files are unnecessary, omitted intentionally, or will be sent later.
             Return JSON only. Do not wrap it in markdown.
             If there is no issue, return {"issues":[]}.
             """;
@@ -57,12 +64,12 @@ public class MailReviewCommandService {
         if (segments.isEmpty()) {
             return new MailReviewResult(List.of());
         }
-        LlmMailReviewResult llmResult = requestReview(segments);
+        LlmMailReviewResult llmResult = requestReview(command, segments);
         List<MailReviewIssueResult> issues = mailReviewQueryService.verifyIssues(
                 llmResult.issues(),
                 mailReviewQueryService.toSegmentMap(segments)
         );
-        return new MailReviewResult(issues);
+        return new MailReviewResult(filterAttachmentIssues(command, issues));
     }
 
     private void validateMonthlyRateLimit(MailReviewCommand command) {
@@ -71,11 +78,11 @@ public class MailReviewCommandService {
         }
     }
 
-    private LlmMailReviewResult requestReview(List<MailReviewSegment> segments) {
+    private LlmMailReviewResult requestReview(MailReviewCommand command, List<MailReviewSegment> segments) {
         StructuredOutputConverter<LlmMailReviewResult> converter = new BeanOutputConverter<>(LlmMailReviewResult.class);
         try {
             return ChatClient.create(chatModel())
-                    .prompt(createPrompt(segments, converter))
+                    .prompt(createPrompt(command, segments, converter))
                     .call()
                     .entity(converter);
         } catch (RuntimeException e) {
@@ -84,13 +91,23 @@ public class MailReviewCommandService {
         }
     }
 
-    private Prompt createPrompt(List<MailReviewSegment> segments,
+    private Prompt createPrompt(MailReviewCommand command,
+                                List<MailReviewSegment> segments,
                                 StructuredOutputConverter<LlmMailReviewResult> converter) {
         List<Message> messages = List.of(
                 new SystemMessage(SYSTEM_PROMPT + "\n" + converter.getFormat()),
-                new UserMessage(toJson(LlmMailReviewRequest.from(segments)))
+                new UserMessage(toJson(LlmMailReviewRequest.of(command, segments)))
         );
         return new Prompt(messages);
+    }
+
+    private List<MailReviewIssueResult> filterAttachmentIssues(MailReviewCommand command, List<MailReviewIssueResult> issues) {
+        if (!command.hasAttachments()) {
+            return issues;
+        }
+        return issues.stream()
+                .filter(issue -> issue.type() != MailReviewIssueType.ATTACHMENT_MISSING)
+                .toList();
     }
 
     private String toJson(LlmMailReviewRequest request) {

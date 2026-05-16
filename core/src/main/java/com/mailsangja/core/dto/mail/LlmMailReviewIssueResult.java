@@ -15,10 +15,9 @@ public record LlmMailReviewIssueResult(
 ) {
 
     public LlmMailReviewIssueResult {
-        if (segmentId == null || segmentId.isBlank() || originalText == null || originalText.isBlank()
-                || replacementText == null || replacementText.isBlank()) {
-            throw new MailReviewException(MailReviewErrorCode.AI_RESPONSE_INVALID);
-        }
+        segmentId = nullToEmpty(segmentId);
+        originalText = nullToEmpty(originalText);
+        replacementText = nullToEmpty(replacementText);
         type = type == null ? MailReviewIssueType.CONTEXT : type;
         severity = severity == null ? MailReviewSeverity.LOW : severity;
         contextBefore = nullToEmpty(contextBefore);

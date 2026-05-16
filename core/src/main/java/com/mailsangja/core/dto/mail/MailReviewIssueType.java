@@ -6,5 +6,6 @@ public enum MailReviewIssueType {
     GRAMMAR,
     CONTEXT,
     TONE,
-    CLARITY
+    CLARITY,
+    ATTACHMENT_MISSING
 }
