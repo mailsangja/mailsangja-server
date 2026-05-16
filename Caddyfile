@@ -3,8 +3,6 @@
 }
 
 {$API_DOMAIN} {
-	encode
-
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
@@ -15,5 +13,17 @@
 	# @docs path /swagger-ui* /v3/api-docs* /scalar*
 	# respond @docs 404
 
-	reverse_proxy core:8080
+	@sse path /api/v1/mail/drafts/stream
+	handle @sse {
+		reverse_proxy core:8080 {
+			flush_interval -1
+			header_down Cache-Control "no-cache"
+			header_down X-Accel-Buffering "no"
+		}
+	}
+
+	handle {
+		encode
+		reverse_proxy core:8080
+	}
 }
