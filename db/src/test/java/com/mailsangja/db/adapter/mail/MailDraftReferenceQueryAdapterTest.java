@@ -17,6 +17,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class MailDraftReferenceQueryAdapterTest {
 
     @Test
+    void 최근작성메일은요청계정Id로결과를만들어ThreadLazy로딩을피한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        Message message = createMessageWithoutThread(messageId);
+        MailDraftReferenceQueryAdapter adapter = createRecentAdapter(message);
+
+        // when
+        List<MailDraftReferenceMessageResult> results = adapter.findRecentWrittenMessages(
+                UUID.randomUUID(), mailAccountId, 4
+        );
+
+        // then
+        assertEquals(mailAccountId, results.getFirst().mailAccountId());
+    }
+
+    @Test
     void bodyText가없으면Html을텍스트로변환한다() {
         // given
         UUID messageId = UUID.randomUUID();
@@ -39,6 +56,22 @@ class MailDraftReferenceQueryAdapterTest {
         return new MailDraftReferenceQueryAdapter(module);
     }
 
+    private MailDraftReferenceQueryAdapter createRecentAdapter(Message message) {
+        MessageJpaRepositoryModule module = (MessageJpaRepositoryModule) Proxy.newProxyInstance(
+                MessageJpaRepositoryModule.class.getClassLoader(),
+                new Class<?>[]{MessageJpaRepositoryModule.class},
+                (proxy, method, args) -> findRecentByUserIdAndMailAccountIdAndDirection(method.getName(), message)
+        );
+        return new MailDraftReferenceQueryAdapter(module);
+    }
+
+    private Object findRecentByUserIdAndMailAccountIdAndDirection(String methodName, Message message) {
+        if ("findRecentByUserIdAndMailAccountIdAndDirection".equals(methodName)) {
+            return List.of(message);
+        }
+        throw new UnsupportedOperationException(methodName);
+    }
+
     private Object findActiveByIdIn(String methodName, Message message) {
         if ("findActiveByIdIn".equals(methodName)) {
             return List.of(message);
@@ -55,6 +88,17 @@ class MailDraftReferenceQueryAdapterTest {
                 .subject("subject")
                 .fromAddress("from@example.com")
                 .bodyHtml("<p>문의 <span>user</span>@example.com</p><p>감사합니다.</p>")
+                .build();
+    }
+
+    private Message createMessageWithoutThread(UUID messageId) {
+        return Message.builder()
+                .id(messageId)
+                .gmailMessageId("gmail-message-id")
+                .direction(Direction.OUTBOUND)
+                .subject("subject")
+                .fromAddress("from@example.com")
+                .bodyText("body")
                 .build();
     }
 

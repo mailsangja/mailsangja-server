@@ -25,7 +25,7 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
         List<Message> messages = messageJpaRepositoryModule.findRecentByUserIdAndMailAccountIdAndDirection(
                 userId, mailAccountId, Direction.OUTBOUND, PageRequest.of(0, limit)
         );
-        return toResults(messages);
+        return toResults(messages, mailAccountId);
     }
 
     @Override
@@ -34,7 +34,7 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
         if (hints == null || hints.isEmpty()) {
             return List.of();
         }
-        return toResults(findHintMessages(userId, mailAccountId, hints, limit));
+        return toResults(findHintMessages(userId, mailAccountId, hints, limit), mailAccountId);
     }
 
     @Override
@@ -96,10 +96,26 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
                 .toList();
     }
 
+    private List<MailDraftReferenceMessageResult> toResults(List<Message> messages, UUID mailAccountId) {
+        return messages.stream()
+                .map(message -> toResult(message, mailAccountId))
+                .toList();
+    }
+
     private MailDraftReferenceMessageResult toResult(Message message) {
         return new MailDraftReferenceMessageResult(
                 message.getId(),
                 message.getThread().getMailAccount().getId(),
+                message.getDirection(),
+                message.getSubject(),
+                bodyOf(message)
+        );
+    }
+
+    private MailDraftReferenceMessageResult toResult(Message message, UUID mailAccountId) {
+        return new MailDraftReferenceMessageResult(
+                message.getId(),
+                mailAccountId,
                 message.getDirection(),
                 message.getSubject(),
                 bodyOf(message)
