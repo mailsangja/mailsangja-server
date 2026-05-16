@@ -2,6 +2,8 @@ package com.mailsangja.core.controller.docs;
 
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
+import com.mailsangja.core.dto.mail.MailReviewRequest;
+import com.mailsangja.core.dto.mail.MailReviewResponse;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,6 +77,43 @@ public interface MailControllerDocs {
             @Parameter(hidden = true) @AuthUser User user,
             @RequestBody(description = "AI 메일 초안 스트리밍 요청", required = true)
             MailDraftStreamRequest request
+    );
+
+    @Operation(
+            summary = "AI 메일 전송 전 검토",
+            description = "메일 제목과 본문을 segment 단위로 나누어 AI가 맞춤법, 띄어쓰기, 문맥, 톤, 첨부파일 누락 문제를 검토하고 적용 가능한 수정 후보와 위치 정보를 반환합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "메일 검토 성공"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "메일 검토 요청 형식 오류",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "429",
+                    description = "월간 AI 사용 한도 초과",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "502",
+                    description = "AI 응답 형식 오류",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "AI 모델 사용 불가",
+                    content = @Content(schema = @Schema(hidden = true))
+            )
+    })
+    ResponseEntity<MailReviewResponse> reviewMail(
+            @Parameter(hidden = true) @AuthUser User user,
+            @RequestBody(description = "AI 메일 전송 전 검토 요청", required = true)
+            MailReviewRequest request
     );
 
     @Operation(

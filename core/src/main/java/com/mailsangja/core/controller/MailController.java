@@ -4,9 +4,12 @@ import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.MailControllerDocs;
 import com.mailsangja.core.dto.mail.MailAttachmentDownloadResult;
 import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
+import com.mailsangja.core.dto.mail.MailReviewRequest;
+import com.mailsangja.core.dto.mail.MailReviewResponse;
 import com.mailsangja.core.dto.mail.MailSendRequest;
 import com.mailsangja.core.facade.MailDraftFacade;
 import com.mailsangja.core.facade.MailFacade;
+import com.mailsangja.core.facade.MailReviewFacade;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -33,6 +36,7 @@ public class MailController implements MailControllerDocs {
 
     private final MailFacade mailFacade;
     private final MailDraftFacade mailDraftFacade;
+    private final MailReviewFacade mailReviewFacade;
 
     @Override
     @PostMapping(value = "/api/v1/mail/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -60,6 +64,15 @@ public class MailController implements MailControllerDocs {
                 .cacheControl(CacheControl.noCache())
                 .contentType(MediaType.TEXT_EVENT_STREAM)
                 .body(emitter);
+    }
+
+    @Override
+    @PostMapping("/api/v1/mail/reviews")
+    public ResponseEntity<MailReviewResponse> reviewMail(
+            @AuthUser User user,
+            @RequestBody MailReviewRequest request
+    ) {
+        return ResponseEntity.ok(mailReviewFacade.review(user, request));
     }
 
     @Override

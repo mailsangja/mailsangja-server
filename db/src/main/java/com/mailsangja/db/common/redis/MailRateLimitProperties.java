@@ -9,8 +9,9 @@ import org.springframework.stereotype.Component;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "mailsangja.redis.rate-limit")
-public class MailDraftRateLimitProperties {
+public class MailRateLimitProperties {
 
     private boolean enabled;
     private long monthlyLimit = 50L;
+    private long reviewMonthlyLimit = 50L;
 }
