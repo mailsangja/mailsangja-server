@@ -41,18 +41,20 @@ public class MailReviewQueryService {
                                                     Map<String, MailReviewSegment> segmentsById) {
         List<MailReviewIssueResult> verified = new ArrayList<>();
         for (LlmMailReviewIssueResult issue : issues) {
-            if (issue.segmentId().isBlank() || issue.originalText().isBlank()) {
+            String segmentId = text(issue.segmentId());
+            String originalText = text(issue.originalText());
+            if (segmentId.isBlank() || originalText.isBlank()) {
                 continue;
             }
-            MailReviewSegment segment = segmentsById.get(issue.segmentId());
+            MailReviewSegment segment = segmentsById.get(segmentId);
             if (segment == null) {
                 continue;
             }
-            Match match = findMatch(segment.text(), issue);
+            Match match = findMatch(segment.text(), originalText, issue);
             if (match == null) {
                 continue;
             }
-            verified.add(toResult(issue, segment, match));
+            verified.add(toResult(issue, segment, match, segmentId, originalText));
         }
         return List.copyOf(removeOverlaps(verified));
     }
@@ -133,28 +135,33 @@ public class MailReviewQueryService {
         }
     }
 
-    private Match findMatch(String segmentText, LlmMailReviewIssueResult issue) {
-        Match contextMatch = findByContext(segmentText, issue);
+    private Match findMatch(String segmentText, String originalText, LlmMailReviewIssueResult issue) {
+        Match contextMatch = findByContext(segmentText, originalText, issue);
         if (contextMatch != null) {
             return contextMatch;
         }
-        return findUnique(segmentText, issue.originalText());
+        return findUnique(segmentText, originalText);
     }
 
-    private Match findByContext(String segmentText, LlmMailReviewIssueResult issue) {
-        if (issue.contextBefore().isBlank() && issue.contextAfter().isBlank()) {
+    private Match findByContext(String segmentText, String originalText, LlmMailReviewIssueResult issue) {
+        String contextBefore = text(issue.contextBefore());
+        String contextAfter = text(issue.contextAfter());
+        if (contextBefore.isBlank() && contextAfter.isBlank()) {
             return null;
         }
-        String target = issue.contextBefore() + issue.originalText() + issue.contextAfter();
+        String target = contextBefore + originalText + contextAfter;
         Match match = findUnique(segmentText, target);
         if (match == null) {
             return null;
         }
-        int startOffset = match.startOffset() + issue.contextBefore().length();
-        return new Match(startOffset, startOffset + issue.originalText().length());
+        int startOffset = match.startOffset() + contextBefore.length();
+        return new Match(startOffset, startOffset + originalText.length());
     }
 
     private Match findUnique(String text, String target) {
+        if (target == null || target.isEmpty()) {
+            return null;
+        }
         int first = text.indexOf(target);
         if (first < 0) {
             return null;
@@ -166,21 +173,32 @@ public class MailReviewQueryService {
         return new Match(first, first + target.length());
     }
 
-    private MailReviewIssueResult toResult(LlmMailReviewIssueResult issue, MailReviewSegment segment, Match match) {
+    private MailReviewIssueResult toResult(LlmMailReviewIssueResult issue,
+                                           MailReviewSegment segment,
+                                           Match match,
+                                           String segmentId,
+                                           String originalText) {
         return new MailReviewIssueResult(
-                issue.segmentId(),
+                segmentId,
                 segment.field(),
                 issue.type(),
                 issue.severity(),
                 segment.text(),
-                issue.originalText(),
-                issue.replacementText(),
+                originalText,
+                text(issue.replacementText()),
                 match.startOffset(),
                 match.endOffset(),
                 segment.globalStartOffset() + match.startOffset(),
                 segment.globalStartOffset() + match.endOffset(),
-                issue.reason()
+                text(issue.reason())
         );
+    }
+
+    private String text(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value;
     }
 
     private List<MailReviewIssueResult> removeOverlaps(List<MailReviewIssueResult> issues) {

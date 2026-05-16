@@ -1,6 +1,6 @@
 package com.mailsangja.db.adapter.redis;
 
-import com.mailsangja.db.common.redis.MailDraftRateLimitProperties;
+import com.mailsangja.db.common.redis.MailRateLimitProperties;
 import com.mailsangja.db.port.MailReviewRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -23,7 +23,7 @@ public class MailReviewRateLimitCacheAdapter implements MailReviewRateLimitCache
     private static final String KEY_PREFIX = "MailReview:rate:month:";
 
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider;
-    private final MailDraftRateLimitProperties properties;
+    private final MailRateLimitProperties properties;
 
     @Override
     public boolean tryConsumeMonthlyLimit(UUID userId) {

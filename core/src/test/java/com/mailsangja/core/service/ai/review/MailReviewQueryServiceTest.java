@@ -15,6 +15,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class MailReviewQueryServiceTest {
 
@@ -105,5 +107,59 @@ class MailReviewQueryServiceTest {
 
         // then
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void 필수필드가null이면후보를버린다() {
+        // given
+        MailReviewSegment segment = new MailReviewSegment(
+                "BODY:000:hash",
+                MailReviewField.BODY,
+                0,
+                "hash",
+                "안뇽하세요.",
+                0,
+                6
+        );
+        LlmMailReviewIssueResult issue = mock(LlmMailReviewIssueResult.class);
+        when(issue.segmentId()).thenReturn(null);
+        when(issue.originalText()).thenReturn("안뇽");
+
+        // when
+        List<MailReviewIssueResult> result = service.verifyIssues(List.of(issue), Map.of(segment.segmentId(), segment));
+
+        // then
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void context필드가null이면context없이원문으로검증한다() {
+        // given
+        MailReviewSegment segment = new MailReviewSegment(
+                "BODY:000:hash",
+                MailReviewField.BODY,
+                0,
+                "hash",
+                "안뇽하세요.",
+                0,
+                6
+        );
+        LlmMailReviewIssueResult issue = mock(LlmMailReviewIssueResult.class);
+        when(issue.segmentId()).thenReturn("BODY:000:hash");
+        when(issue.originalText()).thenReturn("안뇽");
+        when(issue.replacementText()).thenReturn("안녕");
+        when(issue.contextBefore()).thenReturn(null);
+        when(issue.contextAfter()).thenReturn(null);
+        when(issue.reason()).thenReturn("오타입니다.");
+        when(issue.type()).thenReturn(MailReviewIssueType.SPELLING);
+        when(issue.severity()).thenReturn(MailReviewSeverity.LOW);
+
+        // when
+        List<MailReviewIssueResult> result = service.verifyIssues(List.of(issue), Map.of(segment.segmentId(), segment));
+
+        // then
+        assertEquals(1, result.size());
+        assertEquals(0, result.getFirst().localStartOffset());
+        assertEquals(2, result.getFirst().localEndOffset());
     }
 }

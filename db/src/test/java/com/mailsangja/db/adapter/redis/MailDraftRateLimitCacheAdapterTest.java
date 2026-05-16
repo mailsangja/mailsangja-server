@@ -1,6 +1,6 @@
 package com.mailsangja.db.adapter.redis;
 
-import com.mailsangja.db.common.redis.MailDraftRateLimitProperties;
+import com.mailsangja.db.common.redis.MailRateLimitProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -37,7 +37,7 @@ class MailDraftRateLimitCacheAdapterTest {
     }
 
     private RedisFixture createFixture(long monthlyLimit, long incrementedCount) {
-        MailDraftRateLimitProperties properties = new MailDraftRateLimitProperties();
+        MailRateLimitProperties properties = new MailRateLimitProperties();
         properties.setMonthlyLimit(monthlyLimit);
         StringRedisTemplate template = mock(StringRedisTemplate.class);
         ValueOperations<String, String> operations = mock(ValueOperations.class);

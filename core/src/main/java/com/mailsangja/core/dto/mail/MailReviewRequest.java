@@ -19,10 +19,10 @@ public record MailReviewRequest(
         subject = nullToEmpty(subject);
         body = nullToEmpty(body);
         attachmentNames = normalizeAttachmentNames(attachmentNames);
+        attachmentCount = normalizeAttachmentCount(attachmentCount, attachmentNames);
         validateNotBlank(subject, body);
         validateLength(subject, MAX_SUBJECT_LENGTH);
         validateLength(body, MAX_BODY_LENGTH);
-        validateAttachmentCount(attachmentCount);
     }
 
     private static void validateNotBlank(String subject, String body) {
@@ -41,6 +41,14 @@ public record MailReviewRequest(
         if (attachmentCount < 0) {
             throw new MailReviewException(MailReviewErrorCode.INVALID_REQUEST);
         }
+    }
+
+    private static int normalizeAttachmentCount(int attachmentCount, List<String> attachmentNames) {
+        validateAttachmentCount(attachmentCount);
+        if (attachmentCount == 0 && !attachmentNames.isEmpty()) {
+            return attachmentNames.size();
+        }
+        return attachmentCount;
     }
 
     private static String nullToEmpty(String value) {
