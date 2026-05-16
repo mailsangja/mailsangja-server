@@ -3,17 +3,19 @@ package com.mailsangja.core.facade;
 import com.mailsangja.core.common.exception.label.LabelErrorCode;
 import com.mailsangja.core.common.exception.label.LabelException;
 import com.mailsangja.core.common.util.LabelRuleValidator;
-import com.mailsangja.core.common.util.LabelSuggestionLoader;
 import com.mailsangja.core.dto.label.LabelCreateRequest;
 import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
+import com.mailsangja.core.dto.label.LlmLabelSuggestionResult;
+import com.mailsangja.core.service.ai.label.LabelSuggestionAiService;
 import com.mailsangja.core.service.label.LabelCommandService;
 import com.mailsangja.core.service.label.LabelQueryService;
 import com.mailsangja.core.service.label.LabelReclassifyPendingJobStore;
 import com.mailsangja.db.entity.label.Label;
 import com.mailsangja.db.entity.user.User;
+import com.mailsangja.db.port.LabelSuggestionRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
@@ -30,7 +32,8 @@ public class LabelFacade {
     private final LabelCommandService labelCommandService;
     private final LabelReclassifyPendingJobStore pendingJobStore;
     private final LabelRuleValidator labelRuleValidator;
-    private final LabelSuggestionLoader labelSuggestionLoader;
+    private final LabelSuggestionAiService labelSuggestionAiService;
+    private final LabelSuggestionRateLimitCachePort suggestionRateLimitCachePort;
 
     public List<LabelListResponse> getLabels(User user) {
         List<Label> labels = labelQueryService.findAllActiveByUserId(user.getId());
@@ -87,19 +90,23 @@ public class LabelFacade {
     }
 
     public List<LabelListResponse> createSuggestions(User user) {
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        List<LabelCreateRequest> suggestions = labelSuggestionLoader.load();
-        return suggestions.stream()
+        validateSuggestionRateLimit(user.getId());
+        List<Label> existingLabels = labelQueryService.findAllActiveByUserId(user.getId());
+        LlmLabelSuggestionResult result = labelSuggestionAiService.suggest(user.getId(), existingLabels);
+        return result.suggestions().stream()
+                .map(item -> new LabelCreateRequest(item.name(), item.colorCode(), item.notificationPolicy(), item.order(), item.rule()))
                 .filter(request -> !labelQueryService.existsSuggestionByUserIdAndName(user.getId(), request.name().trim()))
                 .map(request -> {
                     Label suggestion = labelCommandService.createSuggestion(user, request);
                     return LabelListResponse.of(suggestion, 0L);
                 })
                 .toList();
+    }
+
+    private void validateSuggestionRateLimit(UUID userId) {
+        if (!suggestionRateLimitCachePort.tryConsumeMonthlyLimit(userId)) {
+            throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED);
+        }
     }
 
     public List<LabelListResponse> getSuggestions(User user) {

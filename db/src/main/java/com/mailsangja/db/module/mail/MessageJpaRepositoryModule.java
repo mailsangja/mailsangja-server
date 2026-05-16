@@ -392,6 +392,21 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             Pageable pageable
     );
 
+    @Query("""
+            SELECT m FROM Message m
+            WHERE m.thread.mailAccount.user.id = :userId
+              AND m.direction = :direction
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
+            ORDER BY m.sentAt DESC, m.id DESC
+            """)
+    List<Message> findRecentByUserIdAndDirection(
+            @Param("userId") UUID userId,
+            @Param("direction") Direction direction,
+            Pageable pageable
+    );
+
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
     @Query("""
             SELECT m

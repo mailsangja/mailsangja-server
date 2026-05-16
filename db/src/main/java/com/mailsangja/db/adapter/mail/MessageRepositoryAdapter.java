@@ -1,5 +1,6 @@
 package com.mailsangja.db.adapter.mail;
 
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
 import com.mailsangja.db.dto.MessageLabelView;
@@ -234,5 +235,10 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
             return List.of();
         }
         return messageJpaRepositoryModule.findActiveMessagesWithLabelsByThreadIdIn(threadIds);
+    }
+
+    @Override
+    public List<Message> findRecentByUserIdAndDirection(UUID userId, Direction direction, Pageable pageable) {
+        return messageJpaRepositoryModule.findRecentByUserIdAndDirection(userId, direction, pageable);
     }
 }
