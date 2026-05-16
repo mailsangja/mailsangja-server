@@ -9,6 +9,7 @@ import com.mailsangja.core.facade.MailDraftFacade;
 import com.mailsangja.core.facade.MailFacade;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.InvalidMediaTypeException;
@@ -49,13 +50,16 @@ public class MailController implements MailControllerDocs {
     }
 
     @Override
-    @PostMapping("/api/v1/mail/drafts/stream")
+    @PostMapping(value = "/api/v1/mail/drafts/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<SseEmitter> streamDraft(
             @AuthUser User user,
             @RequestBody MailDraftStreamRequest request
     ) {
         SseEmitter emitter = mailDraftFacade.streamDraft(user, request);
-        return ResponseEntity.ok(emitter);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(emitter);
     }
 
     @Override
