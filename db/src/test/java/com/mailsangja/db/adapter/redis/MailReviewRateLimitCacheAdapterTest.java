@@ -15,35 +15,35 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class MailDraftRateLimitCacheAdapterTest {
+class MailReviewRateLimitCacheAdapterTest {
 
     @Test
-    void tryConsumeMonthlyLimit_증가된카운트가설정값이하이면true를반환한다() {
-        RedisFixture fixture = createFixture(50L, 50L);
+    void tryConsumeMonthlyLimit_증가된카운트가review설정값이하이면true를반환한다() {
+        RedisFixture fixture = createFixture(10L, 10L);
 
         boolean result = fixture.adapter().tryConsumeMonthlyLimit(UUID.randomUUID());
 
         assertTrue(result);
-        verify(fixture.operations()).increment(startsWith("MailDraft:rate:month:"));
+        verify(fixture.operations()).increment(startsWith("MailReview:rate:month:"));
     }
 
     @Test
-    void tryConsumeMonthlyLimit_증가된카운트가설정값을초과하면false를반환한다() {
-        RedisFixture fixture = createFixture(50L, 51L);
+    void tryConsumeMonthlyLimit_증가된카운트가review설정값을초과하면false를반환한다() {
+        RedisFixture fixture = createFixture(10L, 11L);
 
         boolean result = fixture.adapter().tryConsumeMonthlyLimit(UUID.randomUUID());
 
         assertFalse(result);
     }
 
-    private RedisFixture createFixture(long monthlyLimit, long incrementedCount) {
+    private RedisFixture createFixture(long reviewMonthlyLimit, long incrementedCount) {
         MailDraftRateLimitProperties properties = new MailDraftRateLimitProperties();
-        properties.setMonthlyLimit(monthlyLimit);
+        properties.setReviewMonthlyLimit(reviewMonthlyLimit);
         StringRedisTemplate template = mock(StringRedisTemplate.class);
         ValueOperations<String, String> operations = mock(ValueOperations.class);
         when(template.opsForValue()).thenReturn(operations);
         when(operations.increment(org.mockito.ArgumentMatchers.anyString())).thenReturn(incrementedCount);
-        return new RedisFixture(new MailDraftRateLimitCacheAdapter(redisProvider(template), properties), operations);
+        return new RedisFixture(new MailReviewRateLimitCacheAdapter(redisProvider(template), properties), operations);
     }
 
     private ObjectProvider<StringRedisTemplate> redisProvider(StringRedisTemplate template) {
@@ -52,6 +52,6 @@ class MailDraftRateLimitCacheAdapterTest {
         return provider;
     }
 
-    private record RedisFixture(MailDraftRateLimitCacheAdapter adapter, ValueOperations<String, String> operations) {
+    private record RedisFixture(MailReviewRateLimitCacheAdapter adapter, ValueOperations<String, String> operations) {
     }
 }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailsangja.core.dto.mail.MailReviewCommand;
 import com.mailsangja.core.dto.mail.MailReviewIssueType;
 import com.mailsangja.core.dto.mail.MailReviewResult;
-import com.mailsangja.db.port.MailDraftRateLimitCachePort;
+import com.mailsangja.db.port.MailReviewRateLimitCachePort;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
@@ -28,7 +28,7 @@ class MailReviewCommandServiceTest {
     void llm후보를검증해서적용가능한issue만반환한다() {
         // given
         UUID userId = UUID.randomUUID();
-        MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
+        MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
         when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
         ChatModel chatModel = chatModel("""
                 {
