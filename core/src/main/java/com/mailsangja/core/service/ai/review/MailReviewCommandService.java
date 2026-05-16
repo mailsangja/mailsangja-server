@@ -10,7 +10,7 @@ import com.mailsangja.core.dto.mail.MailReviewCommand;
 import com.mailsangja.core.dto.mail.MailReviewIssueResult;
 import com.mailsangja.core.dto.mail.MailReviewResult;
 import com.mailsangja.core.dto.mail.MailReviewSegment;
-import com.mailsangja.db.port.MailDraftRateLimitCachePort;
+import com.mailsangja.db.port.MailReviewRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -46,7 +46,7 @@ public class MailReviewCommandService {
             If there is no issue, return {"issues":[]}.
             """;
 
-    private final MailDraftRateLimitCachePort rateLimitCachePort;
+    private final MailReviewRateLimitCachePort rateLimitCachePort;
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ObjectMapper objectMapper;
     private final MailReviewQueryService mailReviewQueryService;

@@ -13,4 +13,5 @@ public class MailDraftRateLimitProperties {
 
     private boolean enabled;
     private long monthlyLimit = 50L;
+    private long reviewMonthlyLimit = 50L;
 }
