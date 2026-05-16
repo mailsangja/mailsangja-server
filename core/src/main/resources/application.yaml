@@ -103,6 +103,8 @@ mailsangja:
     rate-limit:
       enabled: ${MAILSANGJA_REDIS_RATE_LIMIT_ENABLED:true}
       monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_MONTHLY_LIMIT:50}
+      review-monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_REVIEW_MONTHLY_LIMIT:50}
+      suggestion-monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_SUGGESTION_MONTHLY_LIMIT:10}
   label:
     debounce:
       debounce-seconds: ${LABEL_DEBOUNCE_SECONDS:60}
@@ -110,7 +112,7 @@ mailsangja:
       rate-limit-window-seconds: ${LABEL_DEBOUNCE_RATE_LIMIT_WINDOW:60}
       rate-limit-max-requests: ${LABEL_DEBOUNCE_RATE_LIMIT_MAX_REQUESTS:20}
     suggestion:
-      json: ${LABEL_SUGGESTIONS_JSON:}
+      recent-mail-count: ${LABEL_SUGGESTION_RECENT_MAIL_COUNT:20}
   portone:
     plan-prices:
       pro: ${PORTONE_PLAN_PRICE_PRO:9900}

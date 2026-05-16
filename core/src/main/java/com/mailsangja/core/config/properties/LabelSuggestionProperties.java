@@ -11,5 +11,5 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "mailsangja.label.suggestion")
 public class LabelSuggestionProperties {
 
-    private String json;
+    private int recentMailCount = 20;
 }
