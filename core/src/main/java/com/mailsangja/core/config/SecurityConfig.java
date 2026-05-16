@@ -3,6 +3,7 @@ package com.mailsangja.core.config;
 import com.mailsangja.core.common.auth.CustomAccessDeniedHandler;
 import com.mailsangja.core.common.auth.CustomAuthenticationEntryPoint;
 import com.mailsangja.core.config.properties.CorsProperties;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,8 +43,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/login", "/api/v1/auth/register",
+                                "/error",
                                 "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
                                 "/swagger-ui/**", "/swagger-ui.html",
                                 "/scalar", "/scalar/**"

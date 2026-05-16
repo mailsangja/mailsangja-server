@@ -33,11 +33,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MailDraftCommandService {
+
+    private static final Pattern GENERATED_PLACEHOLDER_SIGNATURE_PATTERN = Pattern.compile(
+            "(?m)^\\s*\\[[^\\]\\n]*(?:사용자|이름|담당자|회사|소속|직함|전화|연락처|이메일)[^\\]\\n]*]\\s*(?:드림|올림|배상)?\\s*$\\R?"
+    );
 
     private final MailDraftRateLimitCachePort rateLimitCachePort;
     private final ObjectProvider<ChatModel> chatModelProvider;
@@ -118,9 +124,9 @@ public class MailDraftCommandService {
 
     private String userPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {
         if (phase == MailDraftPhase.SUBJECT) {
-            return prompt.userPrompt() + "\n\nReturn only the email subject.";
+            return prompt.userPrompt() + "\n\nReturn only the email subject. Do not include any new placeholder or template variable.";
         }
-        return prompt.userPrompt() + "\n\nReturn only the email body.";
+        return prompt.userPrompt() + "\n\nReturn only the email body. Do not include any new placeholder, template variable, fill-in blank, or signature name if unknown.";
     }
 
     private MailDraftTokenBoundaryBuffer tokenBuffer(MailDraftRestoreContextResult restoreContext) {
@@ -164,14 +170,17 @@ public class MailDraftCommandService {
     }
 
     public void sendDelta(SseEmitter emitter, MailDraftPhase phase, String delta, MailDraftRestoreContextResult restoreContext) {
-        MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restoreAndValidate(delta, restoreContext));
+        String restored = restoreAndSanitize(delta, restoreContext);
+        if (restored.isEmpty()) {
+            return;
+        }
+        MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restored);
         send(emitter, event(eventName(phase), event));
     }
 
-    private String restoreAndValidate(String delta, MailDraftRestoreContextResult restoreContext) {
+    private String restoreAndSanitize(String delta, MailDraftRestoreContextResult restoreContext) {
         String restored = restore(delta, restoreContext);
-        validateNoUnresolvedPlaceholder(delta, restored);
-        return restored;
+        return sanitizeGeneratedPlaceholders(delta, restored);
     }
 
     private String restore(String delta, MailDraftRestoreContextResult restoreContext) {
@@ -195,33 +204,53 @@ public class MailDraftCommandService {
                 .toList();
     }
 
-    private void validateNoUnresolvedPlaceholder(String rawDelta, String restoredDelta) {
+    private String sanitizeGeneratedPlaceholders(String rawDelta, String restoredDelta) {
+        String signatureSanitized = sanitizeGeneratedPlaceholderSignature(rawDelta, restoredDelta);
+        StringBuilder builder = new StringBuilder();
         int searchIndex = 0;
-        while (searchIndex < restoredDelta.length()) {
-            int startIndex = restoredDelta.indexOf('[', searchIndex);
+        while (searchIndex < signatureSanitized.length()) {
+            int startIndex = signatureSanitized.indexOf('[', searchIndex);
             if (startIndex < 0) {
-                return;
+                builder.append(signatureSanitized.substring(searchIndex));
+                break;
             }
-            searchIndex = validateBracketText(rawDelta, restoredDelta, startIndex);
+            builder.append(signatureSanitized, searchIndex, startIndex);
+            searchIndex = appendSanitizedBracketText(rawDelta, signatureSanitized, startIndex, builder);
         }
+        return builder.toString();
     }
 
-    private int validateBracketText(String rawDelta, String restoredDelta, int startIndex) {
+    private String sanitizeGeneratedPlaceholderSignature(String rawDelta, String restoredDelta) {
+        Matcher matcher = GENERATED_PLACEHOLDER_SIGNATURE_PATTERN.matcher(restoredDelta);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            logSanitizedGeneratedPlaceholder(rawDelta, restoredDelta, matcher.start(), matcher.end() - 1);
+            matcher.appendReplacement(buffer, "");
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private int appendSanitizedBracketText(String rawDelta, String restoredDelta, int startIndex, StringBuilder builder) {
         int endIndex = restoredDelta.indexOf(']', startIndex + 1);
         if (endIndex < 0) {
-            logUnresolvedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
+            logUnresolvedMaskingToken(rawDelta, restoredDelta, startIndex, endIndex);
             throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
         }
-        if (isUnresolvedPlaceholder(restoredDelta, startIndex, endIndex)) {
-            logUnresolvedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
-            throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
-        }
-        return endIndex + 1;
-    }
 
-    private boolean isUnresolvedPlaceholder(String text, int startIndex, int endIndex) {
-        String content = text.substring(startIndex + 1, endIndex).strip();
-        return isMaskingToken(content) || isGeneratedPlaceholder(content);
+        String content = restoredDelta.substring(startIndex + 1, endIndex).strip();
+        if (isMaskingToken(content)) {
+            logUnresolvedMaskingToken(rawDelta, restoredDelta, startIndex, endIndex);
+            throw new MailDraftException(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER);
+        }
+        if (isGeneratedPlaceholder(content)) {
+            logSanitizedGeneratedPlaceholder(rawDelta, restoredDelta, startIndex, endIndex);
+            builder.append(generatedPlaceholderReplacement(content));
+            return endIndex + 1;
+        }
+
+        builder.append(restoredDelta, startIndex, endIndex + 1);
+        return endIndex + 1;
     }
 
     private boolean isMaskingToken(String content) {
@@ -234,8 +263,23 @@ public class MailDraftCommandService {
                 || content.contains("전화") || content.contains("연락처") || content.contains("이메일");
     }
 
-    private void logUnresolvedPlaceholder(String rawDelta, String restoredDelta, int startIndex, int endIndex) {
-        log.warn("Mail draft unresolved placeholder. placeholder={} rawDelta={} restoredDelta={}",
+    private String generatedPlaceholderReplacement(String content) {
+        if (content.contains("학생")) {
+            return "학생";
+        }
+        if (content.contains("담당자")) {
+            return "담당자";
+        }
+        return "";
+    }
+
+    private void logUnresolvedMaskingToken(String rawDelta, String restoredDelta, int startIndex, int endIndex) {
+        log.warn("Mail draft unresolved masking token. placeholder={} rawDelta={} restoredDelta={}",
+                placeholderOf(restoredDelta, startIndex, endIndex), logPreview(rawDelta), logPreview(restoredDelta));
+    }
+
+    private void logSanitizedGeneratedPlaceholder(String rawDelta, String restoredDelta, int startIndex, int endIndex) {
+        log.warn("Mail draft generated placeholder sanitized. placeholder={} rawDelta={} restoredDelta={}",
                 placeholderOf(restoredDelta, startIndex, endIndex), logPreview(rawDelta), logPreview(restoredDelta));
     }
 

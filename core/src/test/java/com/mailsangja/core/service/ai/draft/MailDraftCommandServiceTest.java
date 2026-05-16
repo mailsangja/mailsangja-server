@@ -191,24 +191,52 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
-    void 모델이임의placeholder를만들면초안스트림을실패시킨다() {
+    void 모델이임의placeholder를만들면제거하고스트림을계속한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
         ChatModel chatModel = chatModel(response("감사합니다.\n[사용자 이름] 드림", "gpt-test", usage(10, 3)));
         MailDraftCommandService service = createService(chatModel);
 
         // when
-        MailDraftException exception = assertThrows(MailDraftException.class, () -> service.streamBody(emitter, prompt()));
+        service.streamBody(emitter, prompt());
 
         // then
-        assertEquals(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER, exception.getErrorCode());
+        assertEquals("감사합니다.\n", emitter.joinedDeltas());
     }
 
     @Test
-    void 임의placeholder가chunk경계에서잘려도전송하지않고실패시킨다() {
+    void 임의placeholder가chunk경계에서잘려도치환하고스트림을계속한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
         ChatModel chatModel = chatModel(response("지원한 [사용자 이름", "gpt-test", usage(10, 3)), response("]입니다", "gpt-test", usage(10, 5)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when
+        service.streamBody(emitter, prompt());
+
+        // then
+        assertEquals("지원한 입니다", emitter.joinedDeltas());
+    }
+
+    @Test
+    void 학생이름placeholder는학생으로치환한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("수강하고 있는 [학생 이름]입니다.", "gpt-test", usage(10, 3)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when
+        service.streamBody(emitter, prompt());
+
+        // then
+        assertEquals("수강하고 있는 학생입니다.", emitter.joinedDeltas());
+    }
+
+    @Test
+    void 복원되지않은마스킹토큰은계속실패시킨다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("수신자 [EMAIL_1]", "gpt-test", usage(10, 3)));
         MailDraftCommandService service = createService(chatModel);
 
         // when
@@ -216,7 +244,6 @@ class MailDraftCommandServiceTest {
 
         // then
         assertEquals(MailDraftErrorCode.UNRESOLVED_PLACEHOLDER, exception.getErrorCode());
-        assertEquals("지원한 ", emitter.joinedDeltas());
     }
 
     @Test

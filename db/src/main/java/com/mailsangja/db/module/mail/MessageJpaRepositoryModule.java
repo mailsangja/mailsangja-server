@@ -392,6 +392,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
     @Query("""
             SELECT m
             FROM Message m
@@ -402,6 +403,7 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             """)
     List<Message> findActiveByIdIn(@Param("messageIds") List<UUID> messageIds);
 
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
     @Query("""
             SELECT m
             FROM Message m

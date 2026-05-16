@@ -96,6 +96,9 @@ class MailDraftQueryServiceTest {
         // then
         assertTrue(result.userPrompt().contains("[EMAIL_1]"));
         assertTrue(result.userPrompt().contains("[PHONE_1]"));
+        assertTrue(result.userPrompt().contains("<recent_sent_emails purpose=\"style_primary\">"));
+        assertTrue(result.userPrompt().contains("<thread_emails purpose=\"reply_context\">"));
+        assertTrue(result.userPrompt().contains("<relevant_emails purpose=\"facts_and_prior_responses\">"));
         assertFalse(result.userPrompt().contains("alice@example.com"));
     }
 
@@ -123,6 +126,8 @@ class MailDraftQueryServiceTest {
         // then
         assertTrue(result.systemPrompt().contains("Never create new placeholders"));
         assertTrue(result.systemPrompt().contains("[사용자 이름]"));
+        assertTrue(result.systemPrompt().contains("Never create bracketed placeholders"));
+        assertTrue(result.systemPrompt().contains("수강하고 있는 학생입니다."));
     }
 
     @Test
@@ -135,7 +140,8 @@ class MailDraftQueryServiceTest {
 
         // then
         assertTrue(result.systemPrompt().contains("relevant_received emails for factual background"));
-        assertTrue(result.systemPrompt().contains("recent_sent emails only to infer tone"));
+        assertTrue(result.systemPrompt().contains("Recent_sent emails are the primary style examples"));
+        assertTrue(result.systemPrompt().contains("Mirror the user's tone"));
     }
 
     @Test
