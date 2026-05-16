@@ -82,4 +82,40 @@ public class LabelController implements LabelControllerDocs {
         labelFacade.deleteLabel(user, labelId);
         return ResponseEntity.noContent().build();
     }
+
+    @Override
+    @PostMapping("/api/v1/labels/suggestions")
+    public ResponseEntity<List<LabelListResponse>> createSuggestions(
+            @AuthUser User user
+    ) {
+        return ResponseEntity.ok(labelFacade.createSuggestions(user));
+    }
+
+    @Override
+    @GetMapping("/api/v1/labels/suggestions")
+    public ResponseEntity<List<LabelListResponse>> getSuggestions(
+            @AuthUser User user
+    ) {
+        return ResponseEntity.ok(labelFacade.getSuggestions(user));
+    }
+
+    @Override
+    @PostMapping("/api/v1/labels/suggestions/{suggestionId}/approve")
+    public ResponseEntity<LabelDetailResponse> approveSuggestion(
+            @AuthUser User user,
+            @PathVariable UUID suggestionId,
+            @Valid @RequestBody LabelCreateRequest request
+    ) {
+        return ResponseEntity.ok(labelFacade.approveSuggestion(user, suggestionId, request));
+    }
+
+    @Override
+    @DeleteMapping("/api/v1/labels/suggestions/{suggestionId}")
+    public ResponseEntity<Void> deleteSuggestion(
+            @AuthUser User user,
+            @PathVariable UUID suggestionId
+    ) {
+        labelFacade.deleteSuggestion(user, suggestionId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -166,6 +166,7 @@ CREATE TABLE IF NOT EXISTS labels (
     notification_policy  VARCHAR(10)  NOT NULL DEFAULT 'INHERIT' CHECK (notification_policy IN ('URGENT', 'SILENT', 'INHERIT')),
     display_order        INT          NOT NULL DEFAULT 0,
     rule                 JSONB        NULL,
+    confirmed            BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at           TIMESTAMP    NOT NULL,
     modified_at          TIMESTAMP    NOT NULL,
     deleted_at           TIMESTAMP    NULL,

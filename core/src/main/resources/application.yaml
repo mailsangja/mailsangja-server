@@ -99,6 +99,18 @@ scalar:
   page-title: MailSangja API Reference
 
 mailsangja:
+  redis:
+    rate-limit:
+      enabled: ${MAILSANGJA_REDIS_RATE_LIMIT_ENABLED:true}
+      monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_MONTHLY_LIMIT:50}
+  label:
+    debounce:
+      debounce-seconds: ${LABEL_DEBOUNCE_SECONDS:60}
+      scheduler-fixed-delay-seconds: ${LABEL_DEBOUNCE_SCHEDULER_DELAY:10}
+      rate-limit-window-seconds: ${LABEL_DEBOUNCE_RATE_LIMIT_WINDOW:60}
+      rate-limit-max-requests: ${LABEL_DEBOUNCE_RATE_LIMIT_MAX_REQUESTS:20}
+    suggestion:
+      json: ${LABEL_SUGGESTIONS_JSON:}
   portone:
     plan-prices:
       pro: ${PORTONE_PLAN_PRICE_PRO:9900}

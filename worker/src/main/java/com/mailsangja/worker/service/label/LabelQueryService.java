@@ -25,7 +25,7 @@ public class LabelQueryService {
     private final AttachmentRepositoryPort attachmentRepositoryPort;
 
     public List<Label> findAllActiveByUserId(UUID userId) {
-        return labelRepositoryPort.findAllByUserIdAndDeletedAtIsNull(userId);
+        return labelRepositoryPort.findAllConfirmedByUserIdAndDeletedAtIsNull(userId);
     }
 
     public Set<UUID> findActiveLabelIdsByUserId(UUID userId) {

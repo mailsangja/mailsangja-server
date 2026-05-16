@@ -18,12 +18,25 @@ public class LabelQueryService {
     private final LabelRepositoryPort labelRepositoryPort;
 
     public List<Label> findAllActiveByUserId(UUID userId) {
-        return labelRepositoryPort.findAllByUserIdAndDeletedAtIsNullOrderByDisplayOrder(userId);
+        return labelRepositoryPort.findAllConfirmedByUserIdAndDeletedAtIsNullOrderByDisplayOrder(userId);
     }
 
     public Label findActiveByIdAndUserId(UUID labelId, UUID userId) {
-        return labelRepositoryPort.findByIdAndUserIdAndDeletedAtIsNull(labelId, userId)
+        return labelRepositoryPort.findConfirmedByIdAndUserIdAndDeletedAtIsNull(labelId, userId)
                 .orElseThrow(() -> new LabelException(LabelErrorCode.LABEL_NOT_FOUND));
+    }
+
+    public List<Label> findAllSuggestionsByUserId(UUID userId) {
+        return labelRepositoryPort.findAllSuggestionsByUserIdAndDeletedAtIsNull(userId);
+    }
+
+    public Label findSuggestionByIdAndUserId(UUID labelId, UUID userId) {
+        return labelRepositoryPort.findSuggestionByIdAndUserIdAndDeletedAtIsNull(labelId, userId)
+                .orElseThrow(() -> new LabelException(LabelErrorCode.LABEL_SUGGESTION_NOT_FOUND));
+    }
+
+    public boolean existsSuggestionByUserIdAndName(UUID userId, String name) {
+        return labelRepositoryPort.existsSuggestionByUserIdAndNameIgnoreCaseAndDeletedAtIsNull(userId, name);
     }
 
     public Map<UUID, Long> findUnreadThreadCountsByUserId(UUID userId) {
