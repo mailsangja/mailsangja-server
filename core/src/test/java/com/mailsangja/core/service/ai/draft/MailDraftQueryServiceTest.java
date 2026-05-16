@@ -98,6 +98,7 @@ class MailDraftQueryServiceTest {
         assertTrue(result.userPrompt().contains("[PHONE_1]"));
         assertTrue(result.userPrompt().contains("<recent_sent_emails purpose=\"style_primary\">"));
         assertTrue(result.userPrompt().contains("<thread_emails purpose=\"reply_context\">"));
+        assertTrue(result.userPrompt().contains("<recipient_history_emails purpose=\"recipient_specific_context\">"));
         assertTrue(result.userPrompt().contains("<relevant_emails purpose=\"facts_and_prior_responses\">"));
         assertFalse(result.userPrompt().contains("alice@example.com"));
     }
@@ -140,8 +141,32 @@ class MailDraftQueryServiceTest {
 
         // then
         assertTrue(result.systemPrompt().contains("relevant_received emails for factual background"));
+        assertTrue(result.systemPrompt().contains("recipient_history emails as the primary source"));
         assertTrue(result.systemPrompt().contains("Recent_sent emails are the primary style examples"));
         assertTrue(result.systemPrompt().contains("Mirror the user's tone"));
+    }
+
+    @Test
+    void general은수신자정보로대상별히스토리메일을조회한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommandWithRecipientRestoreTokens();
+        List<MailDraftReferenceMessageResult> recipientHistory = references(command.mailAccountId(), Direction.OUTBOUND, 2);
+        when(fixture.referenceQueryPort().findRecipientHistoryMessages(
+                eq(command.userId()), eq(command.mailAccountId()), any(), eq(6)
+        )).thenReturn(recipientHistory);
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        assertEquals(2, result.recipientHistoryMessages().size());
+        var captor = forClass(List.class);
+        verify(fixture.referenceQueryPort()).findRecipientHistoryMessages(
+                eq(command.userId()), eq(command.mailAccountId()), captor.capture(), eq(6)
+        );
+        assertTrue(captor.getValue().contains("김철수"));
+        assertTrue(captor.getValue().contains("kim@example.com"));
     }
 
     @Test
@@ -381,6 +406,19 @@ class MailDraftQueryServiceTest {
                 "masked query [PERSON_1]",
                 null,
                 List.of(),
+                List.of(),
+                com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL,
+                Map.of("[PERSON_1]", "김철수", "[EMAIL_1]", "kim@example.com")
+        );
+    }
+
+    private MailDraftCommand createCommandWithRecipientRestoreTokens() {
+        return new MailDraftCommand(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "masked query",
+                null,
+                List.of("[PERSON_1] <[EMAIL_1]>"),
                 List.of(),
                 com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL,
                 Map.of("[PERSON_1]", "김철수", "[EMAIL_1]", "kim@example.com")
