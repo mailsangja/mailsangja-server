@@ -41,6 +41,9 @@ public class MailReviewQueryService {
                                                     Map<String, MailReviewSegment> segmentsById) {
         List<MailReviewIssueResult> verified = new ArrayList<>();
         for (LlmMailReviewIssueResult issue : issues) {
+            if (issue.segmentId().isBlank() || issue.originalText().isBlank()) {
+                continue;
+            }
             MailReviewSegment segment = segmentsById.get(issue.segmentId());
             if (segment == null) {
                 continue;

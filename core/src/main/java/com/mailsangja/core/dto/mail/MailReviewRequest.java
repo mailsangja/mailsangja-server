@@ -18,12 +18,11 @@ public record MailReviewRequest(
     public MailReviewRequest {
         subject = nullToEmpty(subject);
         body = nullToEmpty(body);
-        attachmentNames = attachmentNames == null ? List.of() : List.copyOf(attachmentNames);
+        attachmentNames = normalizeAttachmentNames(attachmentNames);
         validateNotBlank(subject, body);
         validateLength(subject, MAX_SUBJECT_LENGTH);
         validateLength(body, MAX_BODY_LENGTH);
         validateAttachmentCount(attachmentCount);
-        validateAttachmentNames(attachmentNames);
     }
 
     private static void validateNotBlank(String subject, String body) {
@@ -44,16 +43,20 @@ public record MailReviewRequest(
         }
     }
 
-    private static void validateAttachmentNames(List<String> attachmentNames) {
-        if (attachmentNames.stream().anyMatch(name -> name == null || name.isBlank())) {
-            throw new MailReviewException(MailReviewErrorCode.INVALID_REQUEST);
-        }
-    }
-
     private static String nullToEmpty(String value) {
         if (value == null) {
             return "";
         }
         return value;
+    }
+
+    private static List<String> normalizeAttachmentNames(List<String> attachmentNames) {
+        if (attachmentNames == null) {
+            return List.of();
+        }
+        return attachmentNames.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::strip)
+                .toList();
     }
 }

@@ -148,6 +148,49 @@ class MailReviewCommandServiceTest {
         assertEquals(0, result.issues().size());
     }
 
+    @Test
+    void replacementText가빈문자열인삭제제안도파싱하고반환한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
+        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        ChatModel chatModel = chatModel("""
+                {
+                  "issues": [
+                    {
+                      "segmentId": "BODY:000:7103778b4ffb3901",
+                      "type": "SPELLING",
+                      "severity": "MEDIUM",
+                      "originalText": "ㅜ",
+                      "replacementText": "",
+                      "contextBefore": "제",
+                      "contextAfter": " 이름은",
+                      "reason": "불필요한 자음이 포함되어 있습니다."
+                    }
+                  ]
+                }
+                """);
+        MailReviewCommandService service = new MailReviewCommandService(
+                cachePort,
+                chatModelProvider(chatModel),
+                new ObjectMapper(),
+                new MailReviewQueryService()
+        );
+
+        // when
+        MailReviewResult result = service.review(new MailReviewCommand(
+                userId,
+                "",
+                "제ㅜ 이름은 천진강입니다.",
+                0,
+                List.of()
+        ));
+
+        // then
+        assertEquals(1, result.issues().size());
+        assertEquals("", result.issues().getFirst().replacementText());
+    }
+
     @SuppressWarnings("unchecked")
     private ObjectProvider<ChatModel> chatModelProvider(ChatModel chatModel) {
         ObjectProvider<ChatModel> provider = mock(ObjectProvider.class);

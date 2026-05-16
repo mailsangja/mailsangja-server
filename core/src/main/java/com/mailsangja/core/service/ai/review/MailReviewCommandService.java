@@ -40,7 +40,9 @@ public class MailReviewCommandService {
             Do not invent facts, promises, schedules, attachments, names, links, or email addresses.
             Do not rewrite the whole email. Return only minimal replacement candidates.
             Each issue.originalText must be an exact contiguous substring of the matching segment.text.
+            replacementText may be an empty string only when the correct fix is to delete originalText.
             Prefer contextBefore and contextAfter when originalText may appear multiple times.
+            contextBefore and contextAfter must be exact substrings from the original segment.text, not from a corrected version.
             Do not calculate offsets.
             Do not modify URLs, email addresses, code, quoted text, or identifiers unless they are obvious prose typos.
             Use metadata.attachmentCount and metadata.attachmentNames only to detect missing attachments.
