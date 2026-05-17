@@ -100,6 +100,8 @@ class MailDraftQueryServiceTest {
         assertTrue(result.userPrompt().contains("<thread_emails purpose=\"reply_context\">"));
         assertTrue(result.userPrompt().contains("<recipient_history_emails purpose=\"recipient_specific_context\">"));
         assertTrue(result.userPrompt().contains("<relevant_emails purpose=\"facts_and_prior_responses\">"));
+        assertTrue(result.userPrompt().contains("<language_selection_policy>"));
+        assertTrue(result.userPrompt().indexOf("<language_selection_policy>") < result.userPrompt().indexOf("<draft_request>"));
         assertFalse(result.userPrompt().contains("alice@example.com"));
     }
 
@@ -156,6 +158,10 @@ class MailDraftQueryServiceTest {
 
         // then
         assertTrue(result.systemPrompt().contains("Choose the draft language from the situation"));
+        assertTrue(result.systemPrompt().contains("Before drafting, decide the output language by priority"));
+        assertTrue(result.systemPrompt().contains("If the user explicitly requests a language, use that language"));
+        assertTrue(result.systemPrompt().contains("If the user uses contrastive wording"));
+        assertTrue(result.systemPrompt().contains("The user's query language is only an instruction language"));
         assertTrue(result.systemPrompt().contains("For replies, primarily use the language of the thread"));
         assertTrue(result.systemPrompt().contains("If the situation is mixed or unclear, use the user's query language"));
         assertFalse(result.systemPrompt().contains("Write naturally in Korean unless"));
@@ -173,6 +179,49 @@ class MailDraftQueryServiceTest {
         assertTrue(result.systemPrompt().contains("Select the reply language from the current conversation context"));
         assertTrue(result.systemPrompt().contains("Match the dominant language of thread emails and the latest inbound message"));
         assertTrue(result.systemPrompt().contains("If thread and query languages differ, preserve the thread language"));
+    }
+
+    @Test
+    void 답장사용자프롬프트는스레드언어를Query보다우선한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.replyPrompt(createCommand(UUID.randomUUID()), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.userPrompt().contains("dominant thread_emails language"));
+        assertTrue(result.userPrompt().contains("For replies, the query language is an instruction language only"));
+        assertTrue(result.userPrompt().contains("If thread_emails are mostly English and the query is Korean"));
+    }
+
+    @Test
+    void 일반초안시스템프롬프트는수신자히스토리언어를우선한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("choose the draft language from the dominant language used with the target recipient"));
+        assertTrue(result.systemPrompt().contains("mostly English"));
+        assertTrue(result.systemPrompt().contains("even if the user's query is written in Korean"));
+        assertTrue(result.systemPrompt().contains("recipient_history is missing, mixed, or insufficient"));
+    }
+
+    @Test
+    void 사용자프롬프트는수신자히스토리언어우선규칙을요청앞에제공한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.userPrompt().contains("Do not choose Korean only because the query is Korean"));
+        assertTrue(result.userPrompt().contains("If recipient_history is mostly English and the query is Korean"));
+        assertTrue(result.userPrompt().contains("strongest context for recipient-specific output language"));
     }
 
     @Test
