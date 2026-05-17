@@ -70,7 +70,14 @@ public class MailDraftQueryService {
             Use thread emails only to understand reply context and prior commitments.
             Prefer concise, specific, and business-appropriate wording.
             Choose the draft language from the situation, not from a Korean default.
-            Infer the best language from the user's query, recipient address/domain, thread language, recipient_history, and reference emails.
+            Before drafting, decide the output language by priority:
+            1. If the user explicitly requests a language, use that language.
+            2. If the user uses contrastive wording such as "한글 말고 영어", "not Korean but English", "instead", or "대신", use the language after the contrast.
+            3. Otherwise, if recipient_history or thread emails have a dominant language, use that dominant language.
+            4. Otherwise, use the user's query language.
+            5. Otherwise, use Korean.
+            The user's query language is only an instruction language. It is not automatically the email output language.
+            If recipient_history is mostly English and the query is Korean, write the email in English.
             For replies, primarily use the language of the thread unless the user explicitly asks for a different language.
             For new outbound drafts, use the requested language if stated; otherwise match the recipient and most relevant prior emails.
             If the situation is mixed or unclear, use the user's query language.
@@ -99,6 +106,9 @@ public class MailDraftQueryService {
             For GENERAL drafts, infer a new outbound email from the user's query and references.
             Prioritize the user's query, then relevant_received and entity_hint emails for context.
             Use relevant_sent and recent_sent emails for prior response patterns and style.
+            If recipient_history exists, choose the draft language from the dominant language used with the target recipient.
+            If prior emails with the recipient are mostly English, write the draft in English even if the user's query is written in Korean.
+            Use the user's query language only when recipient_history is missing, mixed, or insufficient.
             """;
     private static final String REPLY_SYSTEM_PROMPT = SYSTEM_PROMPT + """
             Draft type: REPLY.
@@ -145,11 +155,11 @@ public class MailDraftQueryService {
     }
 
     public MailDraftPromptResult generalPrompt(MailDraftCommand command, MailDraftRagContextResult context) {
-        return new MailDraftPromptResult(GENERAL_SYSTEM_PROMPT, buildUserPrompt(command, context));
+        return new MailDraftPromptResult(GENERAL_SYSTEM_PROMPT, buildUserPrompt(command, context, DraftPromptType.GENERAL));
     }
 
     public MailDraftPromptResult replyPrompt(MailDraftCommand command, MailDraftRagContextResult context) {
-        return new MailDraftPromptResult(REPLY_SYSTEM_PROMPT, buildUserPrompt(command, context));
+        return new MailDraftPromptResult(REPLY_SYSTEM_PROMPT, buildUserPrompt(command, context, DraftPromptType.REPLY));
     }
 
     public MailDraftRagContextResult generalRagContext(MailDraftCommand command) {
@@ -219,11 +229,27 @@ public class MailDraftQueryService {
         return values;
     }
 
-    private String buildUserPrompt(MailDraftCommand command, MailDraftRagContextResult context) {
+    private String buildUserPrompt(MailDraftCommand command, MailDraftRagContextResult context, DraftPromptType promptType) {
         StringBuilder builder = new StringBuilder();
+        appendLanguageSelectionPolicy(builder, promptType);
         appendRequest(builder, command);
         appendReferenceEmails(builder, context);
         return builder.toString();
+    }
+
+    private void appendLanguageSelectionPolicy(StringBuilder builder, DraftPromptType promptType) {
+        builder.append("<language_selection_policy>\n");
+        if (promptType == DraftPromptType.REPLY) {
+            builder.append("Choose the reply output language before writing. Apply this priority exactly: explicit language request in query, contrastive language after words like '말고' or 'instead', dominant thread_emails language, recipient_history language, query language, Korean default.\n");
+            builder.append("For replies, the query language is an instruction language only. Do not choose Korean only because the query is Korean.\n");
+            builder.append("If thread_emails are mostly English and the query is Korean, write the reply in English.\n");
+        } else {
+            builder.append("Choose the email output language before writing. Apply this priority exactly: explicit language request in query, contrastive language after words like '말고' or 'instead', dominant recipient_history or thread language, query language, Korean default.\n");
+            builder.append("The query language is an instruction language only. Do not choose Korean only because the query is Korean.\n");
+            builder.append("If recipient_history is mostly English and the query is Korean, write the email in English.\n");
+        }
+        builder.append("Do not explain the selected language in the output.\n");
+        builder.append("</language_selection_policy>\n");
     }
 
     private void appendRequest(StringBuilder builder, MailDraftCommand command) {
@@ -257,7 +283,7 @@ public class MailDraftQueryService {
 
     private void appendRecipientHistoryEmails(StringBuilder builder, List<MailDraftSearchContextResult> messages) {
         builder.append("<recipient_history_emails purpose=\"recipient_specific_context\">\n");
-        builder.append("<instruction>Use these emails to adapt salutation, tone, relationship context, and prior conversation with the target recipient. Do not copy unrelated facts.</instruction>\n");
+        builder.append("<instruction>Use these emails as the strongest context for recipient-specific output language, salutation, tone, relationship context, and prior conversation with the target recipient. Do not copy unrelated facts.</instruction>\n");
         appendReferenceEmailItems(builder, messages);
         builder.append("</recipient_history_emails>\n");
     }
@@ -287,9 +313,36 @@ public class MailDraftQueryService {
         if (referenceQueryPort == null || hints.isEmpty()) {
             return List.of();
         }
-        return toMaskedContexts(referenceQueryPort.findRecipientHistoryMessages(
+        List<MailDraftReferenceMessageResult> messages = referenceQueryPort.findRecipientHistoryMessages(
                 command.userId(), command.mailAccountId(), hints, RECIPIENT_HISTORY_LIMIT
-        ), SOURCE_RECIPIENT_HISTORY);
+        );
+        logRecipientHistoryMessages(command, hints, messages);
+        return toMaskedContexts(messages, SOURCE_RECIPIENT_HISTORY);
+    }
+
+    private void logRecipientHistoryMessages(MailDraftCommand command, List<String> hints,
+                                             List<MailDraftReferenceMessageResult> messages) {
+        if (messages.isEmpty()) {
+            log.info("Mail draft recipient history empty. userId={} mailAccountId={} hintCount={}",
+                    command.userId(), command.mailAccountId(), hints.size());
+            return;
+        }
+        for (MailDraftReferenceMessageResult message : messages) {
+            log.info("Mail draft recipient history selected. userId={} mailAccountId={} hintCount={} messageId={} direction={} subject={}",
+                    command.userId(), command.mailAccountId(), hints.size(), message.messageId(), message.direction(),
+                    logPreview(message.subject()));
+        }
+    }
+
+    private String logPreview(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        if (normalized.length() <= 80) {
+            return normalized;
+        }
+        return normalized.substring(0, 80);
     }
 
     private List<String> recipientHints(MailDraftCommand command) {
@@ -640,4 +693,10 @@ public class MailDraftQueryService {
         }
         return toMaskedContexts(referenceQueryPort.findThreadContextMessages(replyMessageId), SOURCE_THREAD);
     }
+
+    private enum DraftPromptType {
+        GENERAL,
+        REPLY
+    }
+
 }
