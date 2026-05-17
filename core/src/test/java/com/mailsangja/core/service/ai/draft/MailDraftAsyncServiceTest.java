@@ -129,6 +129,27 @@ class MailDraftAsyncServiceTest {
     }
 
     @Test
+    void combined성공시단일usage와done을보내고분리스트림을호출하지않는다() {
+        // given
+        Fixture fixture = createFixture();
+        SseEmitter emitter = new SseEmitter();
+        MailDraftCommand command = createCommand();
+        MailDraftUsageResult usage = new MailDraftUsageResult("gpt-4o-mini", 30, 15, 45);
+        org.mockito.Mockito.doReturn(usage).when(fixture.commandService()).streamCombined(eq(emitter), any(), any(), any());
+
+        // when
+        fixture.asyncService().streamGeneral(emitter, command);
+
+        // then
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.commandService());
+        inOrder.verify(fixture.commandService()).sendUsage(emitter, usage);
+        inOrder.verify(fixture.commandService()).sendDone(emitter);
+        inOrder.verify(fixture.commandService()).complete(emitter);
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any());
+    }
+
+    @Test
     void subject중취소되면body와완료이벤트를보내지않는다() {
         // given
         Fixture fixture = createFixture();
@@ -227,6 +248,8 @@ class MailDraftAsyncServiceTest {
         MailDraftAsyncService asyncService = new MailDraftAsyncService(queryService, commandService);
         MailDraftCommandService.StreamCancellation cancellation = new MailDraftCommandService.StreamCancellation();
         when(commandService.createCancellation()).thenReturn(cancellation);
+        when(commandService.streamCombined(any(), any(), any(), any()))
+                .thenThrow(new MailDraftCommandService.MailDraftCombinedFormatException("invalid"));
         doCallRealMethod().when(commandService).cancel(cancellation);
         stubDraftPrompt(queryService);
         return new Fixture(asyncService, queryService, commandService, cancellation);

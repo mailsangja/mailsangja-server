@@ -102,6 +102,20 @@ public class MailDraftAsyncService {
                                       MailDraftCommandService.StreamCancellation cancellation) {
         mailDraftCommandService.validateMonthlyRateLimit(command.userId());
         MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
+        try {
+            MailDraftUsageResult usage = mailDraftCommandService.streamCombined(emitter, prompt, restoreContext, cancellation);
+            if (cancellation.isCancelled()) {
+                return;
+            }
+            completeSuccess(emitter, usage);
+            return;
+        } catch (MailDraftCommandService.MailDraftCombinedFormatException exception) {
+            log.warn("Mail draft combined stream format invalid. fallback=separate userId={} mailAccountId={} purpose={}",
+                    command.userId(), command.mailAccountId(), command.purpose(), exception);
+            if (cancellation.isCancelled()) {
+                return;
+            }
+        }
         MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext, cancellation);
         if (cancellation.isCancelled()) {
             return;
@@ -115,6 +129,12 @@ public class MailDraftAsyncService {
 
     private void completeSuccess(SseEmitter emitter, MailDraftUsageResult subjectUsage, MailDraftUsageResult bodyUsage) {
         mailDraftCommandService.sendUsage(emitter, subjectUsage, bodyUsage);
+        mailDraftCommandService.sendDone(emitter);
+        mailDraftCommandService.complete(emitter);
+    }
+
+    private void completeSuccess(SseEmitter emitter, MailDraftUsageResult usage) {
+        mailDraftCommandService.sendUsage(emitter, usage);
         mailDraftCommandService.sendDone(emitter);
         mailDraftCommandService.complete(emitter);
     }

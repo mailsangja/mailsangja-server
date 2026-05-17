@@ -160,6 +160,51 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
+    void combined스트림은태그를파싱해서subject와body이벤트로전송한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(
+                response("<SUB", "gpt-test", usage(30, 5)),
+                response("JECT>\n제목\n</SUBJECT>\n<BODY>\n안녕", "gpt-test", usage(30, 10)),
+                response("하세요</BO", "gpt-test", usage(30, 15)),
+                response("DY>", "gpt-test", usage(30, 18))
+        );
+        MailDraftCommandService service = createService(chatModel);
+
+        // when
+        MailDraftUsageResult result = service.streamCombined(
+                emitter,
+                prompt(),
+                new MailDraftRestoreContextResult(null),
+                service.createCancellation()
+        );
+
+        // then
+        assertEquals(List.of("subject", "body", "body"), emitter.eventNames());
+        assertEquals("제목", emitter.deltaAt(0));
+        assertEquals("안녕하", emitter.deltaAt(1));
+        assertEquals("세요", emitter.deltaAt(2));
+        assertEquals(new MailDraftUsageResult("gpt-test", 30, 18, 48), result);
+    }
+
+    @Test
+    void combined스트림포맷이깨지면전용예외를던진다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("제목\n본문", "gpt-test", usage(10, 3)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when & then
+        assertThrows(MailDraftCommandService.MailDraftCombinedFormatException.class, () -> service.streamCombined(
+                emitter,
+                prompt(),
+                new MailDraftRestoreContextResult(null),
+                service.createCancellation()
+        ));
+        assertEquals(List.of(), emitter.eventNames());
+    }
+
+    @Test
     void 마스킹토큰이chunk경계에서잘려도정확히복원한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
@@ -375,6 +420,16 @@ class MailDraftCommandServiceTest {
 
         private Object payload() {
             return payload;
+        }
+
+        private List<String> eventNames() {
+            return events.stream()
+                    .map(CapturedEvent::name)
+                    .toList();
+        }
+
+        private String deltaAt(int index) {
+            return ((MailDraftDeltaEvent) events.get(index).data()).delta();
         }
 
         private CapturedEvent capture(SseEventBuilder builder) {
