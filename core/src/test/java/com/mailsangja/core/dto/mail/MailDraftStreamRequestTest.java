@@ -38,11 +38,11 @@ class MailDraftStreamRequestTest {
     }
 
     @Test
-    void to가비어있으면실패한다() {
+    void to가비어있어도성공한다() {
         // given
 
         // when & then
-        assertThrows(MailDraftException.class, () -> new MailDraftStreamRequest(
+        assertDoesNotThrow(() -> new MailDraftStreamRequest(
                 "sender@example.com",
                 "일정 조율 메일 초안 작성",
                 null,
@@ -52,16 +52,16 @@ class MailDraftStreamRequestTest {
     }
 
     @Test
-    void to가비어있고cc만있어도실패한다() {
+    void to와cc가null이어도성공한다() {
         // given
 
         // when & then
-        assertThrows(MailDraftException.class, () -> new MailDraftStreamRequest(
+        assertDoesNotThrow(() -> new MailDraftStreamRequest(
                 "sender@example.com",
                 "일정 조율 메일 초안 작성",
                 null,
                 null,
-                List.of("cc@example.com")
+                null
         ));
     }
 

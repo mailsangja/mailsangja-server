@@ -34,6 +34,23 @@ class MailDraftReferenceQueryAdapterTest {
     }
 
     @Test
+    void 수신자히스토리메일은요청계정Id로결과를만든다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        Message message = createMessageWithoutThread(messageId);
+        MailDraftReferenceQueryAdapter adapter = createRecipientHistoryAdapter(message);
+
+        // when
+        List<MailDraftReferenceMessageResult> results = adapter.findRecipientHistoryMessages(
+                UUID.randomUUID(), mailAccountId, List.of("kim@example.com"), 6
+        );
+
+        // then
+        assertEquals(mailAccountId, results.getFirst().mailAccountId());
+    }
+
+    @Test
     void bodyText가없으면Html을텍스트로변환한다() {
         // given
         UUID messageId = UUID.randomUUID();
@@ -65,8 +82,24 @@ class MailDraftReferenceQueryAdapterTest {
         return new MailDraftReferenceQueryAdapter(module);
     }
 
+    private MailDraftReferenceQueryAdapter createRecipientHistoryAdapter(Message message) {
+        MessageJpaRepositoryModule module = (MessageJpaRepositoryModule) Proxy.newProxyInstance(
+                MessageJpaRepositoryModule.class.getClassLoader(),
+                new Class<?>[]{MessageJpaRepositoryModule.class},
+                (proxy, method, args) -> findRecipientHistoryByUserIdAndMailAccountIdAndHint(method.getName(), message)
+        );
+        return new MailDraftReferenceQueryAdapter(module);
+    }
+
     private Object findRecentByUserIdAndMailAccountIdAndDirection(String methodName, Message message) {
         if ("findRecentByUserIdAndMailAccountIdAndDirection".equals(methodName)) {
+            return List.of(message);
+        }
+        throw new UnsupportedOperationException(methodName);
+    }
+
+    private Object findRecipientHistoryByUserIdAndMailAccountIdAndHint(String methodName, Message message) {
+        if ("findRecipientHistoryByUserIdAndMailAccountIdAndHint".equals(methodName)) {
             return List.of(message);
         }
         throw new UnsupportedOperationException(methodName);

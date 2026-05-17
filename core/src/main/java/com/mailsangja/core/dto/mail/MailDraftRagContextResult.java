@@ -9,26 +9,34 @@ import java.util.UUID;
 public record MailDraftRagContextResult(
         List<MailDraftSearchContextResult> recentWrittenMessages,
         List<MailDraftSearchContextResult> relevantMessages,
-        List<MailDraftSearchContextResult> threadMessages
+        List<MailDraftSearchContextResult> threadMessages,
+        List<MailDraftSearchContextResult> recipientHistoryMessages
 ) {
 
     public MailDraftRagContextResult {
         recentWrittenMessages = nullToEmpty(recentWrittenMessages);
         relevantMessages = nullToEmpty(relevantMessages);
         threadMessages = nullToEmpty(threadMessages);
+        recipientHistoryMessages = nullToEmpty(recipientHistoryMessages);
     }
 
     public static MailDraftRagContextResult empty() {
-        return new MailDraftRagContextResult(List.of(), List.of(), List.of());
+        return new MailDraftRagContextResult(List.of(), List.of(), List.of(), List.of());
     }
 
     public static MailDraftRagContextResult of(List<MailDraftSearchContextResult> recent, List<MailDraftSearchContextResult> relevant, List<MailDraftSearchContextResult> thread) {
-        return new MailDraftRagContextResult(recent, relevant, thread);
+        return new MailDraftRagContextResult(recent, relevant, thread, List.of());
+    }
+
+    public static MailDraftRagContextResult of(List<MailDraftSearchContextResult> recent, List<MailDraftSearchContextResult> relevant,
+                                               List<MailDraftSearchContextResult> thread, List<MailDraftSearchContextResult> recipientHistory) {
+        return new MailDraftRagContextResult(recent, relevant, thread, recipientHistory);
     }
 
     public List<MailDraftSearchContextResult> referenceMessages() {
         List<MailDraftSearchContextResult> merged = new ArrayList<>();
         merged.addAll(threadMessages);
+        merged.addAll(recipientHistoryMessages);
         merged.addAll(recentWrittenMessages);
         merged.addAll(relevantMessages);
         return deduplicateAndLimit(merged);
