@@ -69,7 +69,11 @@ public class MailDraftQueryService {
             Use entity_hint emails to understand person, organization, or topic-specific history.
             Use thread emails only to understand reply context and prior commitments.
             Prefer concise, specific, and business-appropriate wording.
-            Write naturally in Korean unless the request clearly asks for another language.
+            Choose the draft language from the situation, not from a Korean default.
+            Infer the best language from the user's query, recipient address/domain, thread language, recipient_history, and reference emails.
+            For replies, primarily use the language of the thread unless the user explicitly asks for a different language.
+            For new outbound drafts, use the requested language if stated; otherwise match the recipient and most relevant prior emails.
+            If the situation is mixed or unclear, use the user's query language.
             Do not invent facts, dates, attachments, prices, promises, or decisions.
             If information is missing, write a neutral draft that asks for or leaves room for confirmation.
             Keep placeholders such as [EMAIL_1], [PERSON_1], [ORG_1], and [PHONE_1] exactly as provided.
@@ -100,6 +104,10 @@ public class MailDraftQueryService {
             Draft type: REPLY.
             For REPLY drafts, answer within the existing thread context.
             Prioritize the user's query, then thread emails, then recent sent emails for style.
+            Select the reply language from the current conversation context.
+            Match the dominant language of thread emails and the latest inbound message unless the user explicitly requests another language.
+            If the thread uses English, reply in English; if it uses Japanese, reply in Japanese; if it uses Korean, reply in Korean.
+            If thread and query languages differ, preserve the thread language for the email prose and use the query only as an instruction.
             """;
 
     private final MailDraftReferenceQueryPort referenceQueryPort;

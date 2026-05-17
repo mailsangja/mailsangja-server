@@ -147,6 +147,35 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
+    void 시스템프롬프트는상황에맞는언어선택을지시한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("Choose the draft language from the situation"));
+        assertTrue(result.systemPrompt().contains("For replies, primarily use the language of the thread"));
+        assertTrue(result.systemPrompt().contains("If the situation is mixed or unclear, use the user's query language"));
+        assertFalse(result.systemPrompt().contains("Write naturally in Korean unless"));
+    }
+
+    @Test
+    void 답장시스템프롬프트는현재스레드언어를우선한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.replyPrompt(createCommand(UUID.randomUUID()), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("Select the reply language from the current conversation context"));
+        assertTrue(result.systemPrompt().contains("Match the dominant language of thread emails and the latest inbound message"));
+        assertTrue(result.systemPrompt().contains("If thread and query languages differ, preserve the thread language"));
+    }
+
+    @Test
     void general은수신자정보로대상별히스토리메일을조회한다() {
         // given
         Fixture fixture = createFixture();
