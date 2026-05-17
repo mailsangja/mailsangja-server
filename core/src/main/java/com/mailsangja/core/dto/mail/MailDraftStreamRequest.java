@@ -17,7 +17,6 @@ public record MailDraftStreamRequest(
     public MailDraftStreamRequest {
         validateMailAddress(mailAddress);
         validateQuery(query);
-        validateTo(to);
     }
 
     private static void validateMailAddress(String mailAddress) {
@@ -32,9 +31,4 @@ public record MailDraftStreamRequest(
         }
     }
 
-    private static void validateTo(List<String> to) {
-        if (to == null || to.isEmpty()) {
-            throw new MailDraftException(MailDraftErrorCode.INVALID_REQUEST);
-        }
-    }
 }
