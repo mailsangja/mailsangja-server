@@ -41,7 +41,7 @@ public class MailDraftAsyncService {
         try {
             MailDraftRagContextResult context = mailDraftQueryService.replyRagContext(command);
             MailDraftPromptResult prompt = mailDraftQueryService.replyPrompt(command, context);
-            stream(emitter, command, prompt, cancellation);
+            streamReplyBody(emitter, command, prompt, cancellation);
         } catch (Exception exception) {
             handleFailure(emitter, command, exception);
         }
@@ -125,6 +125,21 @@ public class MailDraftAsyncService {
             return;
         }
         completeSuccess(emitter, subjectUsage, bodyUsage);
+    }
+
+    private void streamReplyBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
+                                 MailDraftCommandService.StreamCancellation cancellation) {
+        try {
+            mailDraftCommandService.validateMonthlyRateLimit(command.userId());
+            MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
+            MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation);
+            if (cancellation.isCancelled()) {
+                return;
+            }
+            completeSuccess(emitter, bodyUsage);
+        } catch (Exception exception) {
+            handleFailure(emitter, command, exception);
+        }
     }
 
     private void completeSuccess(SseEmitter emitter, MailDraftUsageResult subjectUsage, MailDraftUsageResult bodyUsage) {

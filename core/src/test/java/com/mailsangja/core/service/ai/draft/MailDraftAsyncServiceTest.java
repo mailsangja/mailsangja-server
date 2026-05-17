@@ -224,22 +224,29 @@ class MailDraftAsyncServiceTest {
     }
 
     @Test
-    void reply는답장템플릿으로조립한최종프롬프트로LLM을호출한다() {
+    void reply는답장템플릿으로본문만LLM호출한다() {
         // given
         Fixture fixture = createFixture();
         SseEmitter emitter = new SseEmitter();
         MailDraftPromptResult prompt = new MailDraftPromptResult("reply system", "reply user");
         MailDraftCommand command = createReplyCommand();
+        MailDraftUsageResult bodyUsage = new MailDraftUsageResult("gpt-4o-mini", 20, 10, 30);
         when(fixture.queryService().replyRagContext(command)).thenReturn(MailDraftRagContextResult.empty());
         when(fixture.queryService().replyPrompt(eq(command), any())).thenReturn(prompt);
+        when(fixture.commandService().streamBody(eq(emitter), any(), any(), any())).thenReturn(bodyUsage);
 
         // when
         fixture.asyncService().streamReply(emitter, command);
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
-        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture(), any(), any());
+        verify(fixture.commandService()).streamBody(eq(emitter), captor.capture(), any(), any());
         assertSame(prompt, captor.getValue());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamCombined(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
+        verify(fixture.commandService()).sendUsage(emitter, bodyUsage);
+        verify(fixture.commandService()).sendDone(emitter);
+        verify(fixture.commandService()).complete(emitter);
     }
 
     private Fixture createFixture() {
