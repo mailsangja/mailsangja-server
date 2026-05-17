@@ -210,6 +210,31 @@ class LabelFacadeTest {
     }
 
     @Test
+    void 라벨제안단건조회_제안의규칙반환() {
+        User user = user();
+        LabelRule rule = rule("invoice");
+        Label suggestion = label("업무", 1, rule);
+        when(labelQueryService.findSuggestionByIdAndUserId(suggestion.getId(), user.getId())).thenReturn(suggestion);
+
+        LabelDetailResponse response = labelFacade.getSuggestionDetail(user, suggestion.getId());
+
+        assertEquals(suggestion.getId(), response.id());
+        assertSame(rule, response.rule());
+    }
+
+    @Test
+    void 라벨제안단건조회_규칙없는제안_null규칙반환() {
+        User user = user();
+        Label suggestion = label("업무", 1, null);
+        when(labelQueryService.findSuggestionByIdAndUserId(suggestion.getId(), user.getId())).thenReturn(suggestion);
+
+        LabelDetailResponse response = labelFacade.getSuggestionDetail(user, suggestion.getId());
+
+        assertEquals(suggestion.getId(), response.id());
+        assertEquals(null, response.rule());
+    }
+
+    @Test
     void 라벨삭제_CommandService에위임() {
         User user = user();
         Label label = label("삭제", 1);

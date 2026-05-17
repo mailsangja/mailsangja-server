@@ -100,6 +100,15 @@ public class LabelController implements LabelControllerDocs {
     }
 
     @Override
+    @GetMapping("/api/v1/labels/suggestions/{suggestionId}")
+    public ResponseEntity<LabelDetailResponse> getSuggestionDetail(
+            @AuthUser User user,
+            @PathVariable UUID suggestionId
+    ) {
+        return ResponseEntity.ok(labelFacade.getSuggestionDetail(user, suggestionId));
+    }
+
+    @Override
     @PostMapping("/api/v1/labels/suggestions/{suggestionId}/approve")
     public ResponseEntity<LabelDetailResponse> approveSuggestion(
             @AuthUser User user,
