@@ -28,18 +28,19 @@ class ReplyDraftSuggestionCommandServiceTest {
     void deleteAllByMessageId_messageId의활성추천초안을모두삭제한다() {
         // given
         ReplyDraftSuggestionRepositoryPort repositoryPort = mock(ReplyDraftSuggestionRepositoryPort.class);
-        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(repositoryPort);
+        ReplyDraftSuggestionQueryService queryService = mock(ReplyDraftSuggestionQueryService.class);
+        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(repositoryPort, queryService);
         UUID messageId = UUID.randomUUID();
         Message message = createMessage(messageId);
         ReplyDraftSuggestion first = createSuggestion(message, "승락");
         ReplyDraftSuggestion second = createSuggestion(message, "제안");
-        when(repositoryPort.findAllByMessageIdAndDeletedAtIsNull(messageId)).thenReturn(List.of(first, second));
+        when(queryService.findActiveByMessageId(messageId)).thenReturn(List.of(first, second));
 
         // when
         service.deleteAllByMessageId(messageId);
 
         // then
-        verify(repositoryPort).findAllByMessageIdAndDeletedAtIsNull(messageId);
+        verify(queryService).findActiveByMessageId(messageId);
         verify(repositoryPort).delete(first);
         verify(repositoryPort).delete(second);
     }
@@ -48,15 +49,16 @@ class ReplyDraftSuggestionCommandServiceTest {
     void deleteAllByMessageId_활성추천초안이없으면삭제를호출하지않는다() {
         // given
         ReplyDraftSuggestionRepositoryPort repositoryPort = mock(ReplyDraftSuggestionRepositoryPort.class);
-        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(repositoryPort);
+        ReplyDraftSuggestionQueryService queryService = mock(ReplyDraftSuggestionQueryService.class);
+        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(repositoryPort, queryService);
         UUID messageId = UUID.randomUUID();
-        when(repositoryPort.findAllByMessageIdAndDeletedAtIsNull(messageId)).thenReturn(List.of());
+        when(queryService.findActiveByMessageId(messageId)).thenReturn(List.of());
 
         // when
         service.deleteAllByMessageId(messageId);
 
         // then
-        verify(repositoryPort).findAllByMessageIdAndDeletedAtIsNull(messageId);
+        verify(queryService).findActiveByMessageId(messageId);
         verify(repositoryPort, never()).delete(any());
     }
 
@@ -64,13 +66,14 @@ class ReplyDraftSuggestionCommandServiceTest {
     void deleteAllByMessageId_messageId가없으면실패한다() {
         // given
         ReplyDraftSuggestionRepositoryPort repositoryPort = mock(ReplyDraftSuggestionRepositoryPort.class);
-        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(repositoryPort);
+        ReplyDraftSuggestionQueryService queryService = mock(ReplyDraftSuggestionQueryService.class);
+        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(repositoryPort, queryService);
 
         // when & then
         assertThrows(MailDraftException.class, () -> service.deleteAllByMessageId(null));
 
         // then
-        verify(repositoryPort, never()).findAllByMessageIdAndDeletedAtIsNull(any());
+        verify(queryService, never()).findActiveByMessageId(any());
         verify(repositoryPort, never()).delete(any());
     }
 
