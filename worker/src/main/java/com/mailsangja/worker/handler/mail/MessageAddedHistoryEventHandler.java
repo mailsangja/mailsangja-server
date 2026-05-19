@@ -17,7 +17,7 @@ import com.mailsangja.worker.messaging.publisher.ReplyDraftSuggestionPublisher;
 import com.mailsangja.worker.service.label.LabelQueryService;
 import com.mailsangja.worker.service.label.MessageLabelCommandService;
 import com.mailsangja.worker.service.mail.GmailNewMessageSyncCommandService;
-import com.mailsangja.worker.service.mail.ReplyDraftSuggestionTriggerQueryService;
+import com.mailsangja.worker.service.mail.ReplyDraftSuggestionQueryService;
 import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +40,7 @@ public class MessageAddedHistoryEventHandler {
     private final AttachmentRepositoryPort attachmentRepositoryPort;
     private final FcmPushCommandService fcmPushCommandService;
     private final MailEmbeddingPublisher mailEmbeddingPublisher;
-    private final ReplyDraftSuggestionTriggerQueryService replyDraftSuggestionTriggerQueryService;
+    private final ReplyDraftSuggestionQueryService replyDraftSuggestionQueryService;
     private final ReplyDraftSuggestionPublisher replyDraftSuggestionPublisher;
 
     public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
@@ -71,7 +71,7 @@ public class MessageAddedHistoryEventHandler {
         if (context.direction() != Direction.INBOUND) {
             return;
         }
-        if (!replyDraftSuggestionTriggerQueryService.isEligible(context.threadMessageCount())) {
+        if (!replyDraftSuggestionQueryService.isEligible(context.threadMessageCount())) {
             return;
         }
         replyDraftSuggestionPublisher.publish(new ReplyDraftSuggestionMessage(context.messageId()));

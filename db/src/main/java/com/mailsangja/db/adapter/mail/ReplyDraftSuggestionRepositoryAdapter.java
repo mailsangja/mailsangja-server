@@ -36,4 +36,9 @@ public class ReplyDraftSuggestionRepositoryAdapter implements ReplyDraftSuggesti
     public Optional<ReplyDraftSuggestion> findByIdAndDeletedAtIsNull(UUID id) {
         return replyDraftSuggestionJpaRepositoryModule.findByIdAndDeletedAtIsNull(id);
     }
+
+    @Override
+    public boolean existsByMessageId(UUID messageId) {
+        return replyDraftSuggestionJpaRepositoryModule.existsByMessageId(messageId);
+    }
 }

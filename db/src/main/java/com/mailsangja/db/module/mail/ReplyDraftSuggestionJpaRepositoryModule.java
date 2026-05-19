@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface ReplyDraftSuggestionJpaRepositoryModule extends JpaRepository<ReplyDraftSuggestion, UUID> {
     List<ReplyDraftSuggestion> findAllByMessageIdAndDeletedAtIsNull(UUID messageId);
     Optional<ReplyDraftSuggestion> findByIdAndDeletedAtIsNull(UUID id);
+    boolean existsByMessageId(UUID messageId);
 }

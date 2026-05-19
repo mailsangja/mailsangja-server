@@ -11,4 +11,5 @@ public interface ReplyDraftSuggestionRepositoryPort {
     void delete(ReplyDraftSuggestion replyDraftSuggestion);
     List<ReplyDraftSuggestion> findAllByMessageIdAndDeletedAtIsNull(UUID messageId);
     Optional<ReplyDraftSuggestion> findByIdAndDeletedAtIsNull(UUID id);
+    boolean existsByMessageId(UUID messageId);
 }

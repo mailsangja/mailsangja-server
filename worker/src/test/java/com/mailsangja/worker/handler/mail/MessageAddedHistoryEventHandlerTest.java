@@ -13,9 +13,11 @@ import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.handler.label.LabelRuleCompiler;
 import com.mailsangja.worker.messaging.publisher.MailEmbeddingPublisher;
+import com.mailsangja.worker.messaging.publisher.ReplyDraftSuggestionPublisher;
 import com.mailsangja.worker.service.label.LabelQueryService;
 import com.mailsangja.worker.service.label.MessageLabelCommandService;
 import com.mailsangja.worker.service.mail.GmailNewMessageSyncCommandService;
+import com.mailsangja.worker.service.mail.ReplyDraftSuggestionQueryService;
 import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,6 +61,12 @@ class MessageAddedHistoryEventHandlerTest {
     @Mock
     private MailEmbeddingPublisher mailEmbeddingPublisher;
 
+    @Mock
+    private ReplyDraftSuggestionQueryService replyDraftSuggestionQueryService;
+
+    @Mock
+    private ReplyDraftSuggestionPublisher replyDraftSuggestionPublisher;
+
     private MessageAddedHistoryEventHandler handler;
 
     @BeforeEach
@@ -70,7 +78,9 @@ class MessageAddedHistoryEventHandlerTest {
                 messageLabelCommandService,
                 attachmentRepositoryPort,
                 fcmPushCommandService,
-                mailEmbeddingPublisher
+                mailEmbeddingPublisher,
+                replyDraftSuggestionQueryService,
+                replyDraftSuggestionPublisher
         );
     }
 
