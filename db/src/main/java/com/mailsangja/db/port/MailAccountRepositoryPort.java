@@ -17,6 +17,7 @@ public interface MailAccountRepositoryPort {
     Optional<MailAccount> findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(UUID userId, MailProvider provider, String emailAddress);
     Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active);
     Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
+    List<MailAccount> findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId);
     int updateGoogleTokenIfAccessTokenMatches(
             UUID id,
