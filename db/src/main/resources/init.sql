@@ -2,6 +2,10 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS hstore;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mail_accounts_user_provider_email_active
+    ON mail_accounts (user_id, provider, email_address)
+    WHERE deleted_at IS NULL;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_devices_fcm_token_active
     ON user_devices (fcm_token)
     WHERE deleted_at IS NULL;

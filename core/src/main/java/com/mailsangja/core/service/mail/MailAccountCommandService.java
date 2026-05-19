@@ -34,11 +34,6 @@ public class MailAccountCommandService {
                         result.emailAddress()
                 )
         );
-
-        validateAnotherOwnerDuplicate(
-                mailAccountQueryService.findByProviderAndEmailAddress(MailProvider.GMAIL, result.emailAddress()),
-                user
-        );
     }
 
     @Transactional
@@ -155,18 +150,33 @@ public class MailAccountCommandService {
         }
     }
 
+    @Transactional
+    public void updateMailAccountAppearance(User user, UUID mailAccountId, String alias, String icon, String color) {
+        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        validateOwnership(mailAccount, user);
+
+        if (alias != null && !alias.isBlank()) mailAccount.updateAlias(alias);
+        if (icon != null && !icon.isBlank()) mailAccount.updateIcon(icon);
+        if (color != null && !color.isBlank()) mailAccount.updateColor(color);
+    }
+
+    @Transactional
+    public void deactivateMailAccount(User user, UUID mailAccountId) {
+        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        validateOwnership(mailAccount, user);
+        mailAccount.deactivate();
+    }
+
+    private void validateOwnership(MailAccount mailAccount, User user) {
+        if (!mailAccount.getUser().getId().equals(user.getId())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ACCESS_DENIED);
+        }
+    }
+
     private void validateSameOwnerDuplicate(Optional<MailAccount> existingMailAccount) {
         if (existingMailAccount.isPresent()) {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED);
         }
-    }
-
-    private void validateAnotherOwnerDuplicate(Optional<MailAccount> existingMailAccount, User user) {
-        existingMailAccount
-                .filter(existing -> !existing.getUser().getId().equals(user.getId()))
-                .ifPresent(existing -> {
-                    throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER);
-                });
     }
 
     private void validateSavedMailAccount(MailAccount mailAccount) {
