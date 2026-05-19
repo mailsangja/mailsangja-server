@@ -31,7 +31,9 @@ public enum MailAccountErrorCode implements ErrorCode {
     GOOGLE_REFRESH_TOKEN_MISSING(400, "MS-MAIL-GOOGLE-REFRESH-TOKEN-MISSING", "Google 계정 재연동이 필요합니다. 다시 동의하고 계정을 연결해주세요."),
     MAIL_ACCOUNT_ALREADY_CONNECTED(409, "MS-MAIL-ACCOUNT-ALREADY-CONNECTED", "이미 연결된 메일 계정입니다."),
     MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER(409, "MS-MAIL-ACCOUNT-ALREADY-CONNECTED-BY-ANOTHER-USER", "다른 사용자가 이미 연결한 메일 계정입니다."),
-    MAIL_ACCOUNT_NOT_FOUND(404, "MS-MAIL-ACCOUNT-NOT-FOUND", "메일 계정을 찾을 수 없습니다.");
+    MAIL_ACCOUNT_NOT_FOUND(404, "MS-MAIL-ACCOUNT-NOT-FOUND", "메일 계정을 찾을 수 없습니다."),
+    MAIL_ACCOUNT_ACCESS_DENIED(403, "MS-MAIL-ACCOUNT-ACCESS-DENIED", "해당 메일 계정에 접근 권한이 없습니다."),
+    MAIL_ACCOUNT_NO_FIELD_TO_UPDATE(400, "MS-MAIL-ACCOUNT-NO-FIELD-TO-UPDATE", "변경할 항목을 하나 이상 입력해주세요.");
 
     private final int status;
     private final String code;

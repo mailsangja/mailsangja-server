@@ -1,6 +1,7 @@
 package com.mailsangja.core.controller.docs;
 
 import com.mailsangja.core.common.auth.AuthUser;
+import com.mailsangja.core.dto.mail.MailAccountAppearanceUpdateRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
@@ -17,8 +18,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
+import java.util.UUID;
 
 @Tag(name = "Mail Account", description = "메일 계정 연동 API")
 public interface MailAccountControllerDocs {
@@ -42,6 +46,40 @@ public interface MailAccountControllerDocs {
     })
     ResponseEntity<List<MailAccountListResponse>> getMyMailAccounts(
             @Parameter(hidden = true) @AuthUser User user
+    );
+
+    @Operation(
+            summary = "메일 계정 외관 변경",
+            description = "메일 계정의 별칭(alias), 아이콘(icon), 색상(color) 중 하나 이상을 변경합니다. 제공한 필드만 변경됩니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "외관 변경 성공", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "변경할 필드 없음 또는 형식 오류", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "메일 계정 없음", content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<Void> updateMailAccountAppearance(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "메일 계정 ID", required = true) @PathVariable UUID mailAccountId,
+            @RequestBody MailAccountAppearanceUpdateRequest request
+    );
+
+    @Operation(
+            summary = "메일 계정 비활성화",
+            description = "메일 계정을 비활성화합니다. 비활성화된 계정은 메일 수신 및 동기화가 중단됩니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "비활성화 성공", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "메일 계정 없음", content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<Void> deactivateMailAccount(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "메일 계정 ID", required = true) @PathVariable UUID mailAccountId
     );
 
     @Operation(
