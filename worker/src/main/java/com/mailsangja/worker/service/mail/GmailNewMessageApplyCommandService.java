@@ -31,7 +31,7 @@ public class GmailNewMessageApplyCommandService {
     private final InitialMailSyncCommandService initialMailSyncCommandService;
 
     @Transactional
-    public void applyNewMessageSync(
+    public int applyNewMessageSync(
             MailAccount mailAccount,
             GmailHistoryEvent event,
             InitialMailSyncThreadSaveCommand syncCommand
@@ -40,10 +40,15 @@ public class GmailNewMessageApplyCommandService {
 
         restoreIfDeleted(mailAccount, event.gmailThreadId());
 
-        initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand));
+        return initialMailSyncCommandService.saveThreadBatch(mailAccount, List.of(syncCommand)).threadMessageCount();
     }
 
-    public NewMessageApplyResult findNewMessageApplyResult(UUID mailAccountId, String gmailThreadId, String gmailMessageId) {
+    public NewMessageApplyResult findNewMessageApplyResult(
+            UUID mailAccountId,
+            String gmailThreadId,
+            String gmailMessageId,
+            int threadMessageCount
+    ) {
         Optional<Message> messageOpt = messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, gmailThreadId, gmailMessageId
         );
@@ -53,7 +58,7 @@ public class GmailNewMessageApplyCommandService {
             throw new MailPushException(MailPushErrorCode.NEW_MESSAGE_NOT_SAVED);
         }
         Message message = messageOpt.get();
-        return new NewMessageApplyResult(message.getId(), message.getThread().getId());
+        return new NewMessageApplyResult(message.getId(), message.getThread().getId(), threadMessageCount);
     }
 
     private void restoreIfDeleted(MailAccount mailAccount, String gmailThreadId) {

@@ -9,12 +9,15 @@ import com.mailsangja.db.port.AttachmentRepositoryPort;
 import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.label.MessageBatch;
+import com.mailsangja.worker.dto.mail.reply.ReplyDraftSuggestionMessage;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.handler.label.LabelRuleCompiler;
 import com.mailsangja.worker.messaging.publisher.MailEmbeddingPublisher;
+import com.mailsangja.worker.messaging.publisher.ReplyDraftSuggestionPublisher;
 import com.mailsangja.worker.service.label.LabelQueryService;
 import com.mailsangja.worker.service.label.MessageLabelCommandService;
 import com.mailsangja.worker.service.mail.GmailNewMessageSyncCommandService;
+import com.mailsangja.worker.service.mail.ReplyDraftSuggestionTriggerQueryService;
 import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,10 +40,13 @@ public class MessageAddedHistoryEventHandler {
     private final AttachmentRepositoryPort attachmentRepositoryPort;
     private final FcmPushCommandService fcmPushCommandService;
     private final MailEmbeddingPublisher mailEmbeddingPublisher;
+    private final ReplyDraftSuggestionTriggerQueryService replyDraftSuggestionTriggerQueryService;
+    private final ReplyDraftSuggestionPublisher replyDraftSuggestionPublisher;
 
     public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
         gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event).ifPresent(context -> {
             mailEmbeddingPublisher.publish(new MailEmbeddingMessage(context.messageId()));
+            publishReplyDraftSuggestionIfEligible(event, context);
 
             List<Label> activeLabels = labelQueryService.findAllActiveByUserId(mailAccount.getUser().getId());
 
@@ -59,6 +65,16 @@ public class MessageAddedHistoryEventHandler {
                 sendFcmPush(context);
             }
         });
+    }
+
+    private void publishReplyDraftSuggestionIfEligible(GmailHistoryEvent event, NewMailPushContext context) {
+        if (context.direction() != Direction.INBOUND) {
+            return;
+        }
+        if (!replyDraftSuggestionTriggerQueryService.isEligible(context.threadMessageCount())) {
+            return;
+        }
+        replyDraftSuggestionPublisher.publish(new ReplyDraftSuggestionMessage(context.messageId()));
     }
 
     private boolean applyLabelsAndCheckNotification(NewMailPushContext context, List<Label> activeLabels) {

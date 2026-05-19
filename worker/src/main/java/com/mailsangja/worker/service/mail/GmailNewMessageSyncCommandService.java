@@ -40,14 +40,14 @@ public class GmailNewMessageSyncCommandService {
         }
 
         InitialMailSyncThreadSaveCommand syncCommand = InitialMailSyncThreadSaveCommand.from(threadResults.getFirst());
-        gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
+        int threadMessageCount = gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
 
         if (!isNewMessage) {
             return Optional.empty();
         }
 
         NewMessageApplyResult applyResult = gmailNewMessageApplyCommandService.findNewMessageApplyResult(
-                mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId()
+                mailAccount.getId(), event.gmailThreadId(), event.gmailMessageId(), threadMessageCount
         );
 
         for (InitialMailSyncMessageSaveCommand message : syncCommand.messages()) {
@@ -59,7 +59,8 @@ public class GmailNewMessageSyncCommandService {
                         message.snippet(),
                         applyResult.threadId(),
                         applyResult.messageId(),
-                        message.direction()
+                        message.direction(),
+                        applyResult.threadMessageCount()
                 ));
             }
         }

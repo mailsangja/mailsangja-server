@@ -81,6 +81,8 @@ scalar:
 
 mailsangja:
   ai:
+    reply-draft:
+      min-thread-message-count: ${AI_REPLY_DRAFT_MIN_THREAD_MESSAGE_COUNT:3}
     embedding:
       metadata-hash:
         secret: ${AI_METADATA_HASH_SECRET:}
