@@ -7,6 +7,7 @@ import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
 import com.mailsangja.core.config.properties.GoogleOAuthProperties;
 import com.mailsangja.core.controller.docs.MailAccountControllerDocs;
+import com.mailsangja.core.dto.mail.MailAccountAppearanceUpdateRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
@@ -15,8 +16,12 @@ import com.mailsangja.db.entity.user.User;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -43,6 +48,47 @@ public class MailAccountController implements MailAccountControllerDocs {
     @GetMapping("/api/v1/mail-accounts")
     public ResponseEntity<List<MailAccountListResponse>> getMyMailAccounts(@AuthUser User user) {
         return ResponseEntity.ok(mailAccountFacade.getMyMailAccounts(user));
+    }
+
+    @Override
+    @PatchMapping("/api/v1/mail-accounts/{mailAccountId}")
+    public ResponseEntity<Void> updateMailAccountAppearance(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId,
+            @RequestBody MailAccountAppearanceUpdateRequest request
+    ) {
+        mailAccountFacade.updateMailAccountAppearance(user, mailAccountId, request);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @PatchMapping("/api/v1/mail-accounts/{mailAccountId}/activate")
+    public ResponseEntity<Void> activateMailAccount(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId
+    ) {
+        mailAccountFacade.activateMailAccount(user, mailAccountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @PatchMapping("/api/v1/mail-accounts/{mailAccountId}/deactivate")
+    public ResponseEntity<Void> deactivateMailAccount(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId
+    ) {
+        mailAccountFacade.deactivateMailAccount(user, mailAccountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @DeleteMapping("/api/v1/mail-accounts/{mailAccountId}")
+    public ResponseEntity<Void> deleteMailAccount(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId
+    ) {
+        mailAccountFacade.deleteMailAccount(user, mailAccountId);
+        return ResponseEntity.ok().build();
     }
 
     @Override

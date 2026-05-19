@@ -46,7 +46,7 @@ public class InitialMailSyncListener {
     @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
     public void handle(InitialMailSyncMessage message) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
+                mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
 
         GoogleMailMessageListResult result = gmailMessageApiService.getLatestMessages(
@@ -82,7 +82,7 @@ public class InitialMailSyncListener {
     )
     public void handleThreadBatch(InitialMailSyncThreadBatchMessage message) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(message.mailAccountId())
+                mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
 
         List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(

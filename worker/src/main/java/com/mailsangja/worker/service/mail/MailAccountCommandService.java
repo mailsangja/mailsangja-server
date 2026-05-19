@@ -42,7 +42,7 @@ public class MailAccountCommandService {
         GoogleOAuthTokenResult tokenResult = command.tokenResult();
         GoogleMailWatchResult watchResult = command.watchResult();
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccountId);
+        MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(mailAccountId);
         validateRefreshableGoogleMailAccount(mailAccount);
         String updatedRefreshToken = isBlank(tokenResult.refreshToken())
                 ? mailAccount.getRefreshToken()
@@ -63,7 +63,7 @@ public class MailAccountCommandService {
     public MailAccount refreshGoogleAccessToken(UUID mailAccountId, GoogleOAuthTokenResult tokenResult) {
         validateRefreshGoogleAccessTokenInput(mailAccountId, tokenResult);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(mailAccountId);
+        MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(mailAccountId);
         validateRefreshableGoogleMailAccount(mailAccount);
         String updatedRefreshToken = isBlank(tokenResult.refreshToken())
                 ? mailAccount.getRefreshToken()
@@ -77,7 +77,7 @@ public class MailAccountCommandService {
                 updatedRefreshToken
         );
 
-        return mailAccountQueryService.findActiveMailAccountById(mailAccountId);
+        return mailAccountQueryService.findSyncableMailAccountById(mailAccountId);
     }
 
     private void validateRenewGoogleWatchCommand(RenewGoogleWatchCommand command) {

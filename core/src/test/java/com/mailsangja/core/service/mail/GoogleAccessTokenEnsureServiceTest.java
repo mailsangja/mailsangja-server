@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
@@ -97,7 +98,7 @@ class GoogleAccessTokenEnsureServiceTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(
                 mailAccountRepositoryPort,
-                mailAccountQueryService
+                Clock.systemUTC()
         );
         return new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,

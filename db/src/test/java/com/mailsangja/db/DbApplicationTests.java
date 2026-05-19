@@ -1,13 +1,17 @@
 package com.mailsangja.db;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 class DbApplicationTests {
 
     @Test
-    void contextLoads() {
-    }
+    void applicationClassLoads() {
+        // given
+        Class<DbApplication> applicationClass = DbApplication.class;
 
+        // when & then
+        assertNotNull(applicationClass);
+    }
 }

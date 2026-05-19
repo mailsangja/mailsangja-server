@@ -29,7 +29,7 @@ public class GmailWatchRenewalListener {
             containerFactory = "watchRenewalRabbitListenerContainerFactory"
     )
     public void handle(WatchRenewalMessage message) {
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(message.mailAccountId());
+        MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId());
         GoogleOAuthTokenResult tokenResult = googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken());
         GoogleMailWatchResult watchResult = gmailWatchApiService.watch(tokenResult.accessToken());
 

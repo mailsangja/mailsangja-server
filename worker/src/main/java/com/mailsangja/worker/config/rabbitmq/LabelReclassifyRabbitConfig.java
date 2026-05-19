@@ -84,7 +84,7 @@ public class LabelReclassifyRabbitConfig {
             @Qualifier("labelReclassifyMessageRecoverer") MessageRecoverer labelReclassifyMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .maxRetries(properties.getRetryMaxAttempts())
+                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
                 .recoverer(labelReclassifyMessageRecoverer)
                 .build();
     }

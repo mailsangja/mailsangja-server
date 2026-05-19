@@ -22,7 +22,7 @@ public class MessageRestoredHistoryEventHandler implements GmailHistoryEventHand
 
     @Override
     public void handle(GmailHistoryEvent event) {
-        MailAccount mailAccount = mailAccountQueryService.findActiveMailAccountById(event.mailAccountId());
+        MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(event.mailAccountId());
         gmailHistoryDeleteApplyCommandService.applyMessageRestored(mailAccount, event);
     }
 }

@@ -86,7 +86,7 @@ public class GmailMessageAddedRabbitConfig {
             @Qualifier("gmailMessageAddedMessageRecoverer") MessageRecoverer gmailMessageAddedMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .maxRetries(properties.getRetryMaxAttempts())
+                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
                 .recoverer(gmailMessageAddedMessageRecoverer)
                 .build();
     }

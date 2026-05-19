@@ -3,6 +3,7 @@ package com.mailsangja.worker.service.mail;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
+import com.mailsangja.worker.common.exception.mail.MailAccountNotFoundException;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import lombok.RequiredArgsConstructor;
@@ -21,19 +22,23 @@ public class MailAccountQueryService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
-    public MailAccount findActiveGoogleMailAccountByEmailAddress(String emailAddress) {
-        MailAccount mailAccount = mailAccountRepositoryPort.findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress)
-                .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+    public List<MailAccount> findSyncableGoogleMailAccountsByEmailAddress(String emailAddress) {
+        List<MailAccount> mailAccounts = mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress);
 
-        validateActiveMailAccount(mailAccount);
-        return mailAccount;
+        if (mailAccounts.isEmpty()) {
+            throw new MailAccountNotFoundException();
+        }
+
+        return mailAccounts.stream()
+                .filter(this::isSyncable)
+                .toList();
     }
 
-    public MailAccount findActiveMailAccountById(UUID id) {
+    public MailAccount findSyncableMailAccountById(UUID id) {
         MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+                .orElseThrow(MailAccountNotFoundException::new);
 
-        validateActiveMailAccount(mailAccount);
+        validateSyncableMailAccount(mailAccount);
         return mailAccount;
     }
 
@@ -49,13 +54,16 @@ public class MailAccountQueryService {
         return LocalDateTime.now(KST_ZONE_ID);
     }
 
-    private void validateActiveMailAccount(MailAccount mailAccount) {
-        if (!mailAccount.isActive()
-                || mailAccount.isDeleted()
-                || mailAccount.getProvider() != MailProvider.GMAIL
-                || isBlank(mailAccount.getAccessToken())) {
+    private void validateSyncableMailAccount(MailAccount mailAccount) {
+        if (!isSyncable(mailAccount)) {
             throw new MailPushException(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE);
         }
+    }
+
+    private boolean isSyncable(MailAccount mailAccount) {
+        return !mailAccount.isDeleted()
+                && mailAccount.getProvider() == MailProvider.GMAIL
+                && !isBlank(mailAccount.getAccessToken());
     }
 
     private boolean isBlank(String value) {

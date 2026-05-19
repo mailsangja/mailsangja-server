@@ -21,7 +21,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'INBOUND'
               AND t.deletedAt IS NULL
@@ -32,7 +32,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                   WHERE m.id = :markerId
                     AND m.mailAccount.id IN (
                       SELECT ma.id FROM MailAccount ma
-                      WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                      WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                     )
                     AND m.direction = 'INBOUND'
                 )
@@ -42,7 +42,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'INBOUND'
                   )
@@ -62,7 +62,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'INBOUND'
               AND t.deletedAt IS NULL
@@ -74,7 +74,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                   WHERE m.id = :markerId
                     AND m.mailAccount.id IN (
                       SELECT ma.id FROM MailAccount ma
-                      WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                      WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                     )
                     AND m.direction = 'INBOUND'
                 )
@@ -84,7 +84,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'INBOUND'
                   )
@@ -105,7 +105,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'OUTBOUND'
               AND t.deletedAt IS NULL
@@ -116,7 +116,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                   WHERE m.id = :markerId
                     AND m.mailAccount.id IN (
                       SELECT ma.id FROM MailAccount ma
-                      WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                      WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                     )
                     AND m.direction = 'OUTBOUND'
                 )
@@ -126,7 +126,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'OUTBOUND'
                   )
@@ -146,7 +146,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'OUTBOUND'
               AND t.deletedAt IS NULL
@@ -158,7 +158,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                   WHERE m.id = :markerId
                     AND m.mailAccount.id IN (
                       SELECT ma.id FROM MailAccount ma
-                      WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                      WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                     )
                     AND m.direction = 'OUTBOUND'
                 )
@@ -168,7 +168,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'OUTBOUND'
                   )
@@ -198,14 +198,14 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             @Param("gmailThreadId") String gmailThreadId
     );
 
-    @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'INBOUND' AND t.read = false AND t.deletedAt IS NULL")
+    @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL) AND t.direction = 'INBOUND' AND t.read = false AND t.deletedAt IS NULL")
     long countUnreadInboxByUserId(@Param("userId") UUID userId);
 
     @Query("""
             SELECT COUNT(t) FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'INBOUND'
               AND t.deletedAt IS NULL
@@ -216,14 +216,14 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             @Param("read") Boolean read
     );
 
-    @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.direction = 'OUTBOUND' AND t.read = false AND t.deletedAt IS NULL")
+    @Query("SELECT COUNT(t) FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL) AND t.direction = 'OUTBOUND' AND t.read = false AND t.deletedAt IS NULL")
     long countUnreadSentByUserId(@Param("userId") UUID userId);
 
     @Query("""
             SELECT COUNT(t) FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'OUTBOUND'
               AND t.deletedAt IS NULL
@@ -238,7 +238,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT COUNT(DISTINCT t) FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'INBOUND'
               AND t.read = false
@@ -260,7 +260,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT COUNT(DISTINCT t) FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'INBOUND'
               AND t.deletedAt IS NULL
@@ -283,7 +283,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT COUNT(DISTINCT t) FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'OUTBOUND'
               AND t.read = false
@@ -305,7 +305,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT COUNT(DISTINCT t) FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
               AND t.direction = 'OUTBOUND'
               AND t.deletedAt IS NULL
@@ -356,7 +356,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
     );
 
     @EntityGraph(attributePaths = {"mailAccount"})
-    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.deletedAt IS NULL) AND t.deletedAt IS NOT NULL AND (:markerId IS NULL OR t.deletedAt < (SELECT m.deletedAt FROM Thread m WHERE m.id = :markerId)) ORDER BY t.deletedAt DESC")
+    @Query("SELECT t FROM Thread t WHERE t.mailAccount.id IN (SELECT ma.id FROM MailAccount ma WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL) AND t.deletedAt IS NOT NULL AND (:markerId IS NULL OR t.deletedAt < (SELECT m.deletedAt FROM Thread m WHERE m.id = :markerId)) ORDER BY t.deletedAt DESC")
     Slice<Thread> findTrashByUserId(
             @Param("userId") UUID userId,
             @Param("markerId") UUID markerId,
@@ -368,7 +368,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT DISTINCT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
              AND t.direction = 'INBOUND'
              AND t.deletedAt IS NULL
@@ -386,7 +386,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'INBOUND'
                 )
@@ -396,7 +396,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                         WHERE m.id = :markerId
                           AND m.mailAccount.id IN (
                             SELECT ma.id FROM MailAccount ma
-                            WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                            WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                           )
                           AND m.direction = 'INBOUND'
                     )
@@ -417,7 +417,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT DISTINCT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
              AND t.direction = 'INBOUND'
              AND t.deletedAt IS NULL
@@ -436,7 +436,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'INBOUND'
                 )
@@ -446,7 +446,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                         WHERE m.id = :markerId
                           AND m.mailAccount.id IN (
                             SELECT ma.id FROM MailAccount ma
-                            WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                            WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                           )
                           AND m.direction = 'INBOUND'
                     )
@@ -468,7 +468,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             SELECT DISTINCT t FROM Thread t
             WHERE t.mailAccount.id IN (
                 SELECT ma.id FROM MailAccount ma
-                WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
             )
              AND t.direction = 'OUTBOUND'
              AND t.deletedAt IS NULL
@@ -487,7 +487,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                     WHERE m.id = :markerId
                       AND m.mailAccount.id IN (
                         SELECT ma.id FROM MailAccount ma
-                        WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
                       AND m.direction = 'OUTBOUND'
                 )
@@ -497,7 +497,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                         WHERE m.id = :markerId
                           AND m.mailAccount.id IN (
                             SELECT ma.id FROM MailAccount ma
-                            WHERE ma.user.id = :userId AND ma.deletedAt IS NULL
+                            WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                           )
                           AND m.direction = 'OUTBOUND'
                     )

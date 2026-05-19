@@ -29,7 +29,7 @@ public class GmailHistoryEventListener {
     )
     public void handleMessageAdded(GmailHistoryEvent event) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
+                mailAccountQueryService.findSyncableMailAccountById(event.mailAccountId())
         );
         messageAddedHandler.handle(mailAccount, event);
     }

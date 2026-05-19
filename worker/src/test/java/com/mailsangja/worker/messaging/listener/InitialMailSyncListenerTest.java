@@ -98,7 +98,7 @@ class InitialMailSyncListenerTest {
                 List.of("gmail-thread-1")
         );
 
-        when(mailAccountQueryService.findActiveMailAccountById(mailAccountId)).thenReturn(mailAccount);
+        when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
         when(googleAccessTokenEnsureService.ensureValidGoogleAccessToken(mailAccount)).thenReturn(mailAccount);
         when(gmailMessageApiService.getThreads("access-token", List.of("gmail-thread-1")))
                 .thenReturn(List.of(new InitialMailSyncThreadResult("gmail-thread-1", "history-1", List.of())));

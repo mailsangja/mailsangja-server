@@ -28,6 +28,9 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
     Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
 
     @EntityGraph(attributePaths = {"user"})
+    List<MailAccount> findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
+
+    @EntityGraph(attributePaths = {"user"})
     @Query("SELECT ma FROM MailAccount ma WHERE ma.id = :id AND ma.deletedAt IS NULL")
     Optional<MailAccount> findByIdAndDeletedAtIsNull(@Param("id") UUID id);
 
@@ -85,7 +88,6 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
             SELECT ma
             FROM MailAccount ma
             WHERE ma.provider = :provider
-              AND ma.active = true
               AND ma.deletedAt IS NULL
               AND ma.watchExpiresAt IS NOT NULL
               AND ma.watchExpiresAt <= :watchExpiresAtThreshold

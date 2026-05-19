@@ -84,7 +84,7 @@ public class MailEmbeddingRabbitConfig {
             @Qualifier("mailEmbeddingMessageRecoverer") MessageRecoverer mailEmbeddingMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .maxRetries(properties.getRetryMaxAttempts())
+                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
                 .recoverer(mailEmbeddingMessageRecoverer)
                 .build();
     }

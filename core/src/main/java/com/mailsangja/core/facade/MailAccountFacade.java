@@ -6,6 +6,7 @@ import com.mailsangja.core.dto.contact.GoogleContactResult;
 import com.mailsangja.core.dto.mail.GoogleMailAccountResult;
 import com.mailsangja.core.dto.mail.GoogleMailWatchResult;
 import com.mailsangja.core.dto.mail.InitialMailSyncMessage;
+import com.mailsangja.core.dto.mail.MailAccountAppearanceUpdateRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -87,6 +89,23 @@ public class MailAccountFacade {
         return mailAccounts.stream()
                 .map(MailAccountListResponse::from)
                 .toList();
+    }
+
+    public void updateMailAccountAppearance(User user, UUID mailAccountId, MailAccountAppearanceUpdateRequest request) {
+        request.validate();
+        mailAccountCommandService.updateMailAccountAppearance(user, mailAccountId, request.alias(), request.icon(), request.color());
+    }
+
+    public void activateMailAccount(User user, UUID mailAccountId) {
+        mailAccountCommandService.activateMailAccount(user, mailAccountId);
+    }
+
+    public void deactivateMailAccount(User user, UUID mailAccountId) {
+        mailAccountCommandService.deactivateMailAccount(user, mailAccountId);
+    }
+
+    public void deleteMailAccount(User user, UUID mailAccountId) {
+        mailAccountCommandService.deleteMailAccount(user, mailAccountId);
     }
 
     private void validateAuthorizationCode(String code) {

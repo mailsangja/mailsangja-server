@@ -86,7 +86,7 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
             @Qualifier("gmailHistoryStateMessageRecoverer") MessageRecoverer gmailHistoryStateMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .maxRetries(properties.getRetryMaxAttempts())
+                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
                 .recoverer(gmailHistoryStateMessageRecoverer)
                 .build();
     }
