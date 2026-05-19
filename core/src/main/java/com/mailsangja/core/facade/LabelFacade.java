@@ -95,7 +95,7 @@ public class LabelFacade {
         LlmLabelSuggestionResult result = labelSuggestionAiService.suggest(user.getId(), existingLabels);
         return result.suggestions().stream()
                 .map(item -> new LabelCreateRequest(item.name(), item.colorCode(), item.notificationPolicy(), item.order(), item.rule()))
-                .filter(request -> !labelQueryService.existsSuggestionByUserIdAndName(user.getId(), request.name().trim()))
+                .filter(request -> !labelQueryService.existsByUserIdAndName(user.getId(), request.name().trim()))
                 .map(request -> {
                     Label suggestion = labelCommandService.createSuggestion(user, request);
                     return LabelListResponse.of(suggestion, 0L);
