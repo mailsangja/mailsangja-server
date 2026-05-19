@@ -1,5 +1,6 @@
 package com.mailsangja.worker.config.rabbitmq;
 
+import com.mailsangja.worker.common.exception.mail.MailAccountNotFoundException;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
@@ -10,6 +11,7 @@ import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.retry.RetryPolicy;
 
 import java.time.Duration;
 
@@ -57,6 +59,13 @@ public class RabbitMqConfig {
             throw new MqException(MqErrorCode.INVALID_RABBITMQ_QUEUE_TTL, propertyName + " must be less than or equal to " + MAX_QUEUE_TTL_MILLIS + "ms.");
         }
         return (int) ttlMillis;
+    }
+
+    static RetryPolicy createRetryPolicy(int maxRetries) {
+        return RetryPolicy.builder()
+                .maxRetries(maxRetries)
+                .excludes(MailAccountNotFoundException.class)
+                .build();
     }
 
     static void validateTaskName(String taskName, String propertyName) {

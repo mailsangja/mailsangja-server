@@ -84,7 +84,7 @@ public class InitialMailSyncThreadBatchRabbitConfig {
             @Qualifier("initialMailSyncThreadBatchMessageRecoverer") MessageRecoverer initialMailSyncThreadBatchMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .maxRetries(properties.getRetryMaxAttempts())
+                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
                 .recoverer(initialMailSyncThreadBatchMessageRecoverer)
                 .build();
     }
