@@ -3,6 +3,7 @@ package com.mailsangja.worker.service.mail;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
+import com.mailsangja.worker.common.exception.mail.MailAccountNotFoundException;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class MailAccountQueryService {
         List<MailAccount> mailAccounts = mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress);
 
         if (mailAccounts.isEmpty()) {
-            throw new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+            throw new MailAccountNotFoundException();
         }
 
         return mailAccounts.stream()
@@ -35,7 +36,7 @@ public class MailAccountQueryService {
 
     public MailAccount findSyncableMailAccountById(UUID id) {
         MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+                .orElseThrow(MailAccountNotFoundException::new);
 
         validateSyncableMailAccount(mailAccount);
         return mailAccount;
