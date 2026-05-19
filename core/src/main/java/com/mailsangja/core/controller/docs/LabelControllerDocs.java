@@ -168,6 +168,23 @@ public interface LabelControllerDocs {
     );
 
     @Operation(
+            summary = "라벨 제안 단건 조회",
+            description = "특정 라벨 제안의 상세 정보를 반환합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "라벨 제안 단건 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "라벨 제안을 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<LabelDetailResponse> getSuggestionDetail(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "라벨 제안 ID", required = true) @PathVariable UUID suggestionId
+    );
+
+    @Operation(
             summary = "라벨 제안 단건 승인",
             description = "라벨 제안을 수정하여 confirmed=true로 전환합니다. 요청 바디로 이름·색상·순서·알림정책·규칙을 원하는 값으로 변경한 뒤 승인할 수 있습니다. rule이 있는 라벨은 승인 후 과거 메일 재분류 작업이 비동기로 발행됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")

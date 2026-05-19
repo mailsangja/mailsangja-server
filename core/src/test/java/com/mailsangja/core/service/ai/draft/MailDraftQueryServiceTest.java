@@ -98,7 +98,10 @@ class MailDraftQueryServiceTest {
         assertTrue(result.userPrompt().contains("[PHONE_1]"));
         assertTrue(result.userPrompt().contains("<recent_sent_emails purpose=\"style_primary\">"));
         assertTrue(result.userPrompt().contains("<thread_emails purpose=\"reply_context\">"));
+        assertTrue(result.userPrompt().contains("<recipient_history_emails purpose=\"recipient_specific_context\">"));
         assertTrue(result.userPrompt().contains("<relevant_emails purpose=\"facts_and_prior_responses\">"));
+        assertTrue(result.userPrompt().contains("<language_selection_policy>"));
+        assertTrue(result.userPrompt().indexOf("<language_selection_policy>") < result.userPrompt().indexOf("<draft_request>"));
         assertFalse(result.userPrompt().contains("alice@example.com"));
     }
 
@@ -140,8 +143,108 @@ class MailDraftQueryServiceTest {
 
         // then
         assertTrue(result.systemPrompt().contains("relevant_received emails for factual background"));
+        assertTrue(result.systemPrompt().contains("recipient_history emails as the primary source"));
         assertTrue(result.systemPrompt().contains("Recent_sent emails are the primary style examples"));
         assertTrue(result.systemPrompt().contains("Mirror the user's tone"));
+    }
+
+    @Test
+    void 시스템프롬프트는상황에맞는언어선택을지시한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("Choose the draft language from the situation"));
+        assertTrue(result.systemPrompt().contains("Before drafting, decide the output language by priority"));
+        assertTrue(result.systemPrompt().contains("If the user explicitly requests a language, use that language"));
+        assertTrue(result.systemPrompt().contains("If the user uses contrastive wording"));
+        assertTrue(result.systemPrompt().contains("The user's query language is only an instruction language"));
+        assertTrue(result.systemPrompt().contains("For replies, primarily use the language of the thread"));
+        assertTrue(result.systemPrompt().contains("If the situation is mixed or unclear, use the user's query language"));
+        assertFalse(result.systemPrompt().contains("Write naturally in Korean unless"));
+    }
+
+    @Test
+    void 답장시스템프롬프트는현재스레드언어를우선한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.replyPrompt(createCommand(UUID.randomUUID()), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("Select the reply language from the current conversation context"));
+        assertTrue(result.systemPrompt().contains("Match the dominant language of thread emails and the latest inbound message"));
+        assertTrue(result.systemPrompt().contains("If thread and query languages differ, preserve the thread language"));
+    }
+
+    @Test
+    void 답장사용자프롬프트는스레드언어를Query보다우선한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.replyPrompt(createCommand(UUID.randomUUID()), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.userPrompt().contains("dominant thread_emails language"));
+        assertTrue(result.userPrompt().contains("For replies, the query language is an instruction language only"));
+        assertTrue(result.userPrompt().contains("If thread_emails are mostly English and the query is Korean"));
+    }
+
+    @Test
+    void 일반초안시스템프롬프트는수신자히스토리언어를우선한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.systemPrompt().contains("choose the draft language from the dominant language used with the target recipient"));
+        assertTrue(result.systemPrompt().contains("mostly English"));
+        assertTrue(result.systemPrompt().contains("even if the user's query is written in Korean"));
+        assertTrue(result.systemPrompt().contains("recipient_history is missing, mixed, or insufficient"));
+    }
+
+    @Test
+    void 사용자프롬프트는수신자히스토리언어우선규칙을요청앞에제공한다() {
+        // given
+        MailDraftQueryService service = createService();
+
+        // when
+        MailDraftPromptResult result = service.generalPrompt(createCommand(null), MailDraftRagContextResult.empty());
+
+        // then
+        assertTrue(result.userPrompt().contains("Do not choose Korean only because the query is Korean"));
+        assertTrue(result.userPrompt().contains("If recipient_history is mostly English and the query is Korean"));
+        assertTrue(result.userPrompt().contains("strongest context for recipient-specific output language"));
+    }
+
+    @Test
+    void general은수신자정보로대상별히스토리메일을조회한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommandWithRecipientRestoreTokens();
+        List<MailDraftReferenceMessageResult> recipientHistory = references(command.mailAccountId(), Direction.OUTBOUND, 2);
+        when(fixture.referenceQueryPort().findRecipientHistoryMessages(
+                eq(command.userId()), eq(command.mailAccountId()), any(), eq(6)
+        )).thenReturn(recipientHistory);
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        assertEquals(2, result.recipientHistoryMessages().size());
+        var captor = forClass(List.class);
+        verify(fixture.referenceQueryPort()).findRecipientHistoryMessages(
+                eq(command.userId()), eq(command.mailAccountId()), captor.capture(), eq(6)
+        );
+        assertTrue(captor.getValue().contains("김철수"));
+        assertTrue(captor.getValue().contains("kim@example.com"));
     }
 
     @Test
@@ -381,6 +484,19 @@ class MailDraftQueryServiceTest {
                 "masked query [PERSON_1]",
                 null,
                 List.of(),
+                List.of(),
+                com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL,
+                Map.of("[PERSON_1]", "김철수", "[EMAIL_1]", "kim@example.com")
+        );
+    }
+
+    private MailDraftCommand createCommandWithRecipientRestoreTokens() {
+        return new MailDraftCommand(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "masked query",
+                null,
+                List.of("[PERSON_1] <[EMAIL_1]>"),
                 List.of(),
                 com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL,
                 Map.of("[PERSON_1]", "김철수", "[EMAIL_1]", "kim@example.com")

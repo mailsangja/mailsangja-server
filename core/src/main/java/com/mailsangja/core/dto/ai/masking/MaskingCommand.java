@@ -11,6 +11,11 @@ public record MaskingCommand(
         Set<PiiType> enabledTypes
 ) {
 
+    private static final Set<PiiType> DEFAULT_ENABLED_TYPES = EnumSet.complementOf(EnumSet.of(
+            PiiType.EMAIL,
+            PiiType.PERSON_NAME
+    ));
+
     public MaskingCommand {
         if (scope == null) {
             throw new MaskingException(MaskingErrorCode.INVALID_SCOPE);
@@ -19,16 +24,16 @@ public record MaskingCommand(
             throw new MaskingException(MaskingErrorCode.INVALID_TOKEN_TYPE);
         }
         enabledTypes = enabledTypes == null || enabledTypes.isEmpty()
-                ? EnumSet.allOf(PiiType.class)
+                ? EnumSet.copyOf(DEFAULT_ENABLED_TYPES)
                 : EnumSet.copyOf(enabledTypes);
     }
 
     public static MaskingCommand currentContext() {
-        return new MaskingCommand(MaskingScope.CURRENT_CONTEXT, EnumSet.allOf(PiiType.class));
+        return new MaskingCommand(MaskingScope.CURRENT_CONTEXT, EnumSet.copyOf(DEFAULT_ENABLED_TYPES));
     }
 
     public static MaskingCommand pastContext() {
-        return new MaskingCommand(MaskingScope.PAST_CONTEXT, EnumSet.allOf(PiiType.class));
+        return new MaskingCommand(MaskingScope.PAST_CONTEXT, EnumSet.copyOf(DEFAULT_ENABLED_TYPES));
     }
 
     public boolean isEnabled(PiiType piiType) {

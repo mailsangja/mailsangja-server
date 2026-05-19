@@ -33,6 +33,7 @@ spring:
       chat:
         options:
           model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+          temperature: ${OPENAI_CHAT_TEMPERATURE:0.3}
       embedding:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}

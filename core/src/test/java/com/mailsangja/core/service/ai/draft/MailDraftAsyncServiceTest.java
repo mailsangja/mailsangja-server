@@ -129,6 +129,27 @@ class MailDraftAsyncServiceTest {
     }
 
     @Test
+    void combined성공시단일usage와done을보내고분리스트림을호출하지않는다() {
+        // given
+        Fixture fixture = createFixture();
+        SseEmitter emitter = new SseEmitter();
+        MailDraftCommand command = createCommand();
+        MailDraftUsageResult usage = new MailDraftUsageResult("gpt-4o-mini", 30, 15, 45);
+        org.mockito.Mockito.doReturn(usage).when(fixture.commandService()).streamCombined(eq(emitter), any(), any(), any());
+
+        // when
+        fixture.asyncService().streamGeneral(emitter, command);
+
+        // then
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.commandService());
+        inOrder.verify(fixture.commandService()).sendUsage(emitter, usage);
+        inOrder.verify(fixture.commandService()).sendDone(emitter);
+        inOrder.verify(fixture.commandService()).complete(emitter);
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any());
+    }
+
+    @Test
     void subject중취소되면body와완료이벤트를보내지않는다() {
         // given
         Fixture fixture = createFixture();
@@ -203,22 +224,29 @@ class MailDraftAsyncServiceTest {
     }
 
     @Test
-    void reply는답장템플릿으로조립한최종프롬프트로LLM을호출한다() {
+    void reply는답장템플릿으로본문만LLM호출한다() {
         // given
         Fixture fixture = createFixture();
         SseEmitter emitter = new SseEmitter();
         MailDraftPromptResult prompt = new MailDraftPromptResult("reply system", "reply user");
         MailDraftCommand command = createReplyCommand();
+        MailDraftUsageResult bodyUsage = new MailDraftUsageResult("gpt-4o-mini", 20, 10, 30);
         when(fixture.queryService().replyRagContext(command)).thenReturn(MailDraftRagContextResult.empty());
         when(fixture.queryService().replyPrompt(eq(command), any())).thenReturn(prompt);
+        when(fixture.commandService().streamBody(eq(emitter), any(), any(), any())).thenReturn(bodyUsage);
 
         // when
         fixture.asyncService().streamReply(emitter, command);
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
-        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture(), any(), any());
+        verify(fixture.commandService()).streamBody(eq(emitter), captor.capture(), any(), any());
         assertSame(prompt, captor.getValue());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamCombined(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
+        verify(fixture.commandService()).sendUsage(emitter, bodyUsage);
+        verify(fixture.commandService()).sendDone(emitter);
+        verify(fixture.commandService()).complete(emitter);
     }
 
     private Fixture createFixture() {
@@ -227,6 +255,8 @@ class MailDraftAsyncServiceTest {
         MailDraftAsyncService asyncService = new MailDraftAsyncService(queryService, commandService);
         MailDraftCommandService.StreamCancellation cancellation = new MailDraftCommandService.StreamCancellation();
         when(commandService.createCancellation()).thenReturn(cancellation);
+        when(commandService.streamCombined(any(), any(), any(), any()))
+                .thenThrow(new MailDraftCommandService.MailDraftCombinedFormatException("invalid"));
         doCallRealMethod().when(commandService).cancel(cancellation);
         stubDraftPrompt(queryService);
         return new Fixture(asyncService, queryService, commandService, cancellation);

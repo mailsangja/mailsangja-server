@@ -38,6 +38,15 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
     }
 
     @Override
+    public List<MailDraftReferenceMessageResult> findRecipientHistoryMessages(UUID userId, UUID mailAccountId,
+                                                                              List<String> recipientHints, int limit) {
+        if (recipientHints == null || recipientHints.isEmpty()) {
+            return List.of();
+        }
+        return toResults(findRecipientMessages(userId, mailAccountId, recipientHints, limit), mailAccountId);
+    }
+
+    @Override
     public List<MailDraftReferenceMessageResult> findMessagesByIds(List<UUID> messageIds) {
         if (messageIds == null || messageIds.isEmpty()) {
             return List.of();
@@ -58,12 +67,31 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
         return messages;
     }
 
+    private List<Message> findRecipientMessages(UUID userId, UUID mailAccountId, List<String> recipientHints, int limit) {
+        List<Message> messages = new ArrayList<>();
+        for (String hint : recipientHints) {
+            addRecipientMessages(messages, userId, mailAccountId, hint, limit);
+        }
+        return messages;
+    }
+
     private void addHintMessages(List<Message> messages, UUID userId, UUID mailAccountId, String hint, int limit) {
         int remaining = limit - messages.size();
         if (remaining <= 0 || hint == null || hint.isBlank()) {
             return;
         }
         List<Message> found = messageJpaRepositoryModule.findWrittenByUserIdAndMailAccountIdAndHint(
+                userId.toString(), mailAccountId.toString(), hint, PageRequest.of(0, remaining)
+        );
+        addUniqueMessages(messages, found, limit);
+    }
+
+    private void addRecipientMessages(List<Message> messages, UUID userId, UUID mailAccountId, String hint, int limit) {
+        int remaining = limit - messages.size();
+        if (remaining <= 0 || hint == null || hint.isBlank()) {
+            return;
+        }
+        List<Message> found = messageJpaRepositoryModule.findRecipientHistoryByUserIdAndMailAccountIdAndHint(
                 userId.toString(), mailAccountId.toString(), hint, PageRequest.of(0, remaining)
         );
         addUniqueMessages(messages, found, limit);

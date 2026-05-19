@@ -109,6 +109,11 @@ public class LabelFacade {
         }
     }
 
+    public LabelDetailResponse getSuggestionDetail(User user, UUID suggestionId) {
+        Label suggestion = labelQueryService.findSuggestionByIdAndUserId(suggestionId, user.getId());
+        return LabelDetailResponse.of(suggestion, suggestion.getRule());
+    }
+
     public List<LabelListResponse> getSuggestions(User user) {
         return labelQueryService.findAllSuggestionsByUserId(user.getId()).stream()
                 .map(label -> LabelListResponse.of(label, 0L))

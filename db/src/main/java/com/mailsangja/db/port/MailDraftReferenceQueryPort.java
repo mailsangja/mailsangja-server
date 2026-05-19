@@ -11,6 +11,8 @@ public interface MailDraftReferenceQueryPort {
 
     List<MailDraftReferenceMessageResult> findWrittenMessagesByHints(UUID userId, UUID mailAccountId, List<String> hints, int limit);
 
+    List<MailDraftReferenceMessageResult> findRecipientHistoryMessages(UUID userId, UUID mailAccountId, List<String> recipientHints, int limit);
+
     List<MailDraftReferenceMessageResult> findMessagesByIds(List<UUID> messageIds);
 
     List<MailDraftReferenceMessageResult> findThreadContextMessages(UUID replyMessageId);

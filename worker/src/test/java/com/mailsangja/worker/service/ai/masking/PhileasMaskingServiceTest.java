@@ -40,15 +40,14 @@ class PhileasMaskingServiceTest {
                 .map(MaskingTokenResult::piiType)
                 .collect(java.util.stream.Collectors.toSet());
         assertThat(detectedTypes).contains(
-                PiiType.EMAIL,
                 PiiType.PHONE,
                 PiiType.URL,
                 PiiType.ADDRESS,
                 PiiType.ACCOUNT_NUMBER,
                 PiiType.CARD_NUMBER,
-                PiiType.KOREAN_RRN,
-                PiiType.PERSON_NAME
+                PiiType.KOREAN_RRN
         );
+        assertThat(detectedTypes).doesNotContain(PiiType.EMAIL, PiiType.PERSON_NAME);
     }
 
     @Test
@@ -57,50 +56,50 @@ class PhileasMaskingServiceTest {
 
         MaskingResult result = service.mask(text, MaskingCommand.currentContext());
 
-        assertThat(result.maskedText()).isEqualTo("first [EMAIL_1] second [PHONE_1] repeat [EMAIL_1]");
+        assertThat(result.maskedText()).isEqualTo("first a@test.com second [PHONE_1] repeat a@test.com");
         assertThat(result.tokens()).extracting(MaskingTokenResult::token)
-                .containsExactly("[EMAIL_1]", "[PHONE_1]", "[EMAIL_1]");
-        assertThat(result.restoreTokenMap()).containsEntry("[EMAIL_1]", "a@test.com");
+                .containsExactly("[PHONE_1]");
+        assertThat(result.restoreTokenMap()).containsEntry("[PHONE_1]", "010-1234-5678");
         assertThat(result.redactedTokenMap()).isEmpty();
     }
 
     @Test
     void putsPastContextTokensOnlyIntoRedactedTokenMap() {
-        MaskingResult result = service.mask("past user@example.com", MaskingCommand.pastContext());
+        MaskingResult result = service.mask("past 010-1234-5678", MaskingCommand.pastContext());
 
-        assertThat(result.maskedText()).isEqualTo("past [EMAIL_1]");
+        assertThat(result.maskedText()).isEqualTo("past [PHONE_1]");
         assertThat(result.restoreTokenMap()).isEmpty();
-        assertThat(result.redactedTokenMap()).containsEntry("[EMAIL_1]", "user@example.com");
+        assertThat(result.redactedTokenMap()).containsEntry("[PHONE_1]", "010-1234-5678");
     }
 
     @Test
     void preservesStringStartInclusiveAndEndExclusiveOffsets() {
-        String text = "to kim@example.com";
+        String text = "to 010-1234-5678";
 
         MaskingResult result = service.mask(text, MaskingCommand.currentContext());
 
         MaskingTokenResult token = result.tokens().getFirst();
         assertThat(token.startInclusive()).isEqualTo(3);
-        assertThat(token.endExclusive()).isEqualTo(18);
-        assertThat(text.substring(token.startInclusive(), token.endExclusive())).isEqualTo("kim@example.com");
+        assertThat(token.endExclusive()).isEqualTo(16);
+        assertThat(text.substring(token.startInclusive(), token.endExclusive())).isEqualTo("010-1234-5678");
     }
 
     @Test
     void restoresOnlyCurrentContextTokens() {
-        MaskingResult result = service.mask("수신자 alice@example.com", MaskingCommand.currentContext());
+        MaskingResult result = service.mask("연락처 010-1234-5678", MaskingCommand.currentContext());
 
-        String restored = service.restore("메일은 [EMAIL_1]에게 보냅니다.", result);
+        String restored = service.restore("연락처는 [PHONE_1]입니다.", result);
 
-        assertThat(restored).isEqualTo("메일은 alice@example.com에게 보냅니다.");
+        assertThat(restored).isEqualTo("연락처는 010-1234-5678입니다.");
     }
 
     @Test
     void doesNotRestorePastContextTokens() {
-        MaskingResult result = service.mask("과거 발신자 alice@example.com", MaskingCommand.pastContext());
+        MaskingResult result = service.mask("과거 연락처 010-1234-5678", MaskingCommand.pastContext());
 
-        String restored = service.restore("과거 발신자는 [EMAIL_1]입니다.", result);
+        String restored = service.restore("과거 연락처는 [PHONE_1]입니다.", result);
 
-        assertThat(restored).isEqualTo("과거 발신자는 [EMAIL_1]입니다.");
+        assertThat(restored).isEqualTo("과거 연락처는 [PHONE_1]입니다.");
     }
 
     @Test
