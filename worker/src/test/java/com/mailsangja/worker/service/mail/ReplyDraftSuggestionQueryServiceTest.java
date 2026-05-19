@@ -62,6 +62,12 @@ class ReplyDraftSuggestionQueryServiceTest {
         List<Message> threadMessages = createThreadMessages(mailAccount, latestMessageId, 25);
         Message latestMessage = threadMessages.getLast();
         UUID duplicateThreadMessageId = threadMessages.get(10).getId();
+        MailDraftReferenceMessageResult sameRecipientSent = referenceMessage(
+                UUID.randomUUID(),
+                mailAccountId,
+                "같은 수신자에게 보낸 메일",
+                "제가 평소 쓰는 문장 구성입니다."
+        );
         MailDraftReferenceMessageResult recent = referenceMessage(UUID.randomUUID(), mailAccountId, "최근 보낸 메일", "최근 보낸 본문");
         MailDraftReferenceMessageResult duplicateRecipientHistory = referenceMessage(
                 duplicateThreadMessageId,
@@ -80,7 +86,9 @@ class ReplyDraftSuggestionQueryServiceTest {
         when(messageRepositoryPort.findByIdIncludingDeleted(latestMessageId)).thenReturn(Optional.of(latestMessage));
         when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
                 .thenReturn(threadMessages);
-        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 4)).thenReturn(List.of(recent));
+        when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class)))
+                .thenReturn(List.of(sameRecipientSent));
+        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of(recent));
         when(referenceQueryPort.findRecipientHistoryMessages(any(), any(), any(), any(Integer.class)))
                 .thenReturn(List.of(duplicateRecipientHistory, recipientHistory));
         when(maskingService.mask(anyString(), any(MaskingCommand.class)))
@@ -93,11 +101,13 @@ class ReplyDraftSuggestionQueryServiceTest {
         String prompt = result.userPrompt();
         assertTrue(prompt.contains("<latest_message purpose=\"immediate_reply_target\">"));
         assertTrue(prompt.contains("<thread_emails purpose=\"conversation_context_and_facts\">"));
+        assertTrue(prompt.contains("<same_recipient_sent_emails purpose=\"style_highest_priority\">"));
         assertTrue(prompt.contains("<recent_sent_emails purpose=\"style_primary\">"));
         assertTrue(prompt.contains("<recipient_history_emails purpose=\"recipient_specific_context\">"));
         assertTrue(prompt.contains("masked:subject-0"));
         assertFalse(prompt.contains("masked:subject-5"));
         assertTrue(prompt.contains("masked:subject-24"));
+        assertTrue(prompt.contains("masked:같은 수신자에게 보낸 메일"));
         assertTrue(prompt.contains("masked:최근 보낸 메일"));
         assertTrue(prompt.contains("masked:수신자 히스토리"));
         assertFalse(prompt.contains("masked:중복 히스토리"));
@@ -123,7 +133,8 @@ class ReplyDraftSuggestionQueryServiceTest {
         when(messageRepositoryPort.findByIdIncludingDeleted(latestMessageId)).thenReturn(Optional.of(latestMessage));
         when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
                 .thenReturn(List.of(latestMessage));
-        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 4)).thenReturn(List.of());
+        when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
+        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of());
         when(referenceQueryPort.findRecipientHistoryMessages(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
         when(maskingService.mask(anyString(), any(MaskingCommand.class)))
                 .thenAnswer(invocation -> maskingResult(invocation.getArgument(0, String.class)));
@@ -143,6 +154,12 @@ class ReplyDraftSuggestionQueryServiceTest {
         assertTrue(hintsCaptor.getValue().contains("reply alias"));
         assertTrue(hintsCaptor.getValue().contains("sender@example.com"));
         assertTrue(hintsCaptor.getValue().contains("sender name"));
+        verify(referenceQueryPort).findWrittenMessagesByHints(
+                org.mockito.ArgumentMatchers.eq(userId),
+                org.mockito.ArgumentMatchers.eq(mailAccountId),
+                any(),
+                org.mockito.ArgumentMatchers.eq(8)
+        );
     }
 
     private ReplyDraftSuggestionQueryService createService() {
