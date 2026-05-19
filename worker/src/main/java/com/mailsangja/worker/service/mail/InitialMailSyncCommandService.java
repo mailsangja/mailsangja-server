@@ -39,12 +39,14 @@ public class InitialMailSyncCommandService {
 
         List<UUID> savedThreadIds = new ArrayList<>();
         List<UUID> savedMessageIds = new ArrayList<>();
+        int threadMessageCount = 0;
         for (InitialMailSyncThreadSaveCommand command : commands) {
             InitialMailSyncSaveResult result = saveThread(mailAccount, command);
             savedThreadIds.addAll(result.threadIds());
             savedMessageIds.addAll(result.messageIds());
+            threadMessageCount += result.threadMessageCount();
         }
-        return new InitialMailSyncSaveResult(savedThreadIds, savedMessageIds);
+        return new InitialMailSyncSaveResult(savedThreadIds, savedMessageIds, threadMessageCount);
     }
 
     @Transactional
@@ -75,7 +77,8 @@ public class InitialMailSyncCommandService {
                 .toList();
         return new InitialMailSyncSaveResult(
                 results.stream().map(ThreadDirectionSaveResult::threadId).toList(),
-                results.stream().flatMap(result -> result.messageIds().stream()).toList()
+                results.stream().flatMap(result -> result.messageIds().stream()).toList(),
+                results.stream().mapToInt(ThreadDirectionSaveResult::messageCount).sum()
         );
     }
 
@@ -108,7 +111,7 @@ public class InitialMailSyncCommandService {
                 aggregate.read()
         );
         thread.updateMessageCount(aggregate.messageCount());
-        return new ThreadDirectionSaveResult(thread.getId(), savedMessageIds);
+        return new ThreadDirectionSaveResult(thread.getId(), savedMessageIds, thread.getMessageCount());
     }
 
     private void saveMissingMessagesByDirection(
@@ -235,7 +238,8 @@ public class InitialMailSyncCommandService {
 
     private record ThreadDirectionSaveResult(
             UUID threadId,
-            List<UUID> messageIds
+            List<UUID> messageIds,
+            int messageCount
     ) {
         private ThreadDirectionSaveResult {
             messageIds = messageIds == null ? List.of() : List.copyOf(messageIds);

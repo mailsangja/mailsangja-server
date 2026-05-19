@@ -1,0 +1,16 @@
+package com.mailsangja.db.port;
+
+import com.mailsangja.db.entity.mail.ReplyDraftSuggestion;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface ReplyDraftSuggestionRepositoryPort {
+    ReplyDraftSuggestion save(ReplyDraftSuggestion replyDraftSuggestion);
+    int saveAllByMessageIdUpToActiveLimit(UUID messageId, List<ReplyDraftSuggestion> replyDraftSuggestions, int limit);
+    void delete(ReplyDraftSuggestion replyDraftSuggestion);
+    List<ReplyDraftSuggestion> findAllByMessageIdAndDeletedAtIsNull(UUID messageId);
+    Optional<ReplyDraftSuggestion> findByIdAndDeletedAtIsNull(UUID id);
+    boolean existsByMessageId(UUID messageId);
+}

@@ -5,10 +5,15 @@ import java.util.UUID;
 
 public record InitialMailSyncSaveResult(
         List<UUID> threadIds,
-        List<UUID> messageIds
+        List<UUID> messageIds,
+        int threadMessageCount
 ) {
     public InitialMailSyncSaveResult {
         threadIds = threadIds == null ? List.of() : List.copyOf(threadIds);
         messageIds = messageIds == null ? List.of() : List.copyOf(messageIds);
+    }
+
+    public InitialMailSyncSaveResult(List<UUID> threadIds, List<UUID> messageIds) {
+        this(threadIds, messageIds, 0);
     }
 }
