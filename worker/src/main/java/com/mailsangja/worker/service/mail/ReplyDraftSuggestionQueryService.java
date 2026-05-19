@@ -15,6 +15,7 @@ import com.mailsangja.worker.service.ai.masking.PhileasMaskingService;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -213,14 +214,14 @@ public class ReplyDraftSuggestionQueryService {
     }
 
     private void appendReferenceEmail(StringBuilder builder, ReplyDraftSuggestionContextResult message) {
-        builder.append("<reference_email source=\"").append(message.source()).append("\">\n");
-        builder.append("<direction>").append(nullToEmpty(message.direction())).append("</direction>\n");
-        builder.append("<sent_at>").append(nullToEmpty(message.sentAt())).append("</sent_at>\n");
-        builder.append("<from>").append(message.from()).append("</from>\n");
-        builder.append("<to>").append(message.to()).append("</to>\n");
-        builder.append("<cc>").append(message.cc()).append("</cc>\n");
-        builder.append("<subject>").append(message.subject()).append("</subject>\n");
-        builder.append("<body>").append(message.body()).append("</body>\n");
+        builder.append("<reference_email source=\"").append(xmlEscape(message.source())).append("\">\n");
+        builder.append("<direction>").append(xmlEscape(message.direction())).append("</direction>\n");
+        builder.append("<sent_at>").append(xmlEscape(message.sentAt())).append("</sent_at>\n");
+        builder.append("<from>").append(xmlEscape(message.from())).append("</from>\n");
+        builder.append("<to>").append(xmlEscape(message.to())).append("</to>\n");
+        builder.append("<cc>").append(xmlEscape(message.cc())).append("</cc>\n");
+        builder.append("<subject>").append(xmlEscape(message.subject())).append("</subject>\n");
+        builder.append("<body>").append(xmlEscape(message.body())).append("</body>\n");
         builder.append("</reference_email>\n");
     }
 
@@ -359,5 +360,18 @@ public class ReplyDraftSuggestionQueryService {
             return "";
         }
         return value.toString();
+    }
+
+    private String xmlEscape(Object value) {
+        return HtmlUtils.htmlEscape(nullToEmpty(value));
+    }
+
+    private List<String> xmlEscape(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .map(this::xmlEscape)
+                .toList();
     }
 }

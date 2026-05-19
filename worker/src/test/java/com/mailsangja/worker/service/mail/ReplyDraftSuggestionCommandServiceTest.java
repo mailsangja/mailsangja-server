@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -70,6 +71,7 @@ class ReplyDraftSuggestionCommandServiceTest {
         verify(queryService, never()).createPrompt(eq(messageId), any());
         verifyNoInteractions(transactionTemplate);
         verify(suggestionRepositoryPort, never()).save(any());
+        verify(suggestionRepositoryPort, never()).saveAllByMessageIdUpToActiveLimit(any(), any(), any(Integer.class));
     }
 
     @Test
@@ -113,14 +115,102 @@ class ReplyDraftSuggestionCommandServiceTest {
         service.generate(messageId);
 
         // then
-        org.mockito.ArgumentCaptor<ReplyDraftSuggestion> captor = org.mockito.ArgumentCaptor.forClass(ReplyDraftSuggestion.class);
-        verify(suggestionRepositoryPort, org.mockito.Mockito.times(2)).save(captor.capture());
-        assertEquals("승낙", captor.getAllValues().get(0).getType());
-        assertEquals("Re: 회의 일정", captor.getAllValues().get(0).getSubject());
-        assertEquals("좋습니다. 해당 일정으로 진행하겠습니다.", captor.getAllValues().get(0).getBody());
-        assertEquals(message, captor.getAllValues().get(0).getMessage());
-        assertEquals("제안", captor.getAllValues().get(1).getType());
+        org.mockito.ArgumentCaptor<List<ReplyDraftSuggestion>> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(suggestionRepositoryPort).saveAllByMessageIdUpToActiveLimit(eq(messageId), captor.capture(), eq(4));
+        assertEquals(2, captor.getValue().size());
+        assertEquals("승낙", captor.getValue().get(0).getType());
+        assertEquals("Re: 회의 일정", captor.getValue().get(0).getSubject());
+        assertEquals("좋습니다. 해당 일정으로 진행하겠습니다.", captor.getValue().get(0).getBody());
+        assertEquals(message, captor.getValue().get(0).getMessage());
+        assertEquals("제안", captor.getValue().get(1).getType());
+        verify(suggestionRepositoryPort, never()).save(any());
         verify(suggestionRepositoryPort, never()).delete(any());
+    }
+
+    @Test
+    void generate_저장시원자적제한insert를호출한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        Message message = createMessage(messageId);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        ReplyDraftSuggestionRepositoryPort suggestionRepositoryPort = mock(ReplyDraftSuggestionRepositoryPort.class);
+        ReplyDraftSuggestionQueryService queryService = mock(ReplyDraftSuggestionQueryService.class);
+        TransactionTemplate transactionTemplate = transactionTemplate();
+        ChatModel chatModel = chatModel("""
+                {
+                  "suggestions": [
+                    {
+                      "type": "승낙",
+                      "subject": "Re: 회의 일정",
+                      "body": "좋습니다. 해당 일정으로 진행하겠습니다."
+                    },
+                    {
+                      "type": "제안",
+                      "subject": "Re: 회의 일정",
+                      "body": "가능하다면 오후 시간으로 조정 가능할까요?"
+                    }
+                  ]
+                }
+                """);
+        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(
+                chatModelProvider(chatModel),
+                messageRepositoryPort,
+                suggestionRepositoryPort,
+                queryService,
+                transactionTemplate
+        );
+        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(queryService.existsByMessageId(messageId)).thenReturn(false);
+        when(queryService.createPrompt(eq(messageId), contains("suggestions")))
+                .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));
+
+        // when
+        service.generate(messageId);
+
+        // then
+        verify(suggestionRepositoryPort).saveAllByMessageIdUpToActiveLimit(eq(messageId), any(), eq(4));
+        verify(suggestionRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void generate_LLM응답이유효하지않으면저장하지않고종료한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        Message message = createMessage(messageId);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        ReplyDraftSuggestionRepositoryPort suggestionRepositoryPort = mock(ReplyDraftSuggestionRepositoryPort.class);
+        ReplyDraftSuggestionQueryService queryService = mock(ReplyDraftSuggestionQueryService.class);
+        TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+        ChatModel chatModel = chatModel("""
+                {
+                  "suggestions": [
+                    {
+                      "type": "승낙",
+                      "subject": "Re: 회의 일정",
+                      "body": "좋습니다. 해당 일정으로 진행하겠습니다."
+                    }
+                  ]
+                }
+                """);
+        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(
+                chatModelProvider(chatModel),
+                messageRepositoryPort,
+                suggestionRepositoryPort,
+                queryService,
+                transactionTemplate
+        );
+        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(queryService.existsByMessageId(messageId)).thenReturn(false);
+        when(queryService.createPrompt(eq(messageId), contains("suggestions")))
+                .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));
+
+        // when & then
+        assertDoesNotThrow(() -> service.generate(messageId));
+
+        // then
+        verifyNoInteractions(transactionTemplate);
+        verify(suggestionRepositoryPort, never()).save(any());
+        verify(suggestionRepositoryPort, never()).saveAllByMessageIdUpToActiveLimit(any(), any(), any(Integer.class));
     }
 
     @Test
@@ -173,6 +263,7 @@ class ReplyDraftSuggestionCommandServiceTest {
         // then
         assertEquals(MqErrorCode.REPLY_DRAFT_SUGGESTION_CHAT_MODEL_NOT_AVAILABLE, exception.getErrorCode());
         verify(suggestionRepositoryPort, never()).save(any());
+        verify(suggestionRepositoryPort, never()).saveAllByMessageIdUpToActiveLimit(any(), any(), any(Integer.class));
     }
 
     @SuppressWarnings("unchecked")

@@ -23,12 +23,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReplyDraftSuggestionCommandService {
+
+    private static final int MAX_ACTIVE_SUGGESTIONS_PER_MESSAGE = 4;
 
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final MessageRepositoryPort messageRepositoryPort;
@@ -42,8 +45,12 @@ public class ReplyDraftSuggestionCommandService {
             log.info("Reply draft suggestion skipped because suggestions already exist. messageId={}", message.getId());
             return;
         }
-        ReplyDraftSuggestionLlmResult result = requestSuggestions(messageId);
-        transactionTemplate.executeWithoutResult(status -> saveSuggestions(message, result.suggestions()));
+        Optional<ReplyDraftSuggestionLlmResult> result = requestSuggestions(messageId);
+        if (result.isEmpty()) {
+            log.info("Reply draft suggestion skipped because AI response is invalid. messageId={}", messageId);
+            return;
+        }
+        transactionTemplate.executeWithoutResult(status -> saveSuggestions(message, result.get().suggestions()));
     }
 
     private com.mailsangja.db.entity.mail.Message findActiveMessage(UUID messageId) {
@@ -58,7 +65,7 @@ public class ReplyDraftSuggestionCommandService {
         return message;
     }
 
-    private ReplyDraftSuggestionLlmResult requestSuggestions(UUID messageId) {
+    private Optional<ReplyDraftSuggestionLlmResult> requestSuggestions(UUID messageId) {
         StructuredOutputConverter<ReplyDraftSuggestionLlmResult> converter =
                 new BeanOutputConverter<>(ReplyDraftSuggestionLlmResult.class);
         ReplyDraftSuggestionPromptResult prompt = replyDraftSuggestionQueryService.createPrompt(
@@ -67,13 +74,16 @@ public class ReplyDraftSuggestionCommandService {
         );
         ChatModel chatModel = chatModel();
         try {
-            return ChatClient.create(chatModel)
+            return Optional.ofNullable(ChatClient.create(chatModel)
                     .prompt(createPrompt(prompt))
                     .call()
-                    .entity(converter);
+                    .entity(converter));
         } catch (RuntimeException e) {
-            log.warn("Reply draft suggestion AI structured response conversion failed. messageId={}", messageId, e);
-            throw new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_AI_RESPONSE);
+            if (isInvalidAiResponse(e)) {
+                log.warn("Reply draft suggestion AI response invalid. messageId={}", messageId, e);
+                return Optional.empty();
+            }
+            throw e;
         }
     }
 
@@ -89,13 +99,26 @@ public class ReplyDraftSuggestionCommandService {
             com.mailsangja.db.entity.mail.Message message,
             List<ReplyDraftSuggestionOptionResult> suggestions
     ) {
-        for (ReplyDraftSuggestionOptionResult suggestion : suggestions) {
-            replyDraftSuggestionRepositoryPort.save(ReplyDraftSuggestion.builder()
-                    .message(message)
-                    .type(suggestion.type())
-                    .subject(suggestion.subject())
-                    .body(suggestion.body())
-                    .build());
+        int inserted = replyDraftSuggestionRepositoryPort.saveAllByMessageIdUpToActiveLimit(
+                message.getId(),
+                suggestions.stream()
+                        .map(suggestion -> ReplyDraftSuggestion.builder()
+                                .message(message)
+                                .type(suggestion.type())
+                                .subject(suggestion.subject())
+                                .body(suggestion.body())
+                                .build())
+                        .toList(),
+                MAX_ACTIVE_SUGGESTIONS_PER_MESSAGE
+        );
+        if (inserted < suggestions.size()) {
+            log.info(
+                    "Reply draft suggestion save limited by active count. messageId={} requested={} inserted={} limit={}",
+                    message.getId(),
+                    suggestions.size(),
+                    inserted,
+                    MAX_ACTIVE_SUGGESTIONS_PER_MESSAGE
+            );
         }
     }
 
@@ -105,5 +128,17 @@ public class ReplyDraftSuggestionCommandService {
             throw new MqException(MqErrorCode.REPLY_DRAFT_SUGGESTION_CHAT_MODEL_NOT_AVAILABLE);
         }
         return chatModel;
+    }
+
+    private boolean isInvalidAiResponse(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof MqException mqException
+                    && mqException.getErrorCode() == MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_AI_RESPONSE) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

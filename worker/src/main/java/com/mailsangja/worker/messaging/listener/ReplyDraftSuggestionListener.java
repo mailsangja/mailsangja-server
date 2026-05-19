@@ -19,6 +19,7 @@ public class ReplyDraftSuggestionListener {
             containerFactory = "replyDraftSuggestionRabbitListenerContainerFactory"
     )
     public void handle(ReplyDraftSuggestionMessage message) {
+        if (message == null) return;
         log.info("Reply draft suggestion message received. messageId={}", message.messageId());
         replyDraftSuggestionCommandService.generate(message.messageId());
     }

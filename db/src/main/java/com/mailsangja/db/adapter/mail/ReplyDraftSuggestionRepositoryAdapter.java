@@ -22,6 +22,18 @@ public class ReplyDraftSuggestionRepositoryAdapter implements ReplyDraftSuggesti
     }
 
     @Override
+    public int saveAllByMessageIdUpToActiveLimit(UUID messageId, List<ReplyDraftSuggestion> replyDraftSuggestions, int limit) {
+        if (messageId == null || replyDraftSuggestions == null || replyDraftSuggestions.isEmpty() || limit <= 0) {
+            return 0;
+        }
+        int inserted = 0;
+        for (ReplyDraftSuggestion suggestion : replyDraftSuggestions) {
+            inserted += insertIfActiveCountBelowLimit(messageId, fillId(suggestion), limit);
+        }
+        return inserted;
+    }
+
+    @Override
     public void delete(ReplyDraftSuggestion replyDraftSuggestion) {
         replyDraftSuggestion.delete();
         replyDraftSuggestionJpaRepositoryModule.save(replyDraftSuggestion);
@@ -40,5 +52,29 @@ public class ReplyDraftSuggestionRepositoryAdapter implements ReplyDraftSuggesti
     @Override
     public boolean existsByMessageId(UUID messageId) {
         return replyDraftSuggestionJpaRepositoryModule.existsByMessageId(messageId);
+    }
+
+    private ReplyDraftSuggestion fillId(ReplyDraftSuggestion suggestion) {
+        if (suggestion.getId() != null) {
+            return suggestion;
+        }
+        return ReplyDraftSuggestion.builder()
+                .id(UUID.randomUUID())
+                .message(suggestion.getMessage())
+                .type(suggestion.getType())
+                .subject(suggestion.getSubject())
+                .body(suggestion.getBody())
+                .build();
+    }
+
+    private int insertIfActiveCountBelowLimit(UUID messageId, ReplyDraftSuggestion suggestion, int limit) {
+        return replyDraftSuggestionJpaRepositoryModule.insertIfActiveCountBelowLimit(
+                suggestion.getId().toString(),
+                messageId.toString(),
+                suggestion.getType(),
+                suggestion.getSubject(),
+                suggestion.getBody(),
+                limit
+        );
     }
 }
