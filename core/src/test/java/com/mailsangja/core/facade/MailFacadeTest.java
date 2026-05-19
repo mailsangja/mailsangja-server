@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.RestClient;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -236,7 +237,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
@@ -310,7 +311,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
@@ -386,7 +387,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
@@ -461,7 +462,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
@@ -570,7 +571,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
@@ -650,7 +651,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(
@@ -785,7 +786,7 @@ class MailFacadeTest {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         GoogleAccessTokenEnsureService googleAccessTokenEnsureService = new GoogleAccessTokenEnsureService(
                 mailAccountQueryService,
-                new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService),
+                new MailAccountCommandService(mailAccountRepositoryPort, Clock.systemUTC()),
                 new FakeGoogleOAuthQueryService()
         );
         MailCommandService mailCommandService = new MailCommandService(

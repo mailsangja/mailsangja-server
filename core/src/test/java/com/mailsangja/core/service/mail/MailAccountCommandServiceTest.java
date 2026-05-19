@@ -14,7 +14,10 @@ import com.mailsangja.db.port.MailAccountRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,15 +34,18 @@ import static org.mockito.Mockito.when;
 
 class MailAccountCommandServiceTest {
 
+    // 2026-05-19T00:00:00Z = 2026-05-19T09:00:00 KST
+    private static final Clock KST_FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-05-19T00:00:00Z"), ZoneId.of("Asia/Seoul"));
+
     @Test
     void validateGoogleMailAccountCreation_중복계정이없으면통과한다() {
         // given
         User user = createUser("user@example.com");
         GoogleMailAccountResult result = createGoogleMailAccountResult();
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(
                 user.getId(),
                 MailProvider.GMAIL,
                 result.emailAddress()
@@ -49,7 +55,7 @@ class MailAccountCommandServiceTest {
         service.validateGoogleMailAccountCreation(user, result);
 
         // then
-        verify(mailAccountQueryService).findByUserIdAndProviderAndEmailAddress(
+        verify(mailAccountRepositoryPort).findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(
                 user.getId(),
                 MailProvider.GMAIL,
                 result.emailAddress()
@@ -60,8 +66,7 @@ class MailAccountCommandServiceTest {
     void validateGoogleMailAccountCreation_OAuth결과가null이면예외를던진다() {
         // given
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
 
         // when
         MailAccountException exception = assertThrows(
@@ -77,8 +82,7 @@ class MailAccountCommandServiceTest {
     void validateGoogleMailAccountCreation_리프레시토큰이없으면예외를던진다() {
         // given
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
         GoogleMailAccountResult result = new GoogleMailAccountResult(
                 "gmail@example.com",
                 "access-token",
@@ -103,9 +107,9 @@ class MailAccountCommandServiceTest {
         GoogleMailAccountResult result = createGoogleMailAccountResult();
         MailAccount existingMailAccount = createMailAccount(user, MailProvider.GMAIL, true, "access-token", "refresh-token");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(user.getId(), MailProvider.GMAIL, result.emailAddress()))
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(
+                user.getId(), MailProvider.GMAIL, result.emailAddress()))
                 .thenReturn(Optional.of(existingMailAccount));
 
         // when
@@ -125,8 +129,7 @@ class MailAccountCommandServiceTest {
         GoogleMailAccountResult result = createGoogleMailAccountResult();
         GoogleMailWatchResult watchResult = createGoogleMailWatchResult();
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
         when(mailAccountRepositoryPort.save(any(MailAccount.class)))
                 .thenAnswer(invocation -> {
                     MailAccount mailAccount = invocation.getArgument(0);
@@ -179,8 +182,7 @@ class MailAccountCommandServiceTest {
     void createGoogleMailAccount_watchHistoryId가없으면예외를던지고저장하지않는다() {
         // given
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
         GoogleMailWatchResult watchResult = new GoogleMailWatchResult(" ", LocalDateTime.of(2026, 5, 20, 9, 0));
 
         // when
@@ -202,8 +204,7 @@ class MailAccountCommandServiceTest {
     void createGoogleMailAccount_저장결과Id가없으면예외를던진다() {
         // given
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
         when(mailAccountRepositoryPort.save(any(MailAccount.class)))
                 .thenReturn(MailAccount.builder().build());
 
@@ -230,13 +231,10 @@ class MailAccountCommandServiceTest {
         MailAccount refreshedMailAccount = createMailAccount(user, MailProvider.GMAIL, true, "new-access-token", "old-refresh-token");
         GoogleOAuthTokenResult tokenResult = new GoogleOAuthTokenResult("new-access-token", " ", 3600L, null, "Bearer");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findActiveById(mailAccountId))
-                .thenReturn(mailAccount)
-                .thenReturn(refreshedMailAccount);
-        when(mailAccountQueryService.getKstNow())
-                .thenReturn(LocalDateTime.of(2026, 5, 19, 9, 0));
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(mailAccountId, true))
+                .thenReturn(Optional.of(mailAccount))
+                .thenReturn(Optional.of(refreshedMailAccount));
 
         // when
         MailAccount result = service.refreshGoogleAccessToken(mailAccountId, tokenResult);
@@ -260,13 +258,10 @@ class MailAccountCommandServiceTest {
         MailAccount mailAccount = createMailAccount(user, MailProvider.GMAIL, true, "old-access-token", "old-refresh-token");
         GoogleOAuthTokenResult tokenResult = new GoogleOAuthTokenResult("new-access-token", "new-refresh-token", 60L, null, "Bearer");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findActiveById(mailAccountId))
-                .thenReturn(mailAccount)
-                .thenReturn(mailAccount);
-        when(mailAccountQueryService.getKstNow())
-                .thenReturn(LocalDateTime.of(2026, 5, 19, 9, 0));
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(mailAccountId, true))
+                .thenReturn(Optional.of(mailAccount))
+                .thenReturn(Optional.of(mailAccount));
 
         // when
         service.refreshGoogleAccessToken(mailAccountId, tokenResult);
@@ -285,8 +280,7 @@ class MailAccountCommandServiceTest {
     void refreshGoogleAccessToken_입력이잘못되면예외를던지고갱신하지않는다() {
         // given
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
         GoogleOAuthTokenResult tokenResult = new GoogleOAuthTokenResult(" ", "refresh-token", 3600L, null, "Bearer");
 
         // when
@@ -313,9 +307,9 @@ class MailAccountCommandServiceTest {
         User user = createUser("user@example.com");
         MailAccount mailAccount = createMailAccount(user, MailProvider.NAVER, true, "old-access-token", "refresh-token");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findActiveById(mailAccountId)).thenReturn(mailAccount);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(mailAccountId, true))
+                .thenReturn(Optional.of(mailAccount));
 
         // when
         MailAccountException exception = assertThrows(
@@ -334,9 +328,8 @@ class MailAccountCommandServiceTest {
         User user = createUser("user@example.com");
         MailAccount mailAccount = createMailAccount(user, MailProvider.GMAIL, true, "access-token", "refresh-token");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
 
         // when
         service.updateMailAccountAppearance(user, mailAccountId, "새 별칭", " ", "#ABCDEF");
@@ -355,9 +348,8 @@ class MailAccountCommandServiceTest {
         User otherUser = createUser("other@example.com");
         MailAccount mailAccount = createMailAccount(owner, MailProvider.GMAIL, true, "access-token", "refresh-token");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
 
         // when
         MailAccountException exception = assertThrows(
@@ -377,9 +369,8 @@ class MailAccountCommandServiceTest {
         User user = createUser("user@example.com");
         MailAccount mailAccount = createMailAccount(user, MailProvider.GMAIL, true, "access-token", "refresh-token");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
 
         // when
         service.deactivateMailAccount(user, mailAccountId);
@@ -396,9 +387,8 @@ class MailAccountCommandServiceTest {
         User otherUser = createUser("other@example.com");
         MailAccount mailAccount = createMailAccount(owner, MailProvider.GMAIL, true, "access-token", "refresh-token");
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
-        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, mailAccountQueryService);
-        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
 
         // when
         MailAccountException exception = assertThrows(
