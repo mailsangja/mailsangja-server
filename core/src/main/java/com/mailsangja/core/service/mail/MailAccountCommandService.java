@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,13 +24,13 @@ import java.util.UUID;
 public class MailAccountCommandService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
-    private final MailAccountQueryService mailAccountQueryService;
+    private final Clock clock;
 
     public void validateGoogleMailAccountCreation(User user, GoogleMailAccountResult result) {
         validateGoogleMailAccountResult(result);
 
         validateSameOwnerDuplicate(
-                mailAccountQueryService.findByUserIdAndProviderAndEmailAddress(
+                mailAccountRepositoryPort.findByUserIdAndProviderAndEmailAddressAndDeletedAtIsNull(
                         user.getId(),
                         MailProvider.GMAIL,
                         result.emailAddress()
@@ -79,7 +81,7 @@ public class MailAccountCommandService {
     public MailAccount refreshGoogleAccessToken(UUID mailAccountId, GoogleOAuthTokenResult tokenResult) {
         validateRefreshGoogleAccessTokenInput(mailAccountId, tokenResult);
 
-        MailAccount mailAccount = mailAccountQueryService.findActiveById(mailAccountId);
+        MailAccount mailAccount = findActiveById(mailAccountId);
         validateRefreshableGoogleMailAccount(mailAccount);
         String updatedRefreshToken = isBlank(tokenResult.refreshToken())
                 ? mailAccount.getRefreshToken()
@@ -89,11 +91,11 @@ public class MailAccountCommandService {
                 mailAccountId,
                 mailAccount.getAccessToken(),
                 tokenResult.accessToken(),
-                mailAccountQueryService.getKstNow().plusSeconds(tokenResult.expiresIn()),
+                LocalDateTime.now(clock).plusSeconds(tokenResult.expiresIn()),
                 updatedRefreshToken
         );
 
-        return mailAccountQueryService.findActiveById(mailAccountId);
+        return findActiveById(mailAccountId);
     }
 
     private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
@@ -152,7 +154,7 @@ public class MailAccountCommandService {
 
     @Transactional
     public void updateMailAccountAppearance(User user, UUID mailAccountId, String alias, String icon, String color) {
-        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        MailAccount mailAccount = findById(mailAccountId);
         validateOwnership(mailAccount, user);
 
         if (alias != null && !alias.isBlank()) mailAccount.updateAlias(alias);
@@ -162,24 +164,34 @@ public class MailAccountCommandService {
 
     @Transactional
     public void activateMailAccount(User user, UUID mailAccountId) {
-        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        MailAccount mailAccount = findById(mailAccountId);
         validateOwnership(mailAccount, user);
         mailAccount.activate();
     }
 
     @Transactional
     public void deactivateMailAccount(User user, UUID mailAccountId) {
-        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        MailAccount mailAccount = findById(mailAccountId);
         validateOwnership(mailAccount, user);
         mailAccount.deactivate();
     }
 
     @Transactional
     public void deleteMailAccount(User user, UUID mailAccountId) {
-        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        MailAccount mailAccount = findById(mailAccountId);
         validateOwnership(mailAccount, user);
         mailAccount.deactivate();
         mailAccount.delete();
+    }
+
+    private MailAccount findById(UUID id) {
+        return mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+    }
+
+    private MailAccount findActiveById(UUID id) {
+        return mailAccountRepositoryPort.findByIdAndActiveAndDeletedAtIsNull(id, true)
+                .orElseThrow(() -> new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND));
     }
 
     private void validateOwnership(MailAccount mailAccount, User user) {

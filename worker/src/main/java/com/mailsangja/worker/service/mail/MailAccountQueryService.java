@@ -21,12 +21,16 @@ public class MailAccountQueryService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
-    public MailAccount findSyncableGoogleMailAccountByEmailAddress(String emailAddress) {
-        MailAccount mailAccount = mailAccountRepositoryPort.findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress)
-                .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
+    public List<MailAccount> findSyncableGoogleMailAccountsByEmailAddress(String emailAddress) {
+        List<MailAccount> mailAccounts = mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress);
 
-        validateSyncableMailAccount(mailAccount);
-        return mailAccount;
+        if (mailAccounts.isEmpty()) {
+            throw new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+        }
+
+        return mailAccounts.stream()
+                .filter(this::isSyncable)
+                .toList();
     }
 
     public MailAccount findSyncableMailAccountById(UUID id) {
@@ -50,11 +54,15 @@ public class MailAccountQueryService {
     }
 
     private void validateSyncableMailAccount(MailAccount mailAccount) {
-        if (mailAccount.isDeleted()
-                || mailAccount.getProvider() != MailProvider.GMAIL
-                || isBlank(mailAccount.getAccessToken())) {
+        if (!isSyncable(mailAccount)) {
             throw new MailPushException(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE);
         }
+    }
+
+    private boolean isSyncable(MailAccount mailAccount) {
+        return !mailAccount.isDeleted()
+                && mailAccount.getProvider() == MailProvider.GMAIL
+                && !isBlank(mailAccount.getAccessToken());
     }
 
     private boolean isBlank(String value) {
