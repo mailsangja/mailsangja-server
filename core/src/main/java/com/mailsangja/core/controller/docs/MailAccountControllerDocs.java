@@ -67,8 +67,24 @@ public interface MailAccountControllerDocs {
     );
 
     @Operation(
+            summary = "메일 계정 활성화",
+            description = "비활성화된 메일 계정을 활성화합니다. 백그라운드 동기화는 활성/비활성 상태와 무관하게 유지됩니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "활성화 성공", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "메일 계정 없음", content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<Void> activateMailAccount(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "메일 계정 ID", required = true) @PathVariable UUID mailAccountId
+    );
+
+    @Operation(
             summary = "메일 계정 비활성화",
-            description = "메일 계정을 비활성화합니다. 비활성화된 계정은 메일 수신 및 동기화가 중단됩니다.",
+            description = "메일 계정을 비활성화합니다. 비활성화된 계정은 inbox/라벨 조회에서 제외되지만 백그라운드 동기화는 계속됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -78,6 +94,22 @@ public interface MailAccountControllerDocs {
             @ApiResponse(responseCode = "404", description = "메일 계정 없음", content = @Content(schema = @Schema(hidden = true)))
     })
     ResponseEntity<Void> deactivateMailAccount(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "메일 계정 ID", required = true) @PathVariable UUID mailAccountId
+    );
+
+    @Operation(
+            summary = "메일 계정 삭제",
+            description = "메일 계정을 영구 삭제합니다. 삭제된 계정은 모든 조회와 동기화, watch 갱신에서 완전히 제외됩니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "삭제 성공", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "메일 계정 없음", content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<Void> deleteMailAccount(
             @Parameter(hidden = true) @AuthUser User user,
             @Parameter(description = "메일 계정 ID", required = true) @PathVariable UUID mailAccountId
     );

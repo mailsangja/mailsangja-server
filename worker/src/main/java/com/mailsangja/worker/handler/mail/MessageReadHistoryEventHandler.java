@@ -35,7 +35,7 @@ public class MessageReadHistoryEventHandler implements GmailHistoryEventHandler 
     @Override
     public void handle(GmailHistoryEvent event) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveMailAccountById(event.mailAccountId())
+                mailAccountQueryService.findSyncableMailAccountById(event.mailAccountId())
         );
         InitialMailSyncThreadSaveCommand syncCommand = prepareSyncCommandIfNeeded(mailAccount, event);
         gmailHistoryStateApplyCommandService.applyMessageReadState(mailAccount, event, true, syncCommand);

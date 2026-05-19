@@ -161,10 +161,25 @@ public class MailAccountCommandService {
     }
 
     @Transactional
+    public void activateMailAccount(User user, UUID mailAccountId) {
+        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        validateOwnership(mailAccount, user);
+        mailAccount.activate();
+    }
+
+    @Transactional
     public void deactivateMailAccount(User user, UUID mailAccountId) {
         MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
         validateOwnership(mailAccount, user);
         mailAccount.deactivate();
+    }
+
+    @Transactional
+    public void deleteMailAccount(User user, UUID mailAccountId) {
+        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        validateOwnership(mailAccount, user);
+        mailAccount.deactivate();
+        mailAccount.delete();
     }
 
     private void validateOwnership(MailAccount mailAccount, User user) {

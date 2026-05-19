@@ -21,19 +21,19 @@ public class MailAccountQueryService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
 
-    public MailAccount findActiveGoogleMailAccountByEmailAddress(String emailAddress) {
+    public MailAccount findSyncableGoogleMailAccountByEmailAddress(String emailAddress) {
         MailAccount mailAccount = mailAccountRepositoryPort.findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, emailAddress)
                 .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
 
-        validateActiveMailAccount(mailAccount);
+        validateSyncableMailAccount(mailAccount);
         return mailAccount;
     }
 
-    public MailAccount findActiveMailAccountById(UUID id) {
+    public MailAccount findSyncableMailAccountById(UUID id) {
         MailAccount mailAccount = mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND));
 
-        validateActiveMailAccount(mailAccount);
+        validateSyncableMailAccount(mailAccount);
         return mailAccount;
     }
 
@@ -49,9 +49,8 @@ public class MailAccountQueryService {
         return LocalDateTime.now(KST_ZONE_ID);
     }
 
-    private void validateActiveMailAccount(MailAccount mailAccount) {
-        if (!mailAccount.isActive()
-                || mailAccount.isDeleted()
+    private void validateSyncableMailAccount(MailAccount mailAccount) {
+        if (mailAccount.isDeleted()
                 || mailAccount.getProvider() != MailProvider.GMAIL
                 || isBlank(mailAccount.getAccessToken())) {
             throw new MailPushException(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE);

@@ -62,12 +62,32 @@ public class MailAccountController implements MailAccountControllerDocs {
     }
 
     @Override
-    @DeleteMapping("/api/v1/mail-accounts/{mailAccountId}")
+    @PatchMapping("/api/v1/mail-accounts/{mailAccountId}/activate")
+    public ResponseEntity<Void> activateMailAccount(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId
+    ) {
+        mailAccountFacade.activateMailAccount(user, mailAccountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @PatchMapping("/api/v1/mail-accounts/{mailAccountId}/deactivate")
     public ResponseEntity<Void> deactivateMailAccount(
             @AuthUser User user,
             @PathVariable UUID mailAccountId
     ) {
         mailAccountFacade.deactivateMailAccount(user, mailAccountId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @DeleteMapping("/api/v1/mail-accounts/{mailAccountId}")
+    public ResponseEntity<Void> deleteMailAccount(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId
+    ) {
+        mailAccountFacade.deleteMailAccount(user, mailAccountId);
         return ResponseEntity.ok().build();
     }
 

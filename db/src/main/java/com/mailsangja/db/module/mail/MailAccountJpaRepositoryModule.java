@@ -85,7 +85,6 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
             SELECT ma
             FROM MailAccount ma
             WHERE ma.provider = :provider
-              AND ma.active = true
               AND ma.deletedAt IS NULL
               AND ma.watchExpiresAt IS NOT NULL
               AND ma.watchExpiresAt <= :watchExpiresAtThreshold

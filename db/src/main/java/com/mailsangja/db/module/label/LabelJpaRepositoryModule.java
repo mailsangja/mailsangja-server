@@ -53,6 +53,8 @@ public interface LabelJpaRepositoryModule extends JpaRepository<Label, UUID> {
               AND ml.label.deletedAt IS NULL
               AND ml.message.deletedAt IS NULL
               AND ml.message.thread.deletedAt IS NULL
+              AND ml.message.thread.mailAccount.active = true
+              AND ml.message.thread.mailAccount.deletedAt IS NULL
               AND ml.message.thread.read = false
               AND ml.message.thread.direction = com.mailsangja.db.entity.mail.Direction.INBOUND
             GROUP BY ml.label.id

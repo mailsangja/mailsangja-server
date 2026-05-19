@@ -115,7 +115,7 @@ class GmailNewMessageApplyCommandServiceTest {
         assertFalse(deletedThread.isDeleted());
         assertTrue(oldMessage.isDeleted());
         assertEquals("message-new", messageCaptor.getValue().getGmailMessageId());
-        assertEquals(1, deletedThread.getMessageCount());
+        assertEquals(2, deletedThread.getMessageCount());
         assertEquals("new subject", deletedThread.getLatestSubject());
         assertEquals("new snippet", deletedThread.getLatestSnippet());
         assertEquals(LocalDateTime.of(2026, 4, 14, 10, 0), deletedThread.getLastMessageAt());

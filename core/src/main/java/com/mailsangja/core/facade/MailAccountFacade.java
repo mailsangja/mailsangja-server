@@ -96,8 +96,16 @@ public class MailAccountFacade {
         mailAccountCommandService.updateMailAccountAppearance(user, mailAccountId, request.alias(), request.icon(), request.color());
     }
 
+    public void activateMailAccount(User user, UUID mailAccountId) {
+        mailAccountCommandService.activateMailAccount(user, mailAccountId);
+    }
+
     public void deactivateMailAccount(User user, UUID mailAccountId) {
         mailAccountCommandService.deactivateMailAccount(user, mailAccountId);
+    }
+
+    public void deleteMailAccount(User user, UUID mailAccountId) {
+        mailAccountCommandService.deleteMailAccount(user, mailAccountId);
     }
 
     private void validateAuthorizationCode(String code) {

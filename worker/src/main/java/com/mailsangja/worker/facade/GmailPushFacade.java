@@ -39,7 +39,7 @@ public class GmailPushFacade {
         GoogleMailPushNotificationResult notification = request.decode(objectMapper);
 
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
-                mailAccountQueryService.findActiveGoogleMailAccountByEmailAddress(notification.emailAddress())
+                mailAccountQueryService.findSyncableGoogleMailAccountByEmailAddress(notification.emailAddress())
         );
 
         GoogleMailHistoryListResult historyResult = gmailHistoryApiService.getHistory(
