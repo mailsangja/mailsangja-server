@@ -9,8 +9,6 @@ public class SnippetPreprocessor {
 
     private static final int MAX_LENGTH = 150;
 
-    private static final Pattern EMAIL_PATTERN =
-            Pattern.compile("[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}");
     private static final Pattern PHONE_PATTERN =
             Pattern.compile("01[016789]-?\\d{3,4}-?\\d{4}");
     private static final Pattern RRN_PATTERN =
@@ -24,7 +22,6 @@ public class SnippetPreprocessor {
         }
         String result = RRN_PATTERN.matcher(snippet).replaceAll("[RRN]");
         result = CARD_PATTERN.matcher(result).replaceAll("[CARD]");
-        result = EMAIL_PATTERN.matcher(result).replaceAll("[EMAIL]");
         result = PHONE_PATTERN.matcher(result).replaceAll("[PHONE]");
         return result.length() > MAX_LENGTH ? result.substring(0, MAX_LENGTH) : result;
     }

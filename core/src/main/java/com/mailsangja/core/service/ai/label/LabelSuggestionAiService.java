@@ -143,12 +143,15 @@ public class LabelSuggestionAiService {
     private LlmLabelSuggestionResult requestSuggestions(List<Message> messages, List<Label> existingLabels) {
         StructuredOutputConverter<LlmLabelSuggestionResult> converter = new BeanOutputConverter<>(LlmLabelSuggestionResult.class);
         Map<String, String> snippetMap = buildSnippetMap(messages);
+        log.info("LLM label suggestion call started: messages={}, snippetsAvailable={}", messages.size(), snippetMap.size());
         try {
-            return ChatClient.create(chatModel())
+            LlmLabelSuggestionResult result = ChatClient.create(chatModel())
                     .prompt(createPrompt(messages, existingLabels, converter))
                     .tools(new SnippetTool(snippetMap))
                     .call()
                     .entity(converter);
+            log.info("LLM label suggestion call completed: suggestions={}", result.suggestions().size());
+            return result;
         } catch (RuntimeException e) {
             log.warn("Label suggestion AI structured response failed.", e);
             throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_AI_FAILED);
