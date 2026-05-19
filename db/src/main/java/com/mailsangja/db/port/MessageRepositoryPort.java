@@ -2,6 +2,7 @@ package com.mailsangja.db.port;
 
 import com.mailsangja.db.dto.MessageLabelView;
 import com.mailsangja.db.dto.ThreadMessageLabelView;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -65,4 +66,6 @@ public interface MessageRepositoryPort {
     List<UUID> findActiveThreadIdsByUserId(UUID userId);
 
     List<Message> findActiveMessagesWithLabelsByThreadIdIn(List<UUID> threadIds);
+
+    List<Message> findRecentByUserIdAndDirection(UUID userId, Direction direction, Pageable pageable);
 }
