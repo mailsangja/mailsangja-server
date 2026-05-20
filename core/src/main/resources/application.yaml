@@ -28,11 +28,13 @@ spring:
         initialize-schema: ${AI_PGVECTOR_INITIALIZE_SCHEMA:true}
         remove-existing-vector-store-table: false
     openai:
-      api-key: ${OPENAI_API_KEY}
+      api-key: ${OPENAI_API_KEY:${OPENROUTER_API_KEY}}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       chat:
+        api-key: ${OPENROUTER_API_KEY:${OPENAI_API_KEY}}
+        base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
         options:
-          model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+          model: ${MAIL_DRAFT_DEFAULT_MODEL:openai/gpt-4o-mini}
           temperature: ${OPENAI_CHAT_TEMPERATURE:0.3}
       embedding:
         options:
@@ -100,6 +102,10 @@ scalar:
   page-title: MailSangja API Reference
 
 mailsangja:
+  ai:
+    model:
+      default-model: ${AI_DEFAULT_MODEL:${MAIL_DRAFT_DEFAULT_MODEL:google/gemini-3.5-flash}}
+      allowed-models: ${AI_ALLOWED_MODELS:${MAIL_DRAFT_ALLOWED_MODELS:google/gemini-3.5-flash,google/gemini-3.1-pro-preview,google/gemini-3.1-flash-lite,google/gemini-3-pro-preview,google/gemini-3-flash-preview,google/gemini-2.5-pro,google/gemini-2.5-flash,google/gemini-2.5-flash-lite,openai/gpt-5.5,openai/gpt-5.5-pro,openai/gpt-5.4-nano,openai/gpt-5.4-mini,openai/gpt-5.4,openai/gpt-5.4-pro,openai/gpt-5.3-chat,openai/gpt-5.3-codex,openai/gpt-5.2-chat,openai/gpt-5.2,openai/gpt-5.1,openai/gpt-4.1,openai/gpt-4.1-mini,openai/gpt-4.1-nano,qwen/qwen3.6-flash,qwen/qwen3.5-plus-20260420,anthropic/claude-haiku-4.5,anthropic/claude-sonnet-4.6,anthropic/claude-sonnet-4.5,anthropic/claude-sonnet-4,anthropic/claude-opus-4.7,anthropic/claude-opus-4.7-fast,anthropic/claude-opus-4.6,anthropic/claude-opus-4.6-fast,anthropic/claude-opus-4.1,anthropic/claude-opus-4,mistralai/mistral-medium-3-5,x-ai/grok-4.3}}
   redis:
     rate-limit:
       enabled: ${MAILSANGJA_REDIS_RATE_LIMIT_ENABLED:true}

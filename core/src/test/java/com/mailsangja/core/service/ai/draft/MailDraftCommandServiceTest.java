@@ -2,6 +2,8 @@ package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.common.exception.mail.MailDraftErrorCode;
 import com.mailsangja.core.common.exception.mail.MailDraftException;
+import com.mailsangja.core.common.exception.ai.AiModelException;
+import com.mailsangja.core.config.properties.AiModelProperties;
 import com.mailsangja.core.dto.mail.MailDraftDeltaEvent;
 import com.mailsangja.core.dto.mail.MailDraftDoneEvent;
 import com.mailsangja.core.dto.mail.MailDraftPhase;
@@ -32,6 +34,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -44,7 +47,7 @@ class MailDraftCommandServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
-        MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider());
+        MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider(), modelProperties());
         when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
 
         // when & then
@@ -59,7 +62,7 @@ class MailDraftCommandServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
-        MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider());
+        MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider(), modelProperties());
         when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(false);
 
         // when & then
@@ -205,6 +208,45 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
+    void 요청모델을Prompt옵션에설정한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("제목", "anthropic/claude-sonnet-4.6", usage(10, 3)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when
+        service.streamSubject(
+                emitter,
+                prompt(),
+                new MailDraftRestoreContextResult(null),
+                service.createCancellation(),
+                "anthropic/claude-sonnet-4.6"
+        );
+
+        // then
+        var captor = forClass(Prompt.class);
+        verify(chatModel).stream(captor.capture());
+        assertEquals("anthropic/claude-sonnet-4.6", captor.getValue().getOptions().getModel());
+    }
+
+    @Test
+    void 허용되지않은모델이면실패한다() {
+        // given
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        ChatModel chatModel = chatModel(response("제목", "unknown/model", usage(10, 3)));
+        MailDraftCommandService service = createService(chatModel);
+
+        // when & then
+        assertThrows(AiModelException.class, () -> service.streamSubject(
+                emitter,
+                prompt(),
+                new MailDraftRestoreContextResult(null),
+                service.createCancellation(),
+                "unknown/model"
+        ));
+    }
+
+    @Test
     void 마스킹토큰이chunk경계에서잘려도정확히복원한다() {
         // given
         CapturingSseEmitter emitter = new CapturingSseEmitter();
@@ -346,11 +388,55 @@ class MailDraftCommandServiceTest {
     }
 
     private MailDraftCommandService createService() {
-        return new MailDraftCommandService(mock(MailDraftRateLimitCachePort.class), chatModelProvider());
+        return new MailDraftCommandService(mock(MailDraftRateLimitCachePort.class), chatModelProvider(), modelProperties());
     }
 
     private MailDraftCommandService createService(ChatModel chatModel) {
-        return new MailDraftCommandService(mock(MailDraftRateLimitCachePort.class), chatModelProvider(chatModel));
+        return new MailDraftCommandService(mock(MailDraftRateLimitCachePort.class), chatModelProvider(chatModel), modelProperties());
+    }
+
+    private AiModelProperties modelProperties() {
+        AiModelProperties properties = new AiModelProperties();
+        properties.setDefaultModel("google/gemini-3.5-flash");
+        properties.setAllowedModels(List.of(
+                "google/gemini-3.5-flash",
+                "google/gemini-3.1-pro-preview",
+                "google/gemini-3.1-flash-lite",
+                "google/gemini-3-pro-preview",
+                "google/gemini-3-flash-preview",
+                "google/gemini-2.5-pro",
+                "google/gemini-2.5-flash",
+                "google/gemini-2.5-flash-lite",
+                "openai/gpt-5.5",
+                "openai/gpt-5.5-pro",
+                "openai/gpt-5.4-nano",
+                "openai/gpt-5.4-mini",
+                "openai/gpt-5.4",
+                "openai/gpt-5.4-pro",
+                "openai/gpt-5.3-chat",
+                "openai/gpt-5.3-codex",
+                "openai/gpt-5.2-chat",
+                "openai/gpt-5.2",
+                "openai/gpt-5.1",
+                "openai/gpt-4.1",
+                "openai/gpt-4.1-mini",
+                "openai/gpt-4.1-nano",
+                "qwen/qwen3.6-flash",
+                "qwen/qwen3.5-plus-20260420",
+                "anthropic/claude-haiku-4.5",
+                "anthropic/claude-sonnet-4.6",
+                "anthropic/claude-sonnet-4.5",
+                "anthropic/claude-sonnet-4",
+                "anthropic/claude-opus-4.7",
+                "anthropic/claude-opus-4.7-fast",
+                "anthropic/claude-opus-4.6",
+                "anthropic/claude-opus-4.6-fast",
+                "anthropic/claude-opus-4.1",
+                "anthropic/claude-opus-4",
+                "mistralai/mistral-medium-3-5",
+                "x-ai/grok-4.3"
+        ));
+        return properties;
     }
 
     private ObjectProvider<ChatModel> chatModelProvider() {
