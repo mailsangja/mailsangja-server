@@ -46,7 +46,7 @@ public class MessageAddedHistoryEventHandler {
     public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
         gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event).ifPresent(context -> {
             mailEmbeddingPublisher.publish(new MailEmbeddingMessage(context.messageId()));
-            publishReplyDraftSuggestionIfEligible(event, context);
+            publishReplyDraftSuggestionIfEligible(mailAccount, event, context);
 
             List<Label> activeLabels = labelQueryService.findAllActiveByUserId(mailAccount.getUser().getId());
 
@@ -67,14 +67,31 @@ public class MessageAddedHistoryEventHandler {
         });
     }
 
-    private void publishReplyDraftSuggestionIfEligible(GmailHistoryEvent event, NewMailPushContext context) {
+    private void publishReplyDraftSuggestionIfEligible(MailAccount mailAccount, GmailHistoryEvent event, NewMailPushContext context) {
         if (context.direction() != Direction.INBOUND) {
             return;
         }
-        if (!replyDraftSuggestionQueryService.isEligible(context.threadMessageCount())) {
+        if (!isSentToConnectedMailAccount(mailAccount, context.toAddresses())) {
+            return;
+        }
+        if (!replyDraftSuggestionQueryService.isEligible(
+                mailAccount.getId(),
+                event.gmailThreadId(),
+                context.threadMessageCount()
+        )) {
             return;
         }
         replyDraftSuggestionPublisher.publish(new ReplyDraftSuggestionMessage(context.messageId()));
+    }
+
+    private boolean isSentToConnectedMailAccount(MailAccount mailAccount, List<String> toAddresses) {
+        if (mailAccount == null || mailAccount.getEmailAddress() == null || toAddresses == null || toAddresses.isEmpty()) {
+            return false;
+        }
+        String connectedEmail = mailAccount.getEmailAddress().trim();
+        return toAddresses.stream()
+                .filter(address -> address != null && !address.isBlank())
+                .anyMatch(address -> connectedEmail.equalsIgnoreCase(address.trim()));
     }
 
     private boolean applyLabelsAndCheckNotification(NewMailPushContext context, List<Label> activeLabels) {

@@ -31,6 +31,11 @@ public interface MessageRepositoryPort {
             String gmailThreadId,
             String gmailMessageId
     );
+    boolean existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+            UUID mailAccountId,
+            String gmailThreadId,
+            Direction direction
+    );
     Optional<Message> findByIdIncludingDeleted(UUID messageId);
     List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId);
     List<Message> findAllByThreadIdIncludingDeleted(UUID threadId);

@@ -1,6 +1,7 @@
 package com.mailsangja.worker.service.mail;
 
 import com.mailsangja.db.dto.MailDraftReferenceMessageResult;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.port.MailDraftReferenceQueryPort;
 import com.mailsangja.db.port.MessageRepositoryPort;
@@ -101,6 +102,17 @@ public class ReplyDraftSuggestionQueryService {
 
     public boolean isEligible(int threadMessageCount) {
         return threadMessageCount >= replyDraftSuggestionProperties.getMinThreadMessageCount();
+    }
+
+    public boolean isEligible(UUID mailAccountId, String gmailThreadId, int threadMessageCount) {
+        if (!isEligible(threadMessageCount)) {
+            return false;
+        }
+        return messageRepositoryPort.existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId,
+                Direction.OUTBOUND
+        );
     }
 
     private Message findActiveMessage(UUID messageId) {
