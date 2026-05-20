@@ -7,9 +7,12 @@ import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.dto.mail.MailReviewRequest;
 import com.mailsangja.core.dto.mail.MailReviewResponse;
 import com.mailsangja.core.dto.mail.MailSendRequest;
+import com.mailsangja.core.dto.mail.ReplyDraftSuggestionListResponse;
+import com.mailsangja.core.dto.mail.ReplyDraftSuggestionResponse;
 import com.mailsangja.core.facade.MailDraftFacade;
 import com.mailsangja.core.facade.MailFacade;
 import com.mailsangja.core.facade.MailReviewFacade;
+import com.mailsangja.core.facade.ReplyDraftSuggestionFacade;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -37,6 +40,7 @@ public class MailController implements MailControllerDocs {
     private final MailFacade mailFacade;
     private final MailDraftFacade mailDraftFacade;
     private final MailReviewFacade mailReviewFacade;
+    private final ReplyDraftSuggestionFacade replyDraftSuggestionFacade;
 
     @Override
     @PostMapping(value = "/api/v1/mail/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -73,6 +77,24 @@ public class MailController implements MailControllerDocs {
             @RequestBody MailReviewRequest request
     ) {
         return ResponseEntity.ok(mailReviewFacade.review(user, request));
+    }
+
+    @Override
+    @GetMapping("/api/v1/mail/messages/{messageId}/reply-draft-suggestions")
+    public ResponseEntity<ReplyDraftSuggestionListResponse> getReplyDraftSuggestions(
+            @AuthUser User user,
+            @PathVariable UUID messageId
+    ) {
+        return ResponseEntity.ok(replyDraftSuggestionFacade.findByMessageId(user, messageId));
+    }
+
+    @Override
+    @PostMapping("/api/v1/mail/reply-draft-suggestions/{suggestionId}/select")
+    public ResponseEntity<ReplyDraftSuggestionResponse> selectReplyDraftSuggestion(
+            @AuthUser User user,
+            @PathVariable UUID suggestionId
+    ) {
+        return ResponseEntity.ok(replyDraftSuggestionFacade.select(user, suggestionId));
     }
 
     @Override

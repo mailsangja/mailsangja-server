@@ -5,6 +5,8 @@ import com.mailsangja.core.dto.mail.MailDraftStreamRequest;
 import com.mailsangja.core.dto.mail.MailReviewRequest;
 import com.mailsangja.core.dto.mail.MailReviewResponse;
 import com.mailsangja.core.dto.mail.MailSendRequest;
+import com.mailsangja.core.dto.mail.ReplyDraftSuggestionListResponse;
+import com.mailsangja.core.dto.mail.ReplyDraftSuggestionResponse;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.UUID;
@@ -114,6 +117,38 @@ public interface MailControllerDocs {
             @Parameter(hidden = true) @AuthUser User user,
             @RequestBody(description = "AI 메일 전송 전 검토 요청", required = true)
             MailReviewRequest request
+    );
+
+    @Operation(
+            summary = "답장 추천 초안 목록 조회",
+            description = "messageId에 대해 미리 생성된 답장 추천 초안 2~3개를 조회합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "답장 추천 초안 목록 조회 성공"),
+            @ApiResponse(responseCode = "403", description = "답장 추천 초안 접근 권한 없음",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<ReplyDraftSuggestionListResponse> getReplyDraftSuggestions(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "답장 대상 메시지 ID", required = true) @PathVariable UUID messageId
+    );
+
+    @Operation(
+            summary = "답장 추천 초안 선택",
+            description = "선택한 답장 추천 초안을 반환하고 같은 메시지에 대한 활성 추천 초안들을 제거합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "답장 추천 초안 선택 성공"),
+            @ApiResponse(responseCode = "403", description = "답장 추천 초안 접근 권한 없음",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "답장 추천 초안을 찾을 수 없음",
+                    content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<ReplyDraftSuggestionResponse> selectReplyDraftSuggestion(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "답장 추천 초안 ID", required = true) @PathVariable UUID suggestionId
     );
 
     @Operation(
