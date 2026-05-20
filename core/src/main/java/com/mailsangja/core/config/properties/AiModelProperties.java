@@ -17,45 +17,8 @@ import java.util.List;
 @ConfigurationProperties(prefix = "mailsangja.ai.model")
 public class AiModelProperties {
 
-    private String defaultModel = "google/gemini-3.5-flash";
-    private List<String> allowedModels = List.of(
-            "google/gemini-3.5-flash",
-            "google/gemini-3.1-pro-preview",
-            "google/gemini-3.1-flash-lite",
-            "google/gemini-3-pro-preview",
-            "google/gemini-3-flash-preview",
-            "google/gemini-2.5-pro",
-            "google/gemini-2.5-flash",
-            "google/gemini-2.5-flash-lite",
-            "openai/gpt-5.5",
-            "openai/gpt-5.5-pro",
-            "openai/gpt-5.4-nano",
-            "openai/gpt-5.4-mini",
-            "openai/gpt-5.4",
-            "openai/gpt-5.4-pro",
-            "openai/gpt-5.3-chat",
-            "openai/gpt-5.3-codex",
-            "openai/gpt-5.2-chat",
-            "openai/gpt-5.2",
-            "openai/gpt-5.1",
-            "openai/gpt-4.1",
-            "openai/gpt-4.1-mini",
-            "openai/gpt-4.1-nano",
-            "qwen/qwen3.6-flash",
-            "qwen/qwen3.5-plus-20260420",
-            "anthropic/claude-haiku-4.5",
-            "anthropic/claude-sonnet-4.6",
-            "anthropic/claude-sonnet-4.5",
-            "anthropic/claude-sonnet-4",
-            "anthropic/claude-opus-4.7",
-            "anthropic/claude-opus-4.7-fast",
-            "anthropic/claude-opus-4.6",
-            "anthropic/claude-opus-4.6-fast",
-            "anthropic/claude-opus-4.1",
-            "anthropic/claude-opus-4",
-            "mistralai/mistral-medium-3-5",
-            "x-ai/grok-4.3"
-    );
+    private String defaultModel;
+    private List<String> allowedModels = List.of();
 
     public String resolve(String requestedModel) {
         String model = normalize(requestedModel);
