@@ -78,8 +78,8 @@ class MailDraftAsyncServiceTest {
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
         MailDraftUsageResult subjectUsage = new MailDraftUsageResult("gpt-4o-mini", 10, 5, 15);
-        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any())).thenReturn(subjectUsage);
-        doThrow(new RuntimeException("body failed")).when(fixture.commandService()).streamBody(eq(emitter), any(), any(), any());
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any(), any())).thenReturn(subjectUsage);
+        doThrow(new RuntimeException("body failed")).when(fixture.commandService()).streamBody(eq(emitter), any(), any(), any(), any());
 
         // when
         fixture.asyncService().streamGeneral(emitter, command);
@@ -95,7 +95,7 @@ class MailDraftAsyncServiceTest {
         Fixture fixture = createFixture();
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
-        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any()))
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("subject failed"));
         doThrow(new IllegalStateException("send failed")).when(fixture.commandService()).sendError(eq(emitter), any());
 
@@ -115,8 +115,8 @@ class MailDraftAsyncServiceTest {
         MailDraftCommand command = createCommand();
         MailDraftUsageResult subjectUsage = new MailDraftUsageResult("gpt-4o-mini", 10, 5, 15);
         MailDraftUsageResult bodyUsage = new MailDraftUsageResult("gpt-4o-mini", 20, 10, 30);
-        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any())).thenReturn(subjectUsage);
-        when(fixture.commandService().streamBody(eq(emitter), any(), any(), any())).thenReturn(bodyUsage);
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any(), any())).thenReturn(subjectUsage);
+        when(fixture.commandService().streamBody(eq(emitter), any(), any(), any(), any())).thenReturn(bodyUsage);
 
         // when
         fixture.asyncService().streamGeneral(emitter, command);
@@ -135,7 +135,7 @@ class MailDraftAsyncServiceTest {
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
         MailDraftUsageResult usage = new MailDraftUsageResult("gpt-4o-mini", 30, 15, 45);
-        org.mockito.Mockito.doReturn(usage).when(fixture.commandService()).streamCombined(eq(emitter), any(), any(), any());
+        org.mockito.Mockito.doReturn(usage).when(fixture.commandService()).streamCombined(eq(emitter), any(), any(), any(), any());
 
         // when
         fixture.asyncService().streamGeneral(emitter, command);
@@ -145,8 +145,8 @@ class MailDraftAsyncServiceTest {
         inOrder.verify(fixture.commandService()).sendUsage(emitter, usage);
         inOrder.verify(fixture.commandService()).sendDone(emitter);
         inOrder.verify(fixture.commandService()).complete(emitter);
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -156,7 +156,7 @@ class MailDraftAsyncServiceTest {
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
         MailDraftUsageResult subjectUsage = new MailDraftUsageResult("gpt-4o-mini", 10, 5, 15);
-        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any())).thenAnswer(new Answer<MailDraftUsageResult>() {
+        when(fixture.commandService().streamSubject(eq(emitter), any(), any(), any(), any())).thenAnswer(new Answer<MailDraftUsageResult>() {
             public MailDraftUsageResult answer(InvocationOnMock invocation) {
                 fixture.commandService().cancel(fixture.cancellation());
                 return subjectUsage;
@@ -167,7 +167,7 @@ class MailDraftAsyncServiceTest {
         fixture.asyncService().streamGeneral(emitter, command);
 
         // then
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any(), any());
         verify(fixture.commandService(), org.mockito.Mockito.never()).sendDone(emitter);
     }
 
@@ -184,8 +184,9 @@ class MailDraftAsyncServiceTest {
         // then
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.queryService(), fixture.commandService());
         inOrder.verify(fixture.queryService()).generalPrompt(eq(command), any());
+        inOrder.verify(fixture.commandService()).resolveModel(command.model());
         inOrder.verify(fixture.commandService()).validateMonthlyRateLimit(command.userId());
-        inOrder.verify(fixture.commandService()).streamSubject(eq(emitter), any(), any(), any());
+        inOrder.verify(fixture.commandService()).streamSubject(eq(emitter), any(), any(), any(), any());
     }
 
     @Test
@@ -200,8 +201,8 @@ class MailDraftAsyncServiceTest {
         fixture.asyncService().streamGeneral(emitter, command);
 
         // then
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any(), any());
         verify(fixture.commandService()).sendError(eq(emitter), any());
         verify(fixture.commandService()).complete(emitter);
     }
@@ -219,7 +220,7 @@ class MailDraftAsyncServiceTest {
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
-        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture(), any(), any());
+        verify(fixture.commandService()).streamSubject(eq(emitter), captor.capture(), any(), any(), any());
         assertSame(prompt, captor.getValue());
     }
 
@@ -233,17 +234,17 @@ class MailDraftAsyncServiceTest {
         MailDraftUsageResult bodyUsage = new MailDraftUsageResult("gpt-4o-mini", 20, 10, 30);
         when(fixture.queryService().replyRagContext(command)).thenReturn(MailDraftRagContextResult.empty());
         when(fixture.queryService().replyPrompt(eq(command), any())).thenReturn(prompt);
-        when(fixture.commandService().streamBody(eq(emitter), any(), any(), any())).thenReturn(bodyUsage);
+        when(fixture.commandService().streamBody(eq(emitter), any(), any(), any(), any())).thenReturn(bodyUsage);
 
         // when
         fixture.asyncService().streamReply(emitter, command);
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
-        verify(fixture.commandService()).streamBody(eq(emitter), captor.capture(), any(), any());
+        verify(fixture.commandService()).streamBody(eq(emitter), captor.capture(), any(), any(), any());
         assertSame(prompt, captor.getValue());
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamCombined(any(), any(), any(), any());
-        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamCombined(any(), any(), any(), any(), any());
+        verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any(), any());
         verify(fixture.commandService()).sendUsage(emitter, bodyUsage);
         verify(fixture.commandService()).sendDone(emitter);
         verify(fixture.commandService()).complete(emitter);
@@ -255,8 +256,9 @@ class MailDraftAsyncServiceTest {
         MailDraftAsyncService asyncService = new MailDraftAsyncService(queryService, commandService);
         MailDraftCommandService.StreamCancellation cancellation = new MailDraftCommandService.StreamCancellation();
         when(commandService.createCancellation()).thenReturn(cancellation);
-        when(commandService.streamCombined(any(), any(), any(), any()))
+        when(commandService.streamCombined(any(), any(), any(), any(), any()))
                 .thenThrow(new MailDraftCommandService.MailDraftCombinedFormatException("invalid"));
+        when(commandService.resolveModel(any())).thenReturn("openai/gpt-4o-mini");
         doCallRealMethod().when(commandService).cancel(cancellation);
         stubDraftPrompt(queryService);
         return new Fixture(asyncService, queryService, commandService, cancellation);

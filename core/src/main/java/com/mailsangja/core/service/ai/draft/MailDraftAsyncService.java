@@ -100,10 +100,11 @@ public class MailDraftAsyncService {
 
     private void streamAfterRateLimit(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
                                       MailDraftCommandService.StreamCancellation cancellation) {
+        String model = mailDraftCommandService.resolveModel(command.model());
         mailDraftCommandService.validateMonthlyRateLimit(command.userId());
         MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
         try {
-            MailDraftUsageResult usage = mailDraftCommandService.streamCombined(emitter, prompt, restoreContext, cancellation);
+            MailDraftUsageResult usage = mailDraftCommandService.streamCombined(emitter, prompt, restoreContext, cancellation, model);
             if (cancellation.isCancelled()) {
                 return;
             }
@@ -116,11 +117,11 @@ public class MailDraftAsyncService {
                 return;
             }
         }
-        MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext, cancellation);
+        MailDraftUsageResult subjectUsage = mailDraftCommandService.streamSubject(emitter, prompt, restoreContext, cancellation, model);
         if (cancellation.isCancelled()) {
             return;
         }
-        MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation);
+        MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation, model);
         if (cancellation.isCancelled()) {
             return;
         }
@@ -130,9 +131,10 @@ public class MailDraftAsyncService {
     private void streamReplyBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
                                  MailDraftCommandService.StreamCancellation cancellation) {
         try {
+            String model = mailDraftCommandService.resolveModel(command.model());
             mailDraftCommandService.validateMonthlyRateLimit(command.userId());
             MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
-            MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation);
+            MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation, model);
             if (cancellation.isCancelled()) {
                 return;
             }

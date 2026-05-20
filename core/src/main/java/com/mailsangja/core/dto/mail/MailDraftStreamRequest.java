@@ -11,12 +11,17 @@ public record MailDraftStreamRequest(
         String query,
         UUID replyMessageId,
         List<String> to,
-        List<String> cc
+        List<String> cc,
+        String model
 ) {
 
     public MailDraftStreamRequest {
         validateMailAddress(mailAddress);
         validateQuery(query);
+    }
+
+    public MailDraftStreamRequest(String mailAddress, String query, UUID replyMessageId, List<String> to, List<String> cc) {
+        this(mailAddress, query, replyMessageId, to, cc, null);
     }
 
     private static void validateMailAddress(String mailAddress) {
