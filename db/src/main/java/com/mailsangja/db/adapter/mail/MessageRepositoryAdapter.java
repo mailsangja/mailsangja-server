@@ -82,6 +82,19 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public boolean existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+            UUID mailAccountId,
+            String gmailThreadId,
+            Direction direction
+    ) {
+        return messageJpaRepositoryModule.existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId,
+                direction
+        );
+    }
+
+    @Override
     public List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId) {
         return messageJpaRepositoryModule.findAllByThreadIdAndDeletedAtIsNull(threadId);
     }

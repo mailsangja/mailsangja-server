@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +52,60 @@ class ReplyDraftSuggestionQueryServiceTest {
 
     @Mock
     private PhileasMaskingService maskingService;
+
+    @Test
+    void isEligible_스레드메시지가3개미만이면Outbound조회없이실패한다() {
+        // given
+        ReplyDraftSuggestionQueryService service = createService();
+        UUID mailAccountId = UUID.randomUUID();
+
+        // when
+        boolean result = service.isEligible(mailAccountId, "gmail-thread-1", 2);
+
+        // then
+        assertFalse(result);
+        verify(messageRepositoryPort, never()).existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                any(),
+                anyString(),
+                any()
+        );
+    }
+
+    @Test
+    void isEligible_스레드에Outbound메시지가있으면성공한다() {
+        // given
+        ReplyDraftSuggestionQueryService service = createService();
+        UUID mailAccountId = UUID.randomUUID();
+        when(messageRepositoryPort.existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccountId,
+                "gmail-thread-1",
+                Direction.OUTBOUND
+        )).thenReturn(true);
+
+        // when
+        boolean result = service.isEligible(mailAccountId, "gmail-thread-1", 3);
+
+        // then
+        assertTrue(result);
+    }
+
+    @Test
+    void isEligible_스레드에Outbound메시지가없으면실패한다() {
+        // given
+        ReplyDraftSuggestionQueryService service = createService();
+        UUID mailAccountId = UUID.randomUUID();
+        when(messageRepositoryPort.existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccountId,
+                "gmail-thread-1",
+                Direction.OUTBOUND
+        )).thenReturn(false);
+
+        // when
+        boolean result = service.isEligible(mailAccountId, "gmail-thread-1", 3);
+
+        // then
+        assertFalse(result);
+    }
 
     @Test
     void createPrompt_latest_thread_recent_recipientHistory를역할별섹션으로구성한다() {

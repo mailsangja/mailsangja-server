@@ -60,6 +60,7 @@ public class GmailNewMessageSyncCommandService {
                         applyResult.threadId(),
                         applyResult.messageId(),
                         message.direction(),
+                        message.toAddresses(),
                         applyResult.threadMessageCount()
                 ));
             }
