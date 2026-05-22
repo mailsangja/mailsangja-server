@@ -81,6 +81,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:init.sql
+      separator: ";;"
 
   data:
     redis:
