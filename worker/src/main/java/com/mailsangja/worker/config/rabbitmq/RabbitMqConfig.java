@@ -4,17 +4,19 @@ import com.mailsangja.worker.common.exception.mail.MailAccountNotFoundException;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
+import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.MessageRecoverer;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.retry.RetryPolicy;
 
 import java.time.Duration;
 
@@ -82,10 +84,15 @@ public class RabbitMqConfig {
         return (int) ttlMillis;
     }
 
-    static RetryPolicy createRetryPolicy() {
-        return RetryPolicy.builder()
-                .maxRetries(MAX_RETRIES)
-                .excludes(MailAccountNotFoundException.class)
+    static MethodInterceptor createRetryInterceptor(MailTaskRabbitProperties properties, MessageRecoverer recoverer) {
+        return RetryInterceptorBuilder.stateless()
+                .configureRetryPolicy(policy -> policy
+                        .maxRetries(MAX_RETRIES)
+                        .excludes(MailAccountNotFoundException.class)
+                        .delay(Duration.ofMillis(properties.getRetryInitialInterval()))
+                        .multiplier(properties.getRetryMultiplier())
+                        .maxDelay(Duration.ofMillis(properties.getRetryMaxInterval())))
+                .recoverer(recoverer)
                 .build();
     }
 

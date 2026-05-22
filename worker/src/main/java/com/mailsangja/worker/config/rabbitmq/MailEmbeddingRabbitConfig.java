@@ -12,7 +12,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
@@ -88,11 +88,7 @@ public class MailEmbeddingRabbitConfig {
             MailTaskRabbitProperties properties,
             @Qualifier("mailEmbeddingMessageRecoverer") MessageRecoverer mailEmbeddingMessageRecoverer
     ) {
-        return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy())
-                .backOffOptions(properties.getRetryInitialInterval(), properties.getRetryMultiplier(), properties.getRetryMaxInterval())
-                .recoverer(mailEmbeddingMessageRecoverer)
-                .build();
+        return RabbitMqConfig.createRetryInterceptor(properties, mailEmbeddingMessageRecoverer);
     }
 
     @Bean

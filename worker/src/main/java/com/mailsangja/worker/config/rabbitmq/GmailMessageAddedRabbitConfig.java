@@ -13,7 +13,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
@@ -90,11 +90,7 @@ public class GmailMessageAddedRabbitConfig {
             MailTaskRabbitProperties properties,
             @Qualifier("gmailMessageAddedMessageRecoverer") MessageRecoverer gmailMessageAddedMessageRecoverer
     ) {
-        return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy())
-                .backOffOptions(properties.getRetryInitialInterval(), properties.getRetryMultiplier(), properties.getRetryMaxInterval())
-                .recoverer(gmailMessageAddedMessageRecoverer)
-                .build();
+        return RabbitMqConfig.createRetryInterceptor(properties, gmailMessageAddedMessageRecoverer);
     }
 
     @Bean
