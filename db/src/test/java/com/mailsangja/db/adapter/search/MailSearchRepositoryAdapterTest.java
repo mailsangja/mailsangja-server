@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class MailSearchRepositoryAdapterTest {
+
+    private static final String SENTINEL_LABEL_ID = "00000000-0000-0000-0000-000000000000";
 
     @Mock private MailSearchJpaRepositoryModule mailSearchJpaRepositoryModule;
     @Mock private MessageJpaRepositoryModule messageJpaRepositoryModule;
@@ -75,7 +78,7 @@ class MailSearchRepositoryAdapterTest {
 
         // then
         assertEquals(List.of(thread), result.getContent());
-        verify(mailSearchJpaRepositoryModule, never()).searchThreadIdsFirstPage(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+        verify(mailSearchJpaRepositoryModule, never()).searchThreadIdsFirstPage(any(), any(), anyInt());
     }
 
     @Test
@@ -109,7 +112,7 @@ class MailSearchRepositoryAdapterTest {
         when(mailSearchJpaRepositoryModule.searchSentThreadIdsFirstPage(
                 userId.toString(),
                 "검색",
-                List.of("00000000-0000-0000-0000-000000000000"),
+                List.of(SENTINEL_LABEL_ID),
                 true,
                 false,
                 2
@@ -132,7 +135,7 @@ class MailSearchRepositoryAdapterTest {
         Message first = message();
         Message second = message();
         when(mailSearchJpaRepositoryModule.searchTrashMessageIdsFirstPage(
-                userId.toString(), "삭제", List.of("00000000-0000-0000-0000-000000000000"), true, null, 3))
+                userId.toString(), "삭제", List.of(SENTINEL_LABEL_ID), true, null, 3))
                 .thenReturn(List.of(first.getId().toString(), second.getId().toString()));
         when(messageJpaRepositoryModule.findAllByIdInWithThread(List.of(first.getId(), second.getId())))
                 .thenReturn(List.of(second, first));
@@ -169,7 +172,7 @@ class MailSearchRepositoryAdapterTest {
         // given
         UUID userId = UUID.randomUUID();
         when(mailSearchJpaRepositoryModule.countInboxThreads(
-                userId.toString(), "검색", List.of("00000000-0000-0000-0000-000000000000"), true, null))
+                userId.toString(), "검색", List.of(SENTINEL_LABEL_ID), true, null))
                 .thenReturn(null);
 
         // when

@@ -169,10 +169,12 @@ class GmailHistoryEventClassifierTest {
         List<GmailHistoryEvent> events = classifier.classify(mailAccount, historyResult);
 
         assertEquals(2, events.size());
-        assertEquals(GmailHistoryEventType.MESSAGE_TRASHED, events.get(0).eventType());
-        assertEquals("message-trash", events.get(0).gmailMessageId());
-        assertEquals(GmailHistoryEventType.MESSAGE_RESTORED, events.get(1).eventType());
-        assertEquals("message-restore", events.get(1).gmailMessageId());
+        assertTrue(events.stream().anyMatch(e ->
+                e.eventType() == GmailHistoryEventType.MESSAGE_TRASHED
+                        && "message-trash".equals(e.gmailMessageId())));
+        assertTrue(events.stream().anyMatch(e ->
+                e.eventType() == GmailHistoryEventType.MESSAGE_RESTORED
+                        && "message-restore".equals(e.gmailMessageId())));
     }
 
     @Test

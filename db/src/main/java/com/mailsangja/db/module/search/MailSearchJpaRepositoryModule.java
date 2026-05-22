@@ -76,9 +76,17 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                 )
               )
               AND (
-                t.last_message_at < (SELECT t2.last_message_at FROM threads t2 WHERE t2.id = :markerId)
+                t.last_message_at < (SELECT t2.last_message_at FROM threads t2
+                                     JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                     WHERE t2.id = :markerId AND ma2.user_id = :userId
+                                       AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL
+                                       AND t2.deleted_at IS NULL)
                 OR (
-                  t.last_message_at = (SELECT t2.last_message_at FROM threads t2 WHERE t2.id = :markerId)
+                  t.last_message_at = (SELECT t2.last_message_at FROM threads t2
+                                       JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                       WHERE t2.id = :markerId AND ma2.user_id = :userId
+                                         AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL
+                                         AND t2.deleted_at IS NULL)
                   AND t.id < :markerId
                 )
               )
@@ -127,8 +135,15 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                    OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND a.filename_vector @@ websearch_to_tsquery('korean', :query)))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
-              AND (t.last_message_at < (SELECT t2.last_message_at FROM threads t2 WHERE t2.id = :markerId)
-                   OR (t.last_message_at = (SELECT t2.last_message_at FROM threads t2 WHERE t2.id = :markerId) AND t.id < :markerId))
+              AND (t.last_message_at < (SELECT t2.last_message_at FROM threads t2
+                                        JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                        WHERE t2.id = :markerId AND ma2.user_id = :userId
+                                          AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL AND t2.deleted_at IS NULL)
+                   OR (t.last_message_at = (SELECT t2.last_message_at FROM threads t2
+                                            JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                            WHERE t2.id = :markerId AND ma2.user_id = :userId
+                                              AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL AND t2.deleted_at IS NULL)
+                       AND t.id < :markerId))
             ORDER BY t.last_message_at DESC, t.id DESC LIMIT :limit
             """, nativeQuery = true)
     List<String> searchInboxThreadIdsAfterMarker(
@@ -172,8 +187,15 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                    OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND a.filename_vector @@ websearch_to_tsquery('korean', :query)))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
-              AND (t.last_message_at < (SELECT t2.last_message_at FROM threads t2 WHERE t2.id = :markerId)
-                   OR (t.last_message_at = (SELECT t2.last_message_at FROM threads t2 WHERE t2.id = :markerId) AND t.id < :markerId))
+              AND (t.last_message_at < (SELECT t2.last_message_at FROM threads t2
+                                        JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                        WHERE t2.id = :markerId AND ma2.user_id = :userId
+                                          AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL AND t2.deleted_at IS NULL)
+                   OR (t.last_message_at = (SELECT t2.last_message_at FROM threads t2
+                                            JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                            WHERE t2.id = :markerId AND ma2.user_id = :userId
+                                              AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL AND t2.deleted_at IS NULL)
+                       AND t.id < :markerId))
             ORDER BY t.last_message_at DESC, t.id DESC LIMIT :limit
             """, nativeQuery = true)
     List<String> searchSentThreadIdsAfterMarker(
@@ -217,8 +239,17 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                    OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND a.filename_vector @@ websearch_to_tsquery('korean', :query)))
               AND (:read IS NULL OR m.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml WHERE ml.message_id = m.id AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
-              AND (m.deleted_at < (SELECT mm.deleted_at FROM messages mm WHERE mm.id = :markerId)
-                   OR (m.deleted_at = (SELECT mm.deleted_at FROM messages mm WHERE mm.id = :markerId) AND m.id < :markerId))
+              AND (m.deleted_at < (SELECT mm.deleted_at FROM messages mm
+                                    JOIN threads t2 ON mm.thread_id = t2.id
+                                    JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                    WHERE mm.id = :markerId AND ma2.user_id = :userId
+                                      AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL)
+                   OR (m.deleted_at = (SELECT mm.deleted_at FROM messages mm
+                                       JOIN threads t2 ON mm.thread_id = t2.id
+                                       JOIN mail_accounts ma2 ON t2.mail_account_id = ma2.id
+                                       WHERE mm.id = :markerId AND ma2.user_id = :userId
+                                         AND ma2.is_active = TRUE AND ma2.deleted_at IS NULL)
+                       AND m.id < :markerId))
             ORDER BY m.deleted_at DESC, m.id DESC LIMIT :limit
             """, nativeQuery = true)
     List<String> searchTrashMessageIdsAfterMarker(

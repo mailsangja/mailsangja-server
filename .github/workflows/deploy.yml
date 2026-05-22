@@ -81,5 +81,5 @@ jobs:
             EOF
 
             docker compose -f compose.production.yaml --env-file .env --env-file .env.release pull postgres core worker
-            docker compose -f compose.production.yaml --env-file .env --env-file .env.release up -d core worker
+            docker compose -f compose.production.yaml --env-file .env --env-file .env.release up -d postgres core worker
             docker compose -f compose.production.yaml --env-file .env --env-file .env.release ps core worker

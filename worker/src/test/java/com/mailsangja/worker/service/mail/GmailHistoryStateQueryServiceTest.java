@@ -13,8 +13,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,8 +35,7 @@ class GmailHistoryStateQueryServiceTest {
         assertTrue(service.findMessage(UUID.randomUUID(), " ", "message-1").isEmpty());
         assertTrue(service.findMessage(UUID.randomUUID(), "thread-1", null).isEmpty());
 
-        verify(messageRepositoryPort, never())
-                .findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(null, "thread-1", "message-1");
+        verifyNoInteractions(messageRepositoryPort);
     }
 
     @Test

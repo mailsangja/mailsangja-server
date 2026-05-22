@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -91,7 +92,7 @@ class GmailHistoryStateApplyCommandServiceTest {
 
         service.applyMessageReadState(mailAccount, event, false, null);
 
-        verify(initialMailSyncCommandService, never()).saveMissingMessagesFromThreadSnapshot(mailAccount, null);
+        verifyNoInteractions(initialMailSyncCommandService);
         assertFalse(target.isRead());
         assertFalse(thread.isRead());
     }
