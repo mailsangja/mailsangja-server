@@ -15,6 +15,8 @@ public class LabelReclassifyRabbitProperties {
 
     private int messageBatchSize = 200;
     private int threadBatchSize = 50;
+    private int concurrency = 2;
+    private int prefetch = 2;
 
     public String getTaskName() {
         return TASK_NAME;
