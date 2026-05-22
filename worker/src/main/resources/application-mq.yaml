@@ -17,27 +17,27 @@ mailsangja:
       retry-max-interval: ${MAIL_TASK_RETRY_MAX_INTERVAL:300000}
       publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
     initial-mail-sync:
-      concurrency: ${INITIAL_MAIL_SYNC_CONCURRENCY:1}
-      prefetch: ${INITIAL_MAIL_SYNC_PREFETCH:1}
-      thread-batch-concurrency: ${INITIAL_MAIL_SYNC_THREAD_BATCH_CONCURRENCY:3}
+      concurrency: ${INITIAL_MAIL_SYNC_CONCURRENCY:3}
+      prefetch: ${INITIAL_MAIL_SYNC_PREFETCH:3}
+      thread-batch-concurrency: ${INITIAL_MAIL_SYNC_THREAD_BATCH_CONCURRENCY:5}
       thread-batch-prefetch: ${INITIAL_MAIL_SYNC_THREAD_BATCH_PREFETCH:5}
     gmail-history:
-      message-added-concurrency: ${GMAIL_MESSAGE_ADDED_CONCURRENCY:2}
+      message-added-concurrency: ${GMAIL_MESSAGE_ADDED_CONCURRENCY:3}
       message-added-prefetch: ${GMAIL_MESSAGE_ADDED_PREFETCH:3}
-      state-concurrency: ${GMAIL_HISTORY_STATE_CONCURRENCY:3}
+      state-concurrency: ${GMAIL_HISTORY_STATE_CONCURRENCY:5}
       state-prefetch: ${GMAIL_HISTORY_STATE_PREFETCH:10}
     watch-renewal:
-      concurrency: ${WATCH_RENEWAL_CONCURRENCY:1}
-      prefetch: ${WATCH_RENEWAL_PREFETCH:1}
+      concurrency: ${WATCH_RENEWAL_CONCURRENCY:2}
+      prefetch: ${WATCH_RENEWAL_PREFETCH:2}
     label-reclassify:
       message-batch-size: ${LABEL_RECLASSIFY_MESSAGE_BATCH_SIZE:50}
-      concurrency: ${LABEL_RECLASSIFY_CONCURRENCY:2}
-      prefetch: ${LABEL_RECLASSIFY_PREFETCH:2}
+      concurrency: ${LABEL_RECLASSIFY_CONCURRENCY:3}
+      prefetch: ${LABEL_RECLASSIFY_PREFETCH:3}
     mail-embedding:
-      concurrency: ${MAIL_EMBEDDING_CONCURRENCY:2}
-      prefetch: ${MAIL_EMBEDDING_PREFETCH:2}
+      concurrency: ${MAIL_EMBEDDING_CONCURRENCY:3}
+      prefetch: ${MAIL_EMBEDDING_PREFETCH:3}
     reply-draft-suggestion:
-      concurrency: ${REPLY_DRAFT_SUGGESTION_CONCURRENCY:2}
-      prefetch: ${REPLY_DRAFT_SUGGESTION_PREFETCH:2}
+      concurrency: ${REPLY_DRAFT_SUGGESTION_CONCURRENCY:3}
+      prefetch: ${REPLY_DRAFT_SUGGESTION_PREFETCH:3}
   discord:
     webhook-url: ${DISCORD_WEBHOOK_URL:}
