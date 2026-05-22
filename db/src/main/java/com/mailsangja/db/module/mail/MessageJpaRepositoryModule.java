@@ -64,6 +64,22 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailMessageId") String gmailMessageId
     );
 
+    @Query("""
+            SELECT COUNT(m) > 0
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+              AND m.direction = :direction
+              AND m.deletedAt IS NULL
+              AND m.thread.deletedAt IS NULL
+              AND m.thread.mailAccount.deletedAt IS NULL
+            """)
+    boolean existsByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId,
+            @Param("direction") Direction direction
+    );
+
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.id = :threadId AND m.deletedAt IS NULL ORDER BY m.sentAt ASC")
     List<Message> findAllByThreadIdAndDeletedAtIsNull(@Param("threadId") UUID threadId);

@@ -125,6 +125,102 @@ class MessageAddedHistoryEventHandlerTest {
     }
 
     @Test
+    void handle_수신메일To에연결계정이있으면답장초안메시지를발행한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        UUID threadId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(userId, mailAccountId);
+        GmailHistoryEvent event = createEvent(mailAccountId);
+        NewMailPushContext context = new NewMailPushContext(
+                mailAccountId,
+                "Alice",
+                "subject",
+                "snippet",
+                threadId,
+                messageId,
+                Direction.INBOUND,
+                List.of(" ALICE@example.com "),
+                3
+        );
+
+        when(gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event)).thenReturn(Optional.of(context));
+        when(replyDraftSuggestionQueryService.isEligible(mailAccountId, "gmail-thread-1", 3)).thenReturn(true);
+        when(labelQueryService.findAllActiveByUserId(userId)).thenReturn(List.of());
+
+        // when
+        handler.handle(mailAccount, event);
+
+        // then
+        ArgumentCaptor<ReplyDraftSuggestionMessage> messageCaptor = ArgumentCaptor.forClass(ReplyDraftSuggestionMessage.class);
+        verify(replyDraftSuggestionPublisher).publish(messageCaptor.capture());
+        assertEquals(messageId, messageCaptor.getValue().messageId());
+    }
+
+    @Test
+    void handle_수신메일To에연결계정이있어도답장초안대상이아니면발행하지않는다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(userId, mailAccountId);
+        GmailHistoryEvent event = createEvent(mailAccountId);
+        NewMailPushContext context = new NewMailPushContext(
+                mailAccountId,
+                "Alice",
+                "subject",
+                "snippet",
+                UUID.randomUUID(),
+                messageId,
+                Direction.INBOUND,
+                List.of("alice@example.com"),
+                3
+        );
+
+        when(gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event)).thenReturn(Optional.of(context));
+        when(replyDraftSuggestionQueryService.isEligible(mailAccountId, "gmail-thread-1", 3)).thenReturn(false);
+        when(labelQueryService.findAllActiveByUserId(userId)).thenReturn(List.of());
+
+        // when
+        handler.handle(mailAccount, event);
+
+        // then
+        verifyNoInteractions(replyDraftSuggestionPublisher);
+    }
+
+    @Test
+    void handle_수신메일To에연결계정이없으면답장초안메시지를발행하지않는다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(userId, mailAccountId);
+        GmailHistoryEvent event = createEvent(mailAccountId);
+        NewMailPushContext context = new NewMailPushContext(
+                mailAccountId,
+                "Alice",
+                "subject",
+                "snippet",
+                UUID.randomUUID(),
+                messageId,
+                Direction.INBOUND,
+                List.of("other@example.com"),
+                3
+        );
+
+        when(gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event)).thenReturn(Optional.of(context));
+        when(labelQueryService.findAllActiveByUserId(userId)).thenReturn(List.of());
+
+        // when
+        handler.handle(mailAccount, event);
+
+        // then
+        verifyNoInteractions(replyDraftSuggestionQueryService);
+        verifyNoInteractions(replyDraftSuggestionPublisher);
+    }
+
+    @Test
     void handle_임베딩메시지발행에실패하면예외를전파하고FCM은보내지않는다() {
         // given
         UUID userId = UUID.randomUUID();
@@ -183,11 +279,12 @@ class MessageAddedHistoryEventHandlerTest {
                 UUID.randomUUID(),
                 messageId,
                 Direction.INBOUND,
+                List.of("alice@example.com"),
                 2
         );
 
         when(gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event)).thenReturn(Optional.of(context));
-        when(replyDraftSuggestionQueryService.isEligible(2)).thenReturn(true);
+        when(replyDraftSuggestionQueryService.isEligible(mailAccountId, "gmail-thread-1", 2)).thenReturn(true);
         when(labelQueryService.findAllActiveByUserId(userId)).thenReturn(List.of());
 
         handler.handle(mailAccount, event);
@@ -211,6 +308,7 @@ class MessageAddedHistoryEventHandlerTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 Direction.OUTBOUND,
+                List.of("alice@example.com"),
                 1
         );
 
@@ -238,6 +336,7 @@ class MessageAddedHistoryEventHandlerTest {
                 UUID.randomUUID(),
                 messageId,
                 Direction.INBOUND,
+                List.of(),
                 1
         );
         Label silentLabel = createLabel(NotificationPolicy.SILENT);
@@ -274,6 +373,7 @@ class MessageAddedHistoryEventHandlerTest {
                 UUID.randomUUID(),
                 messageId,
                 Direction.INBOUND,
+                List.of(),
                 1
         );
         Label normalLabel = createLabel(NotificationPolicy.INHERIT);

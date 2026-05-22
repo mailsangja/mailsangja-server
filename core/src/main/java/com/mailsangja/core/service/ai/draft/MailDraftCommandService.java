@@ -2,6 +2,7 @@ package com.mailsangja.core.service.ai.draft;
 
 import com.mailsangja.core.common.exception.mail.MailDraftErrorCode;
 import com.mailsangja.core.common.exception.mail.MailDraftException;
+import com.mailsangja.core.config.properties.AiModelProperties;
 import com.mailsangja.core.dto.mail.MailDraftDeltaEvent;
 import com.mailsangja.core.dto.mail.MailDraftDoneEvent;
 import com.mailsangja.core.dto.mail.MailDraftErrorEvent;
@@ -21,6 +22,7 @@ import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -66,6 +68,7 @@ public class MailDraftCommandService {
 
     private final MailDraftRateLimitCachePort rateLimitCachePort;
     private final ObjectProvider<ChatModel> chatModelProvider;
+    private final AiModelProperties modelProperties;
 
     public void validateMonthlyRateLimit(UUID userId) {
         if (!rateLimitCachePort.tryConsumeMonthlyLimit(userId)) {
@@ -84,7 +87,14 @@ public class MailDraftCommandService {
     public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt,
                                               MailDraftRestoreContextResult restoreContext,
                                               StreamCancellation cancellation) {
-        return streamPhase(emitter, prompt, MailDraftPhase.SUBJECT, restoreContext, cancellation);
+        return streamSubject(emitter, prompt, restoreContext, cancellation, null);
+    }
+
+    public MailDraftUsageResult streamSubject(SseEmitter emitter, MailDraftPromptResult prompt,
+                                              MailDraftRestoreContextResult restoreContext,
+                                              StreamCancellation cancellation,
+                                              String model) {
+        return streamPhase(emitter, prompt, MailDraftPhase.SUBJECT, restoreContext, cancellation, resolveModel(model));
     }
 
     public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt) {
@@ -98,17 +108,31 @@ public class MailDraftCommandService {
     public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt,
                                            MailDraftRestoreContextResult restoreContext,
                                            StreamCancellation cancellation) {
-        return streamPhase(emitter, prompt, MailDraftPhase.BODY, restoreContext, cancellation);
+        return streamBody(emitter, prompt, restoreContext, cancellation, null);
+    }
+
+    public MailDraftUsageResult streamBody(SseEmitter emitter, MailDraftPromptResult prompt,
+                                           MailDraftRestoreContextResult restoreContext,
+                                           StreamCancellation cancellation,
+                                           String model) {
+        return streamPhase(emitter, prompt, MailDraftPhase.BODY, restoreContext, cancellation, resolveModel(model));
     }
 
     public MailDraftUsageResult streamCombined(SseEmitter emitter, MailDraftPromptResult prompt,
                                                MailDraftRestoreContextResult restoreContext,
                                                StreamCancellation cancellation) {
+        return streamCombined(emitter, prompt, restoreContext, cancellation, null);
+    }
+
+    public MailDraftUsageResult streamCombined(SseEmitter emitter, MailDraftPromptResult prompt,
+                                               MailDraftRestoreContextResult restoreContext,
+                                               StreamCancellation cancellation,
+                                               String model) {
         if (cancellation.isCancelled()) {
             return usageOf((ChatResponse) null);
         }
         ChatResponse lastResponse = null;
-        Prompt combinedPrompt = createCombinedPrompt(prompt);
+        Prompt combinedPrompt = createCombinedPrompt(prompt, resolveModel(model));
         MailDraftCombinedStreamParser parser = new MailDraftCombinedStreamParser();
         MailDraftTokenBoundaryBuffer subjectBuffer = tokenBuffer(restoreContext);
         MailDraftTokenBoundaryBuffer bodyBuffer = tokenBuffer(restoreContext);
@@ -129,12 +153,13 @@ public class MailDraftCommandService {
 
     private MailDraftUsageResult streamPhase(SseEmitter emitter, MailDraftPromptResult prompt, MailDraftPhase phase,
                                              MailDraftRestoreContextResult restoreContext,
-                                             StreamCancellation cancellation) {
+                                             StreamCancellation cancellation,
+                                             String model) {
         if (cancellation.isCancelled()) {
             return usageOf((ChatResponse) null);
         }
         ChatResponse lastResponse = null;
-        Prompt phasePrompt = createPrompt(prompt, phase);
+        Prompt phasePrompt = createPrompt(prompt, phase, model);
         MailDraftTokenBoundaryBuffer buffer = tokenBuffer(restoreContext);
         for (ChatResponse response : cancellableStream(phasePrompt, cancellation).toIterable()) {
             if (cancellation.isCancelled()) {
@@ -159,20 +184,28 @@ public class MailDraftCommandService {
         emitSafeDelta(emitter, phase, buffer.finish(), restoreContext);
     }
 
-    private Prompt createPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {
+    public String resolveModel(String requestedModel) {
+        return modelProperties.resolve(requestedModel);
+    }
+
+    private Prompt createPrompt(MailDraftPromptResult prompt, MailDraftPhase phase, String model) {
         List<Message> messages = List.of(
                 new SystemMessage(prompt.systemPrompt()),
                 new UserMessage(userPrompt(prompt, phase))
         );
-        return new Prompt(messages);
+        return new Prompt(messages, OpenAiChatOptions.builder()
+                .model(model)
+                .build());
     }
 
-    private Prompt createCombinedPrompt(MailDraftPromptResult prompt) {
+    private Prompt createCombinedPrompt(MailDraftPromptResult prompt, String model) {
         List<Message> messages = List.of(
                 new SystemMessage(prompt.systemPrompt()),
                 new UserMessage(prompt.userPrompt() + COMBINED_DRAFT_FORMAT_INSTRUCTION)
         );
-        return new Prompt(messages);
+        return new Prompt(messages, OpenAiChatOptions.builder()
+                .model(model)
+                .build());
     }
 
     private String userPrompt(MailDraftPromptResult prompt, MailDraftPhase phase) {

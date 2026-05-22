@@ -14,6 +14,7 @@ public record MailDraftCommand(
         UUID replyMessageId,
         List<String> to,
         List<String> cc,
+        String model,
         MailDraftPurpose purpose,
         Map<String, String> restoreTokenMap
 ) {
@@ -29,7 +30,13 @@ public record MailDraftCommand(
     }
 
     public MailDraftCommand(UUID userId, UUID mailAccountId, String maskedQuery, UUID replyMessageId, List<String> to, List<String> cc) {
-        this(userId, mailAccountId, maskedQuery, replyMessageId, to, cc, purposeOf(replyMessageId), Map.of());
+        this(userId, mailAccountId, maskedQuery, replyMessageId, to, cc, null, purposeOf(replyMessageId), Map.of());
+    }
+
+    public MailDraftCommand(UUID userId, UUID mailAccountId, String maskedQuery, UUID replyMessageId,
+                            List<String> to, List<String> cc, MailDraftPurpose purpose,
+                            Map<String, String> restoreTokenMap) {
+        this(userId, mailAccountId, maskedQuery, replyMessageId, to, cc, null, purpose, restoreTokenMap);
     }
 
     public static MailDraftCommand from(UUID userId, UUID mailAccountId, MailDraftStreamRequest request) {
@@ -40,6 +47,7 @@ public record MailDraftCommand(
                 request.replyMessageId(),
                 request.to(),
                 request.cc(),
+                request.model(),
                 purposeOf(request.replyMessageId()),
                 Map.of()
         );
@@ -54,6 +62,7 @@ public record MailDraftCommand(
                 request.replyMessageId(),
                 maskedContext.maskedTo(),
                 maskedContext.maskedCc(),
+                request.model(),
                 purposeOf(request.replyMessageId()),
                 maskedContext.restoreTokenMap()
         );
