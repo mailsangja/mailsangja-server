@@ -19,7 +19,7 @@ services:
         condition: service_started
 
   postgres:
-    image: pgvector/pgvector:0.8.2-pg18
+    image: ghcr.io/${POSTGRES_IMAGE_NAME}:${APP_IMAGE_TAG}
     container_name: mailsangja-postgres
     restart: unless-stopped
     environment:
