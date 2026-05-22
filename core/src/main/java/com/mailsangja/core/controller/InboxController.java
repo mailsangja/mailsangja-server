@@ -28,9 +28,10 @@ public class InboxController implements InboxControllerDocs {
             @RequestParam(required = false) UUID marker,
             @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
             @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
-            @RequestParam(required = false) Boolean read
+            @RequestParam(required = false) Boolean read,
+            @RequestParam(required = false) String q
     ) {
-        return ResponseEntity.ok(inboxFacade.getInbox(user, marker, size, labelIds, read));
+        return ResponseEntity.ok(inboxFacade.getInbox(user, marker, size, labelIds, read, q));
     }
 
     @Override
@@ -40,9 +41,10 @@ public class InboxController implements InboxControllerDocs {
             @RequestParam(required = false) UUID marker,
             @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
             @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
-            @RequestParam(required = false) Boolean read
+            @RequestParam(required = false) Boolean read,
+            @RequestParam(required = false) String q
     ) {
-        return ResponseEntity.ok(inboxFacade.getSent(user, marker, size, labelIds, read));
+        return ResponseEntity.ok(inboxFacade.getSent(user, marker, size, labelIds, read, q));
     }
 
     @Override

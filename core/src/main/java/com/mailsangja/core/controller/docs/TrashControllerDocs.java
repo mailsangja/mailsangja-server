@@ -71,7 +71,8 @@ public interface TrashControllerDocs {
                     + "같은 gmailThreadId의 메시지는 하나의 항목으로 묶여 반환됩니다. "
                     + "labelId는 여러 번 전달할 수 있으며, 전달된 라벨 중 하나라도 부착된 항목을 조회합니다. "
                     + "read는 읽음 여부 필터이며 생략하면 전체를 조회합니다. "
-                    + "페이지네이션은 메시지 기준(deletedAt DESC)으로 적용됩니다.",
+                    + "페이지네이션은 메시지 기준(deletedAt DESC)으로 적용됩니다. "
+                    + "q 파라미터가 있으면 FTS 모드로 동작하며 labelId, read 필터가 함께 적용됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -86,7 +87,9 @@ public interface TrashControllerDocs {
             @Parameter(description = "필터링할 라벨 ID 목록. 여러 labelId 중 하나라도 부착되어 있으면 포함", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
             @Parameter(description = "읽음 여부 필터. 생략 시 전체 조회", example = "false")
-            @RequestParam(required = false) Boolean read
+            @RequestParam(required = false) Boolean read,
+            @Parameter(description = "FTS 검색어. 입력 시 labelId·read 필터와 함께 적용됩니다. websearch_to_tsquery 문법 지원", example = "프로젝트 미팅")
+            @RequestParam(required = false) String q
     );
 
     @Operation(

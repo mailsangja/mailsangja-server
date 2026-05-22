@@ -9,6 +9,7 @@ import com.mailsangja.core.service.google.GoogleGmailApiService;
 import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.core.service.search.MailSearchQueryService;
 import com.mailsangja.core.service.trash.TrashCommandService;
 import com.mailsangja.core.service.trash.TrashQueryService;
 import com.mailsangja.db.entity.mail.Attachment;
@@ -19,6 +20,7 @@ import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.dto.ThreadMessageLabelView;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +42,7 @@ public class TrashFacade {
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final InlineImageService inlineImageService;
+    private final MailSearchQueryService mailSearchQueryService;
 
     public void deleteThread(User user, UUID threadId) {
         Thread thread = trashQueryService.findActiveThreadById(threadId);
@@ -62,11 +65,23 @@ public class TrashFacade {
             UUID marker,
             int size,
             List<UUID> labelIds,
-            Boolean read
+            Boolean read,
+            String q
     ) {
-        Slice<Message> messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size, labelIds, read);
-        long unreadCount = trashQueryService.countUnreadDeletedMessagesByUserId(user.getId(), labelIds, read);
-        long totalCount = trashQueryService.countDeletedMessagesByUserId(user.getId(), labelIds, read);
+        Slice<Message> messages;
+        long unreadCount;
+        long totalCount;
+        if (q != null && !q.isBlank()) {
+            String trimmed = q.trim();
+            messages = mailSearchQueryService.searchTrashMessages(
+                    user.getId(), trimmed, labelIds, read, marker, PageRequest.of(0, size));
+            unreadCount = mailSearchQueryService.countUnreadTrashMessages(user.getId(), trimmed, labelIds, read);
+            totalCount = mailSearchQueryService.countTrashMessages(user.getId(), trimmed, labelIds, read);
+        } else {
+            messages = trashQueryService.findDeletedMessagesByUserId(user.getId(), marker, size, labelIds, read);
+            unreadCount = trashQueryService.countUnreadDeletedMessagesByUserId(user.getId(), labelIds, read);
+            totalCount = trashQueryService.countDeletedMessagesByUserId(user.getId(), labelIds, read);
+        }
 
         Map<String, List<Message>> grouped = messages.getContent().stream()
                 .collect(Collectors.groupingBy(

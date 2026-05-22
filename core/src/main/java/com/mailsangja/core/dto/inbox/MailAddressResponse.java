@@ -19,6 +19,6 @@ public record MailAddressResponse(
         if (storedName != null && !storedName.isBlank()) {
             return new MailAddressResponse(storedName, email);
         }
-        return new MailAddressResponse(contactNameByEmail.get(email), email);
+        return new MailAddressResponse(email != null ? contactNameByEmail.get(email) : null, email);
     }
 }

@@ -13,6 +13,7 @@ import com.mailsangja.core.dto.inbox.ThreadListResult;
 import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.core.service.search.MailSearchQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -37,21 +38,26 @@ public class InboxFacade {
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleAccessTokenEnsureService googleAccessTokenEnsureService;
     private final InlineImageService inlineImageService;
+    private final MailSearchQueryService mailSearchQueryService;
 
     public MarkerSliceResponse<ThreadSummaryResponse> getInbox(
             User user,
             UUID marker,
             int size,
             List<UUID> labelIds,
-            Boolean read
+            Boolean read,
+            String q
     ) {
+        if (q != null && !q.isBlank()) {
+            String trimmed = q.trim();
+            ThreadListResult result = mailSearchQueryService.searchInboxThreadsResult(
+                    user.getId(), trimmed, labelIds, read, marker, PageRequest.of(0, size));
+            long unreadCount = mailSearchQueryService.countUnreadInboxThreads(user.getId(), trimmed, labelIds, read);
+            long totalCount = mailSearchQueryService.countInboxThreads(user.getId(), trimmed, labelIds, read);
+            return toMarkerSlice(result, unreadCount, totalCount);
+        }
         ThreadListResult result = inboxQueryService.findInboxThreadsResult(
-                user.getId(),
-                marker,
-                labelIds,
-                read,
-                PageRequest.of(0, size)
-        );
+                user.getId(), marker, labelIds, read, PageRequest.of(0, size));
         long unreadCount = inboxQueryService.countUnreadInbox(user.getId(), labelIds, read);
         long totalCount = inboxQueryService.countInbox(user.getId(), labelIds, read);
         return toMarkerSlice(result, unreadCount, totalCount);
@@ -62,15 +68,19 @@ public class InboxFacade {
             UUID marker,
             int size,
             List<UUID> labelIds,
-            Boolean read
+            Boolean read,
+            String q
     ) {
+        if (q != null && !q.isBlank()) {
+            String trimmed = q.trim();
+            ThreadListResult result = mailSearchQueryService.searchSentThreadsResult(
+                    user.getId(), trimmed, labelIds, read, marker, PageRequest.of(0, size));
+            long unreadCount = mailSearchQueryService.countUnreadSentThreads(user.getId(), trimmed, labelIds, read);
+            long totalCount = mailSearchQueryService.countSentThreads(user.getId(), trimmed, labelIds, read);
+            return toMarkerSlice(result, unreadCount, totalCount);
+        }
         ThreadListResult result = inboxQueryService.findSentThreadsResult(
-                user.getId(),
-                marker,
-                labelIds,
-                read,
-                PageRequest.of(0, size)
-        );
+                user.getId(), marker, labelIds, read, PageRequest.of(0, size));
         long unreadCount = inboxQueryService.countUnreadSent(user.getId(), labelIds, read);
         long totalCount = inboxQueryService.countSent(user.getId(), labelIds, read);
         return toMarkerSlice(result, unreadCount, totalCount);

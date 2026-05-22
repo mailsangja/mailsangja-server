@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: pgvector/pgvector:0.8.2-pg18
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
     container_name: mailsangja-postgres
     environment:
       TZ: Asia/Seoul
