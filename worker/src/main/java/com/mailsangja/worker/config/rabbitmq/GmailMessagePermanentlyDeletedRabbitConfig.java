@@ -3,6 +3,7 @@ package com.mailsangja.worker.config.rabbitmq;
 import com.mailsangja.worker.config.properties.GmailHistoryEventRabbitProperties;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +69,7 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
 
     // 5개 state-change 큐가 공유하는 ContainerFactory
     @Bean
-    public MessageRecoverer gmailHistoryStateMessageRecoverer() {
+    public MessageRecoverer gmailHistoryStateMessageRecoverer(DiscordAlertService discordAlertService) {
         return (message, cause) -> {
             log.warn(
                     "Gmail history state event retries exhausted. messageId={} payloadSize={}B",
@@ -76,6 +77,7 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("Gmail history state event retries exhausted", cause);
         };
     }
@@ -86,7 +88,8 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
             @Qualifier("gmailHistoryStateMessageRecoverer") MessageRecoverer gmailHistoryStateMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
+                .retryPolicy(RabbitMqConfig.createRetryPolicy())
+                .backOffOptions(properties.getRetryInitialInterval(), properties.getRetryMultiplier(), properties.getRetryMaxInterval())
                 .recoverer(gmailHistoryStateMessageRecoverer)
                 .build();
     }
@@ -96,13 +99,14 @@ public class GmailMessagePermanentlyDeletedRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("gmailHistoryStateRetryInterceptor") MethodInterceptor gmailHistoryStateRetryInterceptor,
-            MailTaskRabbitProperties properties
+            GmailHistoryEventRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
-        factory.setConcurrentConsumers(properties.getConcurrency());
-        factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setConcurrentConsumers(properties.getStateConcurrency());
+        factory.setMaxConcurrentConsumers(properties.getStateConcurrency());
+        factory.setPrefetchCount(properties.getStatePrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(gmailHistoryStateRetryInterceptor);
         return factory;

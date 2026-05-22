@@ -5,10 +5,13 @@ import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.retry.RetryPolicy;
@@ -19,6 +22,7 @@ import java.time.Duration;
 public class RabbitMqConfig {
 
     private static final long MAX_QUEUE_TTL_MILLIS = Integer.MAX_VALUE;
+    static final int MAX_RETRIES = 3;
 
     @Bean
     public DirectExchange mailTaskExchange(MailTaskRabbitProperties properties) {
@@ -35,13 +39,30 @@ public class RabbitMqConfig {
         return new JacksonJsonMessageConverter();
     }
 
+    @Bean("publisherConnectionFactory")
+    public CachingConnectionFactory publisherConnectionFactory(
+            @Value("${spring.rabbitmq.host:localhost}") String host,
+            @Value("${spring.rabbitmq.port:5672}") int port,
+            @Value("${spring.rabbitmq.username:guest}") String username,
+            @Value("${spring.rabbitmq.password:guest}") String password,
+            @Value("${spring.rabbitmq.virtual-host:/}") String virtualHost
+    ) {
+        CachingConnectionFactory factory = new CachingConnectionFactory();
+        factory.setHost(host);
+        factory.setPort(port);
+        factory.setUsername(username);
+        factory.setPassword(password);
+        factory.setVirtualHost(virtualHost);
+        return factory;
+    }
+
     @Bean
     public RabbitTemplate rabbitTemplate(
-            ConnectionFactory connectionFactory,
+            @Qualifier("publisherConnectionFactory") ConnectionFactory publisherConnectionFactory,
             MessageConverter rabbitMessageConverter,
             MailTaskRabbitProperties properties
     ) {
-        RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
+        RabbitTemplate rabbitTemplate = new RabbitTemplate(publisherConnectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
         rabbitTemplate.setMandatory(Boolean.TRUE.equals(properties.getPublisherMandatory()));
         return rabbitTemplate;
@@ -61,9 +82,9 @@ public class RabbitMqConfig {
         return (int) ttlMillis;
     }
 
-    static RetryPolicy createRetryPolicy(int maxRetries) {
+    static RetryPolicy createRetryPolicy() {
         return RetryPolicy.builder()
-                .maxRetries(maxRetries)
+                .maxRetries(MAX_RETRIES)
                 .excludes(MailAccountNotFoundException.class)
                 .build();
     }

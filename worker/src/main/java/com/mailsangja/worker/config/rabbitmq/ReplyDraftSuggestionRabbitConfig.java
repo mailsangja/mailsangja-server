@@ -2,6 +2,7 @@ package com.mailsangja.worker.config.rabbitmq;
 
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.worker.config.properties.ReplyDraftSuggestionRabbitProperties;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,10 @@ public class ReplyDraftSuggestionRabbitConfig {
     }
 
     @Bean
-    public MessageRecoverer replyDraftSuggestionMessageRecoverer(ReplyDraftSuggestionRabbitProperties properties) {
+    public MessageRecoverer replyDraftSuggestionMessageRecoverer(
+            ReplyDraftSuggestionRabbitProperties properties,
+            DiscordAlertService discordAlertService
+    ) {
         return (message, cause) -> {
             log.warn(
                     "Reply draft suggestion retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
@@ -74,6 +78,7 @@ public class ReplyDraftSuggestionRabbitConfig {
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("Reply draft suggestion retries exhausted", cause);
         };
     }
@@ -84,7 +89,8 @@ public class ReplyDraftSuggestionRabbitConfig {
             @Qualifier("replyDraftSuggestionMessageRecoverer") MessageRecoverer replyDraftSuggestionMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .maxRetries(properties.getRetryMaxAttempts())
+                .retryPolicy(RabbitMqConfig.createRetryPolicy())
+                .backOffOptions(properties.getRetryInitialInterval(), properties.getRetryMultiplier(), properties.getRetryMaxInterval())
                 .recoverer(replyDraftSuggestionMessageRecoverer)
                 .build();
     }
@@ -94,13 +100,14 @@ public class ReplyDraftSuggestionRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("replyDraftSuggestionRetryInterceptor") MethodInterceptor replyDraftSuggestionRetryInterceptor,
-            MailTaskRabbitProperties properties
+            ReplyDraftSuggestionRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
         factory.setConcurrentConsumers(properties.getConcurrency());
         factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setPrefetchCount(properties.getPrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(replyDraftSuggestionRetryInterceptor);
         return factory;

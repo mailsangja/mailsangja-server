@@ -2,6 +2,7 @@ package com.mailsangja.worker.config.rabbitmq;
 
 import com.mailsangja.worker.config.properties.InitialMailSyncRabbitProperties;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
@@ -65,7 +66,10 @@ public class InitialMailSyncThreadBatchRabbitConfig {
     }
 
     @Bean
-    public MessageRecoverer initialMailSyncThreadBatchMessageRecoverer(InitialMailSyncRabbitProperties properties) {
+    public MessageRecoverer initialMailSyncThreadBatchMessageRecoverer(
+            InitialMailSyncRabbitProperties properties,
+            DiscordAlertService discordAlertService
+    ) {
         return (message, cause) -> {
             log.warn(
                     "Initial mail sync thread batch retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
@@ -74,6 +78,7 @@ public class InitialMailSyncThreadBatchRabbitConfig {
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("Initial mail sync thread batch retries exhausted", cause);
         };
     }
@@ -84,7 +89,8 @@ public class InitialMailSyncThreadBatchRabbitConfig {
             @Qualifier("initialMailSyncThreadBatchMessageRecoverer") MessageRecoverer initialMailSyncThreadBatchMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
+                .retryPolicy(RabbitMqConfig.createRetryPolicy())
+                .backOffOptions(properties.getRetryInitialInterval(), properties.getRetryMultiplier(), properties.getRetryMaxInterval())
                 .recoverer(initialMailSyncThreadBatchMessageRecoverer)
                 .build();
     }
@@ -94,16 +100,16 @@ public class InitialMailSyncThreadBatchRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("initialMailSyncThreadBatchRetryInterceptor") MethodInterceptor initialMailSyncThreadBatchRetryInterceptor,
-            MailTaskRabbitProperties properties
+            InitialMailSyncRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
-        factory.setConcurrentConsumers(properties.getConcurrency());
-        factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setConcurrentConsumers(properties.getThreadBatchConcurrency());
+        factory.setMaxConcurrentConsumers(properties.getThreadBatchConcurrency());
+        factory.setPrefetchCount(properties.getThreadBatchPrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(initialMailSyncThreadBatchRetryInterceptor);
         return factory;
     }
-
 }

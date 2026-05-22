@@ -2,6 +2,7 @@ package com.mailsangja.worker.config.rabbitmq;
 
 import com.mailsangja.worker.config.properties.LabelReclassifyRabbitProperties;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -65,7 +66,10 @@ public class LabelReclassifyRabbitConfig {
     }
 
     @Bean
-    public MessageRecoverer labelReclassifyMessageRecoverer(LabelReclassifyRabbitProperties properties) {
+    public MessageRecoverer labelReclassifyMessageRecoverer(
+            LabelReclassifyRabbitProperties properties,
+            DiscordAlertService discordAlertService
+    ) {
         return (message, cause) -> {
             log.warn(
                     "LabelReclassify retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
@@ -74,6 +78,7 @@ public class LabelReclassifyRabbitConfig {
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("LabelReclassify retries exhausted", cause);
         };
     }
@@ -84,7 +89,8 @@ public class LabelReclassifyRabbitConfig {
             @Qualifier("labelReclassifyMessageRecoverer") MessageRecoverer labelReclassifyMessageRecoverer
     ) {
         return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
+                .retryPolicy(RabbitMqConfig.createRetryPolicy())
+                .backOffOptions(properties.getRetryInitialInterval(), properties.getRetryMultiplier(), properties.getRetryMaxInterval())
                 .recoverer(labelReclassifyMessageRecoverer)
                 .build();
     }
@@ -94,13 +100,14 @@ public class LabelReclassifyRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("labelReclassifyRetryInterceptor") MethodInterceptor labelReclassifyRetryInterceptor,
-            MailTaskRabbitProperties properties
+            LabelReclassifyRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
         factory.setConcurrentConsumers(properties.getConcurrency());
         factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setPrefetchCount(properties.getPrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(labelReclassifyRetryInterceptor);
         return factory;
