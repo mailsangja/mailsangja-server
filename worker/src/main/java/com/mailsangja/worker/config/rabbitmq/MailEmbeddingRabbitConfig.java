@@ -72,9 +72,8 @@ public class MailEmbeddingRabbitConfig {
     ) {
         return (message, cause) -> {
             log.warn(
-                    "Mail embedding retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
+                    "Mail embedding retries exhausted. Sending to DLQ routingKey={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(),
-                    message.getMessageProperties().getMessageId(),
                     message.getBody().length,
                     cause
             );
