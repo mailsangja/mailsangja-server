@@ -5,6 +5,8 @@ import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import org.aopalliance.intercept.MethodInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
@@ -23,6 +25,7 @@ import java.time.Duration;
 @Configuration
 public class RabbitMqConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(RabbitMqConfig.class);
     private static final long MAX_QUEUE_TTL_MILLIS = Integer.MAX_VALUE;
     static final int MAX_RETRIES = 3;
 
@@ -47,7 +50,8 @@ public class RabbitMqConfig {
             @Value("${spring.rabbitmq.port:5672}") int port,
             @Value("${spring.rabbitmq.username:guest}") String username,
             @Value("${spring.rabbitmq.password:guest}") String password,
-            @Value("${spring.rabbitmq.virtual-host:/}") String virtualHost
+            @Value("${spring.rabbitmq.virtual-host:/}") String virtualHost,
+            @Value("${spring.rabbitmq.publisher-returns:false}") boolean publisherReturns
     ) {
         CachingConnectionFactory factory = new CachingConnectionFactory();
         factory.setHost(host);
@@ -55,6 +59,7 @@ public class RabbitMqConfig {
         factory.setUsername(username);
         factory.setPassword(password);
         factory.setVirtualHost(virtualHost);
+        factory.setPublisherReturns(publisherReturns);
         return factory;
     }
 
@@ -66,7 +71,15 @@ public class RabbitMqConfig {
     ) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(publisherConnectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
-        rabbitTemplate.setMandatory(Boolean.TRUE.equals(properties.getPublisherMandatory()));
+        boolean mandatory = Boolean.TRUE.equals(properties.getPublisherMandatory());
+        rabbitTemplate.setMandatory(mandatory);
+        if (mandatory) {
+            rabbitTemplate.setReturnsCallback(returned ->
+                    log.warn("[MQ] Message returned: exchange={}, routingKey={}, replyCode={}, replyText={}",
+                            returned.getExchange(), returned.getRoutingKey(),
+                            returned.getReplyCode(), returned.getReplyText())
+            );
+        }
         return rabbitTemplate;
     }
 
