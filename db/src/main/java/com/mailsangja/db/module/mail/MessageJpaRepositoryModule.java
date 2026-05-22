@@ -447,6 +447,10 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
     );
 
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
+    @Query("SELECT m FROM Message m WHERE m.id IN :ids")
+    List<Message> findAllByIdInWithThread(@Param("ids") List<UUID> ids);
+
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
     @Query("""
             SELECT m
             FROM Message m
