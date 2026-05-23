@@ -29,7 +29,7 @@ class MailReviewCommandServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
-        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(true);
         ChatModel chatModel = chatModel("""
                 {
                   "issues": [
@@ -68,7 +68,7 @@ class MailReviewCommandServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
-        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(true);
         ChatModel chatModel = chatModel("""
                 {
                   "issues": [
@@ -111,7 +111,7 @@ class MailReviewCommandServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
-        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(true);
         ChatModel chatModel = chatModel("""
                 {
                   "issues": [
@@ -153,7 +153,7 @@ class MailReviewCommandServiceTest {
         // given
         UUID userId = UUID.randomUUID();
         MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
-        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(true);
         ChatModel chatModel = chatModel("""
                 {
                   "issues": [

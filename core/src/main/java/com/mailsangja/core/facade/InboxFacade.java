@@ -175,7 +175,10 @@ public class InboxFacade {
         return messages.stream()
                 .collect(Collectors.toMap(
                         Message::getId,
-                        inlineImageService::renderInlineImageUrls
+                        message -> {
+                            String rendered = inlineImageService.renderInlineImageUrls(message);
+                            return rendered != null ? rendered : "";
+                        }
                 ));
     }
 

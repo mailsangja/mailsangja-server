@@ -43,30 +43,30 @@ import static org.mockito.Mockito.when;
 class MailDraftCommandServiceTest {
 
     @Test
-    void 월간50회까지는허용한다() {
+    void 주간20회까지는허용한다() {
         // given
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
         MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider(), modelProperties());
-        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(true);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(true);
 
         // when & then
-        assertDoesNotThrow(() -> service.validateMonthlyRateLimit(userId));
+        assertDoesNotThrow(() -> service.validateWeeklyRateLimit(userId));
 
         // then
-        verify(cachePort).tryConsumeMonthlyLimit(userId);
+        verify(cachePort).tryConsumeWeeklyLimit(userId);
     }
 
     @Test
-    void 월간51번째요청은거부한다() {
+    void 주간21번째요청은거부한다() {
         // given
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
         MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider(), modelProperties());
-        when(cachePort.tryConsumeMonthlyLimit(userId)).thenReturn(false);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(false);
 
         // when & then
-        assertThrows(MailDraftException.class, () -> service.validateMonthlyRateLimit(userId));
+        assertThrows(MailDraftException.class, () -> service.validateWeeklyRateLimit(userId));
     }
 
     @Test

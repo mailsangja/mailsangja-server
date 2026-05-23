@@ -10,6 +10,7 @@ import com.mailsangja.core.dto.ai.AiPlaygroundChatResult;
 import com.mailsangja.core.dto.ai.AiPlaygroundUsageResult;
 import com.mailsangja.core.service.ai.AiPlaygroundCommandService;
 import com.mailsangja.core.service.ai.AiQueryService;
+import com.mailsangja.core.service.ai.AiUsageQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.user.User;
@@ -35,6 +36,7 @@ class AiFacadeTest {
         AiFacade facade = new AiFacade(
                 mock(AiPlaygroundCommandService.class),
                 queryService,
+                mock(AiUsageQueryService.class),
                 mock(MailAccountQueryService.class)
         );
         when(queryService.getModels()).thenReturn(AiModelListResult.of(
@@ -59,7 +61,7 @@ class AiFacadeTest {
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mailAccountQueryService);
+        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mock(AiUsageQueryService.class), mailAccountQueryService);
 
         when(mailAccountQueryService.findAllActiveByUserId(user.getId()))
                 .thenReturn(List.of(mock(MailAccount.class)));
@@ -92,7 +94,7 @@ class AiFacadeTest {
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mailAccountQueryService);
+        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mock(AiUsageQueryService.class), mailAccountQueryService);
 
         when(mailAccountQueryService.findAllActiveByUserId(user.getId())).thenReturn(List.of());
 
