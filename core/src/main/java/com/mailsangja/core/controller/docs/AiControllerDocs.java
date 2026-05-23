@@ -4,12 +4,16 @@ import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.dto.ai.AiModelListResponse;
 import com.mailsangja.core.dto.ai.AiPlaygroundChatRequest;
 import com.mailsangja.core.dto.ai.AiPlaygroundChatResponse;
+import com.mailsangja.core.dto.ai.AiUsageListResponse;
+import com.mailsangja.core.dto.ai.AiUsageType;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+
+import java.util.List;
 
 @Tag(name = "AI", description = "AI 기능 API")
 public interface AiControllerDocs {
@@ -31,5 +35,18 @@ public interface AiControllerDocs {
     )
     ResponseEntity<AiModelListResponse> getModels(
             @Parameter(hidden = true) @AuthUser User user
+    );
+
+    @Operation(
+            summary = "AI 기능 주간 사용량 조회",
+            description = "로그인한 사용자의 AI 기능별 이번 주 사용량과 한도를 조회합니다. "
+                    + "type 파라미터를 지정하지 않으면 MAIL_DRAFT, MAIL_REVIEW, LABEL_SUGGESTION 전체를 반환합니다. "
+                    + "복수 지정 예시: ?type=MAIL_DRAFT&type=MAIL_REVIEW",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    ResponseEntity<AiUsageListResponse> getUsages(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "조회할 AI 기능 타입 (복수 가능). 미입력 시 전체 반환.")
+            List<AiUsageType> type
     );
 }
