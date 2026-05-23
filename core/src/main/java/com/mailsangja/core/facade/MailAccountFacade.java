@@ -36,6 +36,7 @@ public class MailAccountFacade {
     private static final String HEX_COLOR_REGEX = "^#[0-9A-Fa-f]{6}$";
     private static final String DEFAULT_ICON = "good";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int MAX_MAIL_ACCOUNT_COUNT = 2;
 
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
@@ -58,6 +59,7 @@ public class MailAccountFacade {
             String color
     ) {
         validateAuthorizationCode(code);
+        validateMailAccountCount(user);
 
         GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
         MailAccountAppearance appearance = normalizeMailAccountAppearance(result.emailAddress(), alias, icon, color);
@@ -106,6 +108,13 @@ public class MailAccountFacade {
 
     public void deleteMailAccount(User user, UUID mailAccountId) {
         mailAccountCommandService.deleteMailAccount(user, mailAccountId);
+    }
+
+    private void validateMailAccountCount(User user) {
+        int count = mailAccountQueryService.findAllByUserId(user.getId()).size();
+        if (count >= MAX_MAIL_ACCOUNT_COUNT) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_LIMIT_EXCEEDED);
+        }
     }
 
     private void validateAuthorizationCode(String code) {
