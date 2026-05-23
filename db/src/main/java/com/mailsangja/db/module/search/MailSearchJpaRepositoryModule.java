@@ -29,7 +29,7 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                   WHERE m.thread_id  = t.id
                     AND m.deleted_at IS NULL
                     AND (m.search_vector @@ websearch_to_tsquery('korean', :query)
-                         OR m.search_text LIKE '%' || lower(:query) || '%')
+                         OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
                 )
                 OR EXISTS (
                   SELECT 1 FROM attachments a
@@ -38,7 +38,7 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                     AND m.deleted_at IS NULL
                     AND a.deleted_at IS NULL
                     AND (a.filename_vector @@ websearch_to_tsquery('korean', :query)
-                         OR lower(a.filename) LIKE '%' || lower(:query) || '%')
+                         OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
                 )
               )
             ORDER BY t.last_message_at DESC, t.id DESC
@@ -67,7 +67,7 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                   WHERE m.thread_id  = t.id
                     AND m.deleted_at IS NULL
                     AND (m.search_vector @@ websearch_to_tsquery('korean', :query)
-                         OR m.search_text LIKE '%' || lower(:query) || '%')
+                         OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
                 )
                 OR EXISTS (
                   SELECT 1 FROM attachments a
@@ -76,7 +76,7 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
                     AND m.deleted_at IS NULL
                     AND a.deleted_at IS NULL
                     AND (a.filename_vector @@ websearch_to_tsquery('korean', :query)
-                         OR lower(a.filename) LIKE '%' || lower(:query) || '%')
+                         OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
                 )
               )
               AND (
@@ -116,8 +116,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT t.id FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'INBOUND'
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             ORDER BY t.last_message_at DESC, t.id DESC LIMIT :limit
@@ -135,8 +135,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT t.id FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'INBOUND'
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
               AND (t.last_message_at < (SELECT t2.last_message_at FROM threads t2
@@ -168,8 +168,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT t.id FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'OUTBOUND'
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             ORDER BY t.last_message_at DESC, t.id DESC LIMIT :limit
@@ -187,8 +187,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT t.id FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'OUTBOUND'
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
               AND (t.last_message_at < (SELECT t2.last_message_at FROM threads t2
@@ -220,8 +220,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT m.id FROM messages m JOIN threads t ON m.thread_id = t.id JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND m.deleted_at IS NOT NULL
-              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%')
-                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
+                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR m.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml WHERE ml.message_id = m.id AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             ORDER BY m.deleted_at DESC, m.id DESC LIMIT :limit
@@ -239,8 +239,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT m.id FROM messages m JOIN threads t ON m.thread_id = t.id JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND m.deleted_at IS NOT NULL
-              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%')
-                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
+                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR m.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml WHERE ml.message_id = m.id AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
               AND (m.deleted_at < (SELECT mm.deleted_at FROM messages mm
@@ -274,8 +274,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT COUNT(*) FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'INBOUND'
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             """, nativeQuery = true)
@@ -291,8 +291,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT COUNT(*) FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'INBOUND' AND t.is_read = FALSE
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             """, nativeQuery = true)
     Long countUnreadInboxThreads(
@@ -306,8 +306,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT COUNT(*) FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'OUTBOUND'
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR t.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             """, nativeQuery = true)
@@ -323,8 +323,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT COUNT(*) FROM threads t JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND t.deleted_at IS NULL AND t.direction = 'OUTBOUND' AND t.is_read = FALSE
-              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%'))
-                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND (EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND (m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!'))
+                   OR EXISTS (SELECT 1 FROM attachments a JOIN messages m ON a.message_id = m.id WHERE m.thread_id = t.id AND m.deleted_at IS NULL AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml JOIN messages m2 ON ml.message_id = m2.id WHERE m2.thread_id = t.id AND m2.deleted_at IS NULL AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             """, nativeQuery = true)
     Long countUnreadSentThreads(
@@ -338,8 +338,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT COUNT(*) FROM messages m JOIN threads t ON m.thread_id = t.id JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND m.deleted_at IS NOT NULL
-              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%')
-                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
+                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:read IS NULL OR m.is_read = :read)
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml WHERE ml.message_id = m.id AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             """, nativeQuery = true)
@@ -355,8 +355,8 @@ public interface MailSearchJpaRepositoryModule extends JpaRepository<Thread, UUI
             SELECT COUNT(*) FROM messages m JOIN threads t ON m.thread_id = t.id JOIN mail_accounts ma ON t.mail_account_id = ma.id
             WHERE ma.user_id = :userId AND ma.is_active = TRUE AND ma.deleted_at IS NULL
               AND m.deleted_at IS NOT NULL AND m.is_read = FALSE
-              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || lower(:query) || '%')
-                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || lower(:query) || '%')))
+              AND ((m.search_vector @@ websearch_to_tsquery('korean', :query) OR m.search_text LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')
+                   OR EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id AND a.deleted_at IS NULL AND (a.filename_vector @@ websearch_to_tsquery('korean', :query) OR lower(a.filename) LIKE '%' || replace(replace(replace(lower(:query), '!', '!!'), '%', '!%'), '_', '!_') || '%' ESCAPE '!')))
               AND (:labelsEmpty = TRUE OR EXISTS (SELECT 1 FROM message_labels ml WHERE ml.message_id = m.id AND ml.label_id IN (:labelIds) AND ml.deleted_at IS NULL))
             """, nativeQuery = true)
     Long countUnreadTrashMessages(
