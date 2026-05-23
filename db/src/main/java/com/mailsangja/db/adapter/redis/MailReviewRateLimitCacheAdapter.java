@@ -59,7 +59,7 @@ public class MailReviewRateLimitCacheAdapter implements MailReviewRateLimitCache
 
     private String weeklyKey(UUID userId) {
         LocalDate today = LocalDate.now(KST_ZONE_ID);
-        int year = today.getYear();
+        int year = today.get(ISO_WEEK_FIELDS.weekBasedYear());
         int week = today.get(ISO_WEEK_FIELDS.weekOfWeekBasedYear());
         return KEY_PREFIX + userId + ":" + String.format("%04d%02d", year, week);
     }

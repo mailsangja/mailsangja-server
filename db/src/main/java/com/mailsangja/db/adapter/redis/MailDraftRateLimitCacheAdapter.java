@@ -11,7 +11,6 @@ import org.springframework.stereotype.Repository;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.WeekFields;
 import java.util.UUID;
 
@@ -60,7 +59,7 @@ public class MailDraftRateLimitCacheAdapter implements MailDraftRateLimitCachePo
 
     private String weeklyKey(UUID userId) {
         LocalDate today = LocalDate.now(KST_ZONE_ID);
-        int year = today.getYear();
+        int year = today.get(ISO_WEEK_FIELDS.weekBasedYear());
         int week = today.get(ISO_WEEK_FIELDS.weekOfWeekBasedYear());
         return KEY_PREFIX + userId + ":" + String.format("%04d%02d", year, week);
     }

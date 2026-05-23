@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
 class MailDraftCommandServiceTest {
 
     @Test
-    void 주간20회까지는허용한다() {
+    void 주간한도내에서는허용한다() {
         // given
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
@@ -58,7 +58,7 @@ class MailDraftCommandServiceTest {
     }
 
     @Test
-    void 주간21번째요청은거부한다() {
+    void 주간한도초과요청은거부한다() {
         // given
         UUID userId = UUID.randomUUID();
         MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
