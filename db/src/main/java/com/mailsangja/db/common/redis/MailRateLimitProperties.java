@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class MailRateLimitProperties {
 
     private boolean enabled;
-    private long monthlyLimit = 50L;
-    private long reviewMonthlyLimit = 50L;
-    private long suggestionMonthlyLimit = 10L;
+    private long weeklyDraftLimit = 10L;
+    private long weeklyReviewLimit = 10L;
+    private long weeklySuggestionLimit = 2L;
 }

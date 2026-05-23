@@ -93,7 +93,9 @@ mailsangja:
   redis:
     rate-limit:
       enabled: true
-      monthly-limit: 50
+      weekly-draft-limit: 10
+      weekly-review-limit: 10
+      weekly-suggestion-limit: 2
   label:
     debounce:
       debounce-seconds: 60
