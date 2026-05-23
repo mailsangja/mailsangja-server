@@ -2,6 +2,7 @@ package com.mailsangja.worker.config.rabbitmq;
 
 import com.mailsangja.worker.config.properties.MailEmbeddingRabbitProperties;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +12,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
@@ -65,15 +66,18 @@ public class MailEmbeddingRabbitConfig {
     }
 
     @Bean
-    public MessageRecoverer mailEmbeddingMessageRecoverer(MailEmbeddingRabbitProperties properties) {
+    public MessageRecoverer mailEmbeddingMessageRecoverer(
+            MailEmbeddingRabbitProperties properties,
+            DiscordAlertService discordAlertService
+    ) {
         return (message, cause) -> {
             log.warn(
-                    "Mail embedding retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
+                    "Mail embedding retries exhausted. Sending to DLQ routingKey={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(),
-                    message.getMessageProperties().getMessageId(),
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("Mail embedding retries exhausted", cause);
         };
     }
@@ -83,10 +87,7 @@ public class MailEmbeddingRabbitConfig {
             MailTaskRabbitProperties properties,
             @Qualifier("mailEmbeddingMessageRecoverer") MessageRecoverer mailEmbeddingMessageRecoverer
     ) {
-        return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
-                .recoverer(mailEmbeddingMessageRecoverer)
-                .build();
+        return RabbitMqConfig.createRetryInterceptor(properties, mailEmbeddingMessageRecoverer);
     }
 
     @Bean
@@ -94,13 +95,14 @@ public class MailEmbeddingRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("mailEmbeddingRetryInterceptor") MethodInterceptor mailEmbeddingRetryInterceptor,
-            MailTaskRabbitProperties properties
+            MailEmbeddingRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
         factory.setConcurrentConsumers(properties.getConcurrency());
         factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setPrefetchCount(properties.getPrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(mailEmbeddingRetryInterceptor);
         return factory;

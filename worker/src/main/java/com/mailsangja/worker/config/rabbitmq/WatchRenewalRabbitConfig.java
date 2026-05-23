@@ -2,6 +2,7 @@ package com.mailsangja.worker.config.rabbitmq;
 
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.worker.config.properties.WatchRenewalRabbitProperties;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
@@ -9,7 +10,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
@@ -65,15 +66,19 @@ public class WatchRenewalRabbitConfig {
     }
 
     @Bean
-    public MessageRecoverer watchRenewalMessageRecoverer(WatchRenewalRabbitProperties properties) {
+    public MessageRecoverer watchRenewalMessageRecoverer(
+            WatchRenewalRabbitProperties properties,
+            DiscordAlertService discordAlertService
+    ) {
         return (message, cause) -> {
             log.warn(
-                    "Watch renewal message retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
+                    "Watch renewal retries exhausted. Sending to DLQ routingKey={} messageId={} payloadSize={}B",
                     properties.getDeadLetterRoutingKey(),
                     message.getMessageProperties().getMessageId(),
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("Watch renewal retries exhausted", cause);
         };
     }
@@ -83,10 +88,7 @@ public class WatchRenewalRabbitConfig {
             MailTaskRabbitProperties properties,
             @Qualifier("watchRenewalMessageRecoverer") MessageRecoverer watchRenewalMessageRecoverer
     ) {
-        return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
-                .recoverer(watchRenewalMessageRecoverer)
-                .build();
+        return RabbitMqConfig.createRetryInterceptor(properties, watchRenewalMessageRecoverer);
     }
 
     @Bean
@@ -94,16 +96,16 @@ public class WatchRenewalRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("watchRenewalRetryInterceptor") MethodInterceptor watchRenewalRetryInterceptor,
-            MailTaskRabbitProperties properties
+            WatchRenewalRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
         factory.setConcurrentConsumers(properties.getConcurrency());
         factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setPrefetchCount(properties.getPrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(watchRenewalRetryInterceptor);
         return factory;
     }
-
 }

@@ -3,6 +3,7 @@ package com.mailsangja.worker.config.rabbitmq;
 import com.mailsangja.worker.config.properties.GmailHistoryEventRabbitProperties;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
+import com.mailsangja.worker.service.notification.DiscordAlertService;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +13,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
@@ -67,7 +68,10 @@ public class GmailMessageAddedRabbitConfig {
     }
 
     @Bean
-    public MessageRecoverer gmailMessageAddedMessageRecoverer(GmailHistoryEventRabbitProperties properties) {
+    public MessageRecoverer gmailMessageAddedMessageRecoverer(
+            GmailHistoryEventRabbitProperties properties,
+            DiscordAlertService discordAlertService
+    ) {
         return (message, cause) -> {
             log.warn(
                     "Gmail message-added retries exhausted. routingKey={} messageId={} payloadSize={}B",
@@ -76,6 +80,7 @@ public class GmailMessageAddedRabbitConfig {
                     message.getBody().length,
                     cause
             );
+            discordAlertService.sendDlqAlert(message, cause);
             throw new AmqpRejectAndDontRequeueException("Gmail message-added retries exhausted", cause);
         };
     }
@@ -85,10 +90,7 @@ public class GmailMessageAddedRabbitConfig {
             MailTaskRabbitProperties properties,
             @Qualifier("gmailMessageAddedMessageRecoverer") MessageRecoverer gmailMessageAddedMessageRecoverer
     ) {
-        return RetryInterceptorBuilder.stateless()
-                .retryPolicy(RabbitMqConfig.createRetryPolicy(properties.getRetryMaxAttempts()))
-                .recoverer(gmailMessageAddedMessageRecoverer)
-                .build();
+        return RabbitMqConfig.createRetryInterceptor(properties, gmailMessageAddedMessageRecoverer);
     }
 
     @Bean
@@ -96,13 +98,14 @@ public class GmailMessageAddedRabbitConfig {
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
             @Qualifier("gmailMessageAddedRetryInterceptor") MethodInterceptor gmailMessageAddedRetryInterceptor,
-            MailTaskRabbitProperties properties
+            GmailHistoryEventRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(rabbitMessageConverter);
-        factory.setConcurrentConsumers(properties.getConcurrency());
-        factory.setMaxConcurrentConsumers(properties.getConcurrency());
+        factory.setConcurrentConsumers(properties.getMessageAddedConcurrency());
+        factory.setMaxConcurrentConsumers(properties.getMessageAddedConcurrency());
+        factory.setPrefetchCount(properties.getMessageAddedPrefetch());
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(gmailMessageAddedRetryInterceptor);
         return factory;

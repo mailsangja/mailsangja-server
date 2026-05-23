@@ -16,7 +16,8 @@ public class MailTaskRabbitProperties {
     private String exchange;
     private String deadLetterExchange;
     private Duration ttl;
-    private Integer retryMaxAttempts;
-    private Integer concurrency;
+    private long retryInitialInterval = 30_000L;
+    private double retryMultiplier = 2.0;
+    private long retryMaxInterval = 300_000L;
     private Boolean publisherMandatory;
 }
