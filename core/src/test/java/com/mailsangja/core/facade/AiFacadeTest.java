@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -65,7 +66,7 @@ class AiFacadeTest {
 
         when(mailAccountQueryService.findAllActiveByUserId(user.getId()))
                 .thenReturn(List.of(mock(MailAccount.class)));
-        when(playgroundCommandService.chat(request))
+        when(playgroundCommandService.chat(user.getId(), request))
                 .thenReturn(new AiPlaygroundChatResult(
                         "OPENROUTER",
                         "google/gemini-3.5-flash",
@@ -84,7 +85,7 @@ class AiFacadeTest {
         assertEquals(10, response.usage().inputTokens());
         assertEquals(20, response.usage().outputTokens());
         assertEquals(30, response.usage().totalTokens());
-        verify(playgroundCommandService).chat(request);
+        verify(playgroundCommandService).chat(user.getId(), request);
     }
 
     @Test
@@ -106,7 +107,7 @@ class AiFacadeTest {
 
         // then
         assertEquals(AiPlaygroundErrorCode.MAIL_ACCOUNT_REQUIRED, exception.getErrorCode());
-        verify(playgroundCommandService, never()).chat(request);
+        verify(playgroundCommandService, never()).chat(any(), any());
     }
 
     private AiPlaygroundChatRequest createChatRequest() {

@@ -32,7 +32,7 @@ public class AiFacade {
 
     public AiPlaygroundChatResponse chat(User user, AiPlaygroundChatRequest request) {
         validateRegisteredMailAccount(user);
-        return AiPlaygroundChatResponse.from(aiPlaygroundCommandService.chat(request));
+        return AiPlaygroundChatResponse.from(aiPlaygroundCommandService.chat(user.getId(), request));
     }
 
     public AiModelListResponse getModels() {

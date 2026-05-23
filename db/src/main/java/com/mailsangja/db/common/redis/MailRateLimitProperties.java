@@ -15,4 +15,5 @@ public class MailRateLimitProperties {
     private long weeklyDraftLimit = 10L;
     private long weeklyReviewLimit = 10L;
     private long weeklySuggestionLimit = 2L;
+    private long weeklyPlaygroundLimit = 50L;
 }
