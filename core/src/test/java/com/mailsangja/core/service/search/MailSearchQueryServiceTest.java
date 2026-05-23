@@ -138,6 +138,69 @@ class MailSearchQueryServiceTest {
         assertEquals(1L, unreadTrash);
     }
 
+    @Test
+    void 영어_쿼리로_인박스_검색하면_스레드와_첨부파일_라벨_연락처를_조립한다() {
+        // given
+        User user = user();
+        MailAccount account = mailAccount(user);
+        Thread thread = thread(account, Direction.INBOUND, "recruiter@linkedin.com");
+        Message message = message(thread);
+        Attachment attachment = attachment(message);
+        message.replaceAttachments(List.of(attachment));
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "채용", "#0077B5");
+        when(mailSearchRepositoryPort.searchInboxThreads(
+                user.getId(), "LinkedIn", null, null, null, PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(thread), PageRequest.of(0, 20), false));
+        when(messageRepositoryPort.findAllByThreadIdInAndDeletedAtIsNull(List.of(thread.getId())))
+                .thenReturn(List.of(message));
+        when(messageRepositoryPort.findLabelsByThreadIdIn(List.of(thread.getId()))).thenReturn(List.of(label));
+        when(contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(
+                user.getId(), List.of("recruiter@linkedin.com")))
+                .thenReturn(List.of(Contact.create(user, "LinkedIn 채용담당자", "recruiter@linkedin.com")));
+
+        // when
+        ThreadListResult result = mailSearchQueryService.searchInboxThreadsResult(
+                user.getId(), "LinkedIn", null, null, null, PageRequest.of(0, 20));
+
+        // then
+        assertEquals(List.of(thread), result.threads().getContent());
+        assertEquals(List.of(attachment), result.attachmentsByThreadId().get(thread.getId()));
+        assertEquals(List.of(label), result.labelsByThreadId().get(thread.getId()));
+        assertEquals("LinkedIn 채용담당자", result.contactNameByEmail().get("recruiter@linkedin.com"));
+    }
+
+    @Test
+    void 대소문자_영어_쿼리로_전체_검색_결과가_없으면_부가정보를_조회하지_않는다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        when(mailSearchRepositoryPort.searchThreads(userId, "LINK", null, PageRequest.of(0, 10)))
+                .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, 10), false));
+
+        // when
+        ThreadListResult result =
+                mailSearchQueryService.searchThreadsResult(userId, "LINK", null, PageRequest.of(0, 10));
+
+        // then
+        assertEquals(0, result.threads().getContent().size());
+        verify(messageRepositoryPort, never()).findAllByThreadIdInAndDeletedAtIsNull(anyList());
+        verify(messageRepositoryPort, never()).findLabelsByThreadIdIn(anyList());
+        verify(contactRepositoryPort, never())
+                .findAllByUserIdAndEmailInAndDeletedAtIsNull(org.mockito.ArgumentMatchers.any(), anyList());
+    }
+
+    @Test
+    void 영어_부분어_쿼리로_보낸메일_읽지않음_카운트를_조회한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        when(mailSearchRepositoryPort.countUnreadSentThreads(userId, "linked", null, null)).thenReturn(3L);
+
+        // when
+        long result = mailSearchQueryService.countUnreadSentThreads(userId, "linked", null, null);
+
+        // then
+        assertEquals(3L, result);
+    }
+
     private User user() {
         return User.builder().id(UUID.randomUUID()).build();
     }
