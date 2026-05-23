@@ -49,9 +49,6 @@ BEGIN
         ), '') || ' ' ||
         coalesce(array_to_string(
             ARRAY(SELECT jsonb_array_elements_text(coalesce(NEW.cc_names, '[]'::jsonb))), ' '
-        ), '') || ' ' ||
-        coalesce(array_to_string(
-            ARRAY(SELECT jsonb_array_elements_text(coalesce(NEW.bcc_names, '[]'::jsonb))), ' '
         ), '')
     );
     RETURN NEW;
@@ -96,8 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_threads_last_message_at ON threads(last_message_a
 --     coalesce(subject, '') || ' ' || coalesce(from_name, '') || ' ' ||
 --     coalesce(body_text, '') || ' ' ||
 --     coalesce(array_to_string(ARRAY(SELECT jsonb_array_elements_text(coalesce(to_names, '[]'::jsonb))), ' '), '') || ' ' ||
---     coalesce(array_to_string(ARRAY(SELECT jsonb_array_elements_text(coalesce(cc_names, '[]'::jsonb))), ' '), '') || ' ' ||
---     coalesce(array_to_string(ARRAY(SELECT jsonb_array_elements_text(coalesce(bcc_names, '[]'::jsonb))), ' '), ''))
+--     coalesce(array_to_string(ARRAY(SELECT jsonb_array_elements_text(coalesce(cc_names, '[]'::jsonb))), ' '), ''))
 -- WHERE search_vector IS NULL;
 --
 -- UPDATE attachments
