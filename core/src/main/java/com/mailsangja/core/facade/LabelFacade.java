@@ -104,7 +104,7 @@ public class LabelFacade {
     }
 
     private void validateSuggestionRateLimit(UUID userId) {
-        if (!suggestionRateLimitCachePort.tryConsumeMonthlyLimit(userId)) {
+        if (!suggestionRateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
             throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED);
         }
     }
