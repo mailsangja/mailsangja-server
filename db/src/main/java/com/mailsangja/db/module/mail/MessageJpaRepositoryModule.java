@@ -371,6 +371,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             ORDER BY m.sentAt DESC, m.id DESC
             """)
     List<Message> findRecentByUserIdAndMailAccountIdAndDirection(
@@ -391,6 +399,15 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deleted_at IS NULL
               AND t.deleted_at IS NULL
               AND ma.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM message_labels ml
+                  JOIN labels l ON l.id = ml.label_id
+                  WHERE ml.message_id = m.id
+                    AND ml.deleted_at IS NULL
+                    AND l.deleted_at IS NULL
+                    AND l.is_sensitive = true
+              )
               AND (
                   LOWER(COALESCE(m.subject, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
                   OR LOWER(COALESCE(m.body_text, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
@@ -416,6 +433,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             ORDER BY m.sentAt DESC, m.id DESC
             """)
     List<Message> findRecentByUserIdAndDirection(
@@ -434,6 +459,15 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deleted_at IS NULL
               AND t.deleted_at IS NULL
               AND ma.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM message_labels ml
+                  JOIN labels l ON l.id = ml.label_id
+                  WHERE ml.message_id = m.id
+                    AND ml.deleted_at IS NULL
+                    AND l.deleted_at IS NULL
+                    AND l.is_sensitive = true
+              )
               AND (
                   (
                       m.direction = 'OUTBOUND'
@@ -475,6 +509,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             """)
     List<Message> findActiveByIdIn(@Param("messageIds") List<UUID> messageIds);
 
@@ -491,6 +533,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             ORDER BY m.sentAt ASC, m.id ASC
             """)
     List<Message> findThreadContextByReplyMessageId(@Param("replyMessageId") UUID replyMessageId);
