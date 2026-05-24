@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -35,13 +36,17 @@ public class MailEmbeddingQueryService {
     private static final int MIN_CHUNK_LENGTH_TO_EMBED = 5;
     private static final int MAX_CHUNK_COUNT = 1_000;
     private static final String HMAC_ALGORITHM = "HmacSHA256";
-
     private static final Set<String> BLOCK_TAGS = Set.of(
             "p", "div", "section", "article", "header", "footer", "main", "aside",
             "table", "tr", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6",
             "blockquote", "pre"
     );
     private static final Set<String> SKIP_TAGS = Set.of("script", "style", "noscript");
+    private static final Pattern QUOTED_LINE_PATTERN = Pattern.compile("^>+\\s?.*");
+    private static final Pattern ENGLISH_QUOTE_HEADER_PATTERN = Pattern.compile("^On\\s+.+\\s+wrote:$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern KOREAN_QUOTE_HEADER_PATTERN = Pattern.compile("^.+님이\\s*작성:$");
+    private static final Pattern ORIGINAL_MESSAGE_PATTERN = Pattern.compile("^-+\\s*Original Message\\s*-+$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FORWARDED_MESSAGE_PATTERN = Pattern.compile("^-+\\s*Forwarded message\\s*-+$", Pattern.CASE_INSENSITIVE);
 
     private final TokenTextSplitter tokenTextSplitter = TokenTextSplitter.builder()
             .withChunkSize(EMBEDDING_CHUNK_SIZE_TOKENS)
@@ -61,10 +66,10 @@ public class MailEmbeddingQueryService {
             return "";
         }
         if (!isBlank(message.getBodyText())) {
-            return normalizeText(message.getBodyText());
+            return cleanText(message.getBodyText());
         }
         if (!isBlank(message.getBodyHtml())) {
-            return normalizeHtml(message.getBodyHtml());
+            return cleanHtml(message.getBodyHtml());
         }
         return "";
     }
@@ -280,13 +285,59 @@ public class MailEmbeddingQueryService {
         return providerMessageId;
     }
 
-    private String normalizeHtml(String html) {
+    private String cleanText(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return removeQuotedLines(normalizeLineEndings(text));
+    }
+
+    private String cleanHtml(String html) {
+        if (html == null || html.isBlank()) {
+            return "";
+        }
         org.jsoup.nodes.Document document = Jsoup.parse(html);
         document.select(String.join(",", SKIP_TAGS)).remove();
+        document.select("blockquote,.gmail_quote,.gmail_attr,.yahoo_quoted,.moz-cite-prefix,div[type=cite]").remove();
 
         StringBuilder builder = new StringBuilder();
         appendNodeText(document.body(), builder);
-        return normalizeText(builder.toString());
+        return cleanText(builder.toString());
+    }
+
+    private String normalizeLineEndings(String text) {
+        return text
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .replace('\u00A0', ' ');
+    }
+
+    private String removeQuotedLines(String text) {
+        StringBuilder builder = new StringBuilder();
+        for (String line : text.split("\n")) {
+            String compactLine = line.replaceAll("[\\t\\x0B\\f ]+", " ").trim();
+            if (compactLine.isBlank()) {
+                continue;
+            }
+            if (isQuoteStart(compactLine)) {
+                break;
+            }
+            if (QUOTED_LINE_PATTERN.matcher(compactLine).matches()) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append('\n');
+            }
+            builder.append(compactLine);
+        }
+        return builder.toString();
+    }
+
+    private boolean isQuoteStart(String line) {
+        return ENGLISH_QUOTE_HEADER_PATTERN.matcher(line).matches()
+                || KOREAN_QUOTE_HEADER_PATTERN.matcher(line).matches()
+                || ORIGINAL_MESSAGE_PATTERN.matcher(line).matches()
+                || FORWARDED_MESSAGE_PATTERN.matcher(line).matches();
     }
 
     private void appendNodeText(Node node, StringBuilder builder) {
@@ -321,25 +372,6 @@ public class MailEmbeddingQueryService {
         if (!builder.isEmpty() && builder.charAt(builder.length() - 1) != '\n') {
             builder.append('\n');
         }
-    }
-
-    private String normalizeText(String text) {
-        String normalized = text
-                .replace("\r\n", "\n")
-                .replace('\r', '\n')
-                .replace('\u00A0', ' ');
-        StringBuilder builder = new StringBuilder();
-        for (String line : normalized.split("\n")) {
-            String compactLine = line.replaceAll("[\\t\\x0B\\f ]+", " ").trim();
-            if (compactLine.isBlank()) {
-                continue;
-            }
-            if (!builder.isEmpty()) {
-                builder.append('\n');
-            }
-            builder.append(compactLine);
-        }
-        return builder.toString();
     }
 
     private boolean isBlank(String value) {

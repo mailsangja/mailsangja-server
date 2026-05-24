@@ -81,6 +81,47 @@ class MailEmbeddingQueryServiceTest {
     }
 
     @Test
+    void extractEmbeddableText_gmail인용문을제거한다() {
+        // given
+        Message message = createMessage(UUID.randomUUID(), UUID.randomUUID(), MailProvider.GMAIL,
+                "provider-message-id", Direction.INBOUND,
+                """
+                        확인했습니다.
+                        다음 주에 다시 공유드리겠습니다.
+
+                        On Sun, May 24, 2026 at 1:00 PM Sender <sender@example.com> wrote:
+                        > 이전 본문입니다.
+                        >> 더 오래된 본문입니다.
+                        """,
+                null);
+
+        // when
+        String embeddableText = service.extractEmbeddableText(message);
+
+        // then
+        assertEquals("확인했습니다.\n다음 주에 다시 공유드리겠습니다.", embeddableText);
+    }
+
+    @Test
+    void extractEmbeddableText_htmlBlockquote를제거한다() {
+        // given
+        Message message = createMessage(UUID.randomUUID(), UUID.randomUUID(), MailProvider.GMAIL,
+                "provider-message-id", Direction.INBOUND, " ",
+                """
+                        <div>새 답장입니다.</div>
+                        <div class="gmail_quote">
+                          <blockquote>이전 본문입니다.</blockquote>
+                        </div>
+                        """);
+
+        // when
+        String embeddableText = service.extractEmbeddableText(message);
+
+        // then
+        assertEquals("새 답장입니다.", embeddableText);
+    }
+
+    @Test
     void createDocumentId_같은외부메시지면방향이다른메시지도같은문서Id를반환한다() {
         // given
         UUID mailAccountId = UUID.randomUUID();
