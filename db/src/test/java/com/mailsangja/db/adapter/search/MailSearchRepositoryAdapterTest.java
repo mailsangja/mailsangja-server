@@ -182,6 +182,86 @@ class MailSearchRepositoryAdapterTest {
         assertEquals(0L, result);
     }
 
+    @Test
+    void 영어_쿼리로_전체_스레드_검색시_첫_페이지_메서드를_사용하고_검색결과_순서를_복원한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        Thread first = thread();
+        Thread second = thread();
+        when(mailSearchJpaRepositoryModule.searchThreadIdsFirstPage(userId.toString(), "linkedin", 3))
+                .thenReturn(List.of(first.getId().toString(), second.getId().toString()));
+        when(mailSearchJpaRepositoryModule.findAllByIdInWithMailAccount(List.of(first.getId(), second.getId())))
+                .thenReturn(List.of(second, first));
+
+        // when
+        Slice<Thread> result =
+                mailSearchRepositoryAdapter.searchThreads(userId, "linkedin", null, PageRequest.of(0, 2));
+
+        // then
+        assertEquals(List.of(first, second), result.getContent());
+        assertFalse(result.hasNext());
+    }
+
+    @Test
+    void 대소문자_혼합_영어_쿼리로_인박스_검색시_마커_이후_페이지_메서드를_사용한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UUID markerId = UUID.randomUUID();
+        Thread thread = thread();
+        when(mailSearchJpaRepositoryModule.searchInboxThreadIdsAfterMarker(
+                userId.toString(), "LinkedIn", List.of(SENTINEL_LABEL_ID), true, null, markerId.toString(), 2))
+                .thenReturn(List.of(thread.getId().toString()));
+        when(mailSearchJpaRepositoryModule.findAllByIdInWithMailAccount(List.of(thread.getId())))
+                .thenReturn(List.of(thread));
+
+        // when
+        Slice<Thread> result = mailSearchRepositoryAdapter.searchInboxThreads(
+                userId, "LinkedIn", null, null, markerId, PageRequest.of(0, 1));
+
+        // then
+        assertEquals(List.of(thread), result.getContent());
+        verify(mailSearchJpaRepositoryModule, never())
+                .searchInboxThreadIdsFirstPage(any(), any(), anyList(), anyBoolean(), any(), anyInt());
+    }
+
+    @Test
+    void 영어_쿼리로_보낸메일_검색시_pageSize_초과_결과면_hasNext가_true다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        Thread first = thread();
+        Thread second = thread();
+        Thread extra = thread();
+        when(mailSearchJpaRepositoryModule.searchSentThreadIdsFirstPage(
+                userId.toString(), "LINK", List.of(SENTINEL_LABEL_ID), true, null, 3))
+                .thenReturn(List.of(
+                        first.getId().toString(), second.getId().toString(), extra.getId().toString()));
+        when(mailSearchJpaRepositoryModule.findAllByIdInWithMailAccount(List.of(first.getId(), second.getId())))
+                .thenReturn(List.of(first, second));
+
+        // when
+        Slice<Thread> result = mailSearchRepositoryAdapter.searchSentThreads(
+                userId, "LINK", null, null, null, PageRequest.of(0, 2));
+
+        // then
+        assertTrue(result.hasNext());
+        assertEquals(2, result.getContent().size());
+    }
+
+    @Test
+    void 영어_쿼리_카운트_조회시_DB_결과를_그대로_반환한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        when(mailSearchJpaRepositoryModule.countSentThreads(
+                userId.toString(), "LinkedIn", List.of(SENTINEL_LABEL_ID), true, null))
+                .thenReturn(7L);
+
+        // when
+        long result = mailSearchRepositoryAdapter.countSentThreads(userId, "LinkedIn", null, null);
+
+        // then
+        assertEquals(7L, result);
+    }
+
     private Thread thread() {
         return Thread.builder()
                 .id(UUID.randomUUID())
