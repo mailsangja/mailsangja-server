@@ -10,6 +10,7 @@ import com.mailsangja.core.dto.mail.MailAccountAppearanceUpdateRequest;
 import com.mailsangja.core.dto.mail.MailAccountAuthorizeResponse;
 import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
+import com.mailsangja.core.config.properties.MailAccountProperties;
 import com.mailsangja.core.service.contact.ContactCommandService;
 import com.mailsangja.core.service.google.GoogleMailWatchQueryService;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
@@ -36,8 +37,8 @@ public class MailAccountFacade {
     private static final String HEX_COLOR_REGEX = "^#[0-9A-Fa-f]{6}$";
     private static final String DEFAULT_ICON = "good";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final int MAX_MAIL_ACCOUNT_COUNT = 2;
 
+    private final MailAccountProperties mailAccountProperties;
     private final MailAccountCommandService mailAccountCommandService;
     private final MailAccountQueryService mailAccountQueryService;
     private final GoogleOAuthQueryService googleOAuthQueryService;
@@ -112,7 +113,7 @@ public class MailAccountFacade {
 
     private void validateMailAccountCount(User user) {
         int count = mailAccountQueryService.findAllByUserId(user.getId()).size();
-        if (count >= MAX_MAIL_ACCOUNT_COUNT) {
+        if (count >= mailAccountProperties.getMaxCount()) {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_LIMIT_EXCEEDED);
         }
     }
