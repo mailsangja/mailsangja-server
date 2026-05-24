@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -143,7 +144,7 @@ class ReplyDraftSuggestionQueryServiceTest {
                 .thenReturn(threadMessages);
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class)))
                 .thenReturn(List.of(sameRecipientSent));
-        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of(recent));
+        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 4)).thenReturn(List.of(recent));
         when(referenceQueryPort.findRecipientHistoryMessages(any(), any(), any(), any(Integer.class)))
                 .thenReturn(List.of(duplicateRecipientHistory, recipientHistory));
         when(maskingService.mask(anyString(), any(MaskingCommand.class)))
@@ -160,8 +161,9 @@ class ReplyDraftSuggestionQueryServiceTest {
         assertTrue(prompt.contains("<recent_sent_emails purpose=\"style_primary\">"));
         assertTrue(prompt.contains("<recipient_history_emails purpose=\"recipient_specific_context\">"));
         assertTrue(prompt.contains("masked:subject-0"));
-        assertFalse(prompt.contains("masked:subject-5"));
+        assertTrue(prompt.contains("masked:subject-5"));
         assertTrue(prompt.contains("masked:subject-24"));
+        assertEquals(1, countOccurrences(prompt, "masked:subject-24"));
         assertTrue(prompt.contains("masked:같은 수신자에게 보낸 메일"));
         assertTrue(prompt.contains("masked:최근 보낸 메일"));
         assertTrue(prompt.contains("masked:수신자 히스토리"));
@@ -189,7 +191,7 @@ class ReplyDraftSuggestionQueryServiceTest {
         when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
                 .thenReturn(List.of(latestMessage));
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
-        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of());
+        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 4)).thenReturn(List.of());
         when(referenceQueryPort.findRecipientHistoryMessages(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
         when(maskingService.mask(anyString(), any(MaskingCommand.class)))
                 .thenAnswer(invocation -> maskingResult(invocation.getArgument(0, String.class)));
@@ -203,7 +205,7 @@ class ReplyDraftSuggestionQueryServiceTest {
                 org.mockito.ArgumentMatchers.eq(userId),
                 org.mockito.ArgumentMatchers.eq(mailAccountId),
                 hintsCaptor.capture(),
-                org.mockito.ArgumentMatchers.eq(6)
+                org.mockito.ArgumentMatchers.eq(4)
         );
         assertTrue(hintsCaptor.getValue().contains("reply@example.com"));
         assertTrue(hintsCaptor.getValue().contains("reply alias"));
@@ -213,7 +215,7 @@ class ReplyDraftSuggestionQueryServiceTest {
                 org.mockito.ArgumentMatchers.eq(userId),
                 org.mockito.ArgumentMatchers.eq(mailAccountId),
                 any(),
-                org.mockito.ArgumentMatchers.eq(8)
+                org.mockito.ArgumentMatchers.eq(4)
         );
     }
 
@@ -237,7 +239,7 @@ class ReplyDraftSuggestionQueryServiceTest {
         when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
                 .thenReturn(List.of(latestMessage));
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
-        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of());
+        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 4)).thenReturn(List.of());
         when(referenceQueryPort.findRecipientHistoryMessages(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
         when(maskingService.mask(anyString(), any(MaskingCommand.class)))
                 .thenAnswer(invocation -> maskingResult(invocation.getArgument(0, String.class)));
@@ -277,7 +279,7 @@ class ReplyDraftSuggestionQueryServiceTest {
         when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
                 .thenReturn(List.of(latestMessage));
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
-        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of());
+        when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 4)).thenReturn(List.of());
         when(referenceQueryPort.findRecipientHistoryMessages(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
         when(maskingService.mask(anyString(), any(MaskingCommand.class)))
                 .thenAnswer(invocation -> maskingResult(invocation.getArgument(0, String.class)));
@@ -300,6 +302,16 @@ class ReplyDraftSuggestionQueryServiceTest {
                 new ReplyDraftSuggestionProperties(),
                 maskingService
         );
+    }
+
+    private int countOccurrences(String source, String value) {
+        int count = 0;
+        int index = 0;
+        while ((index = source.indexOf(value, index)) >= 0) {
+            count++;
+            index += value.length();
+        }
+        return count;
     }
 
     private List<Message> createThreadMessages(MailAccount mailAccount, UUID latestMessageId, int count) {

@@ -38,9 +38,9 @@ public class ReplyDraftSuggestionQueryService {
     private static final String SOURCE_RECENT_SENT = "recent_sent";
     private static final String SOURCE_RECIPIENT_HISTORY = "recipient_history";
     private static final int THREAD_CONTEXT_LIMIT = 20;
-    private static final int SAME_RECIPIENT_SENT_LIMIT = 8;
-    private static final int RECENT_WRITTEN_LIMIT = 10;
-    private static final int RECIPIENT_HISTORY_LIMIT = 6;
+    private static final int SAME_RECIPIENT_SENT_LIMIT = 4;
+    private static final int RECENT_WRITTEN_LIMIT = 4;
+    private static final int RECIPIENT_HISTORY_LIMIT = 4;
     private static final Set<String> BLOCK_TAGS = Set.of(
             "p", "div", "section", "article", "header", "footer", "main", "aside",
             "table", "tr", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6",
@@ -93,6 +93,7 @@ public class ReplyDraftSuggestionQueryService {
         List<ReplyDraftSuggestionContextResult> thread = findThread(latestMessage);
         Set<UUID> threadMessageIds = messageIds(thread);
         Set<UUID> excludedMessageIds = new HashSet<>(threadMessageIds);
+        excludedMessageIds.add(latestMessage.getId());
         List<ReplyDraftSuggestionContextResult> sameRecipientSent = findSameRecipientSent(latestMessage, excludedMessageIds);
         addMessageIds(excludedMessageIds, sameRecipientSent);
         List<ReplyDraftSuggestionContextResult> recent = findRecent(latestMessage, excludedMessageIds);
@@ -147,7 +148,16 @@ public class ReplyDraftSuggestionQueryService {
                 latestMessage.getThread().getMailAccount().getId(),
                 latestMessage.getThread().getGmailThreadId()
         );
-        return toMaskedMessageContexts(limitThread(messages), SOURCE_THREAD);
+        return toMaskedMessageContexts(limitThread(excludeLatestMessage(messages, latestMessage.getId())), SOURCE_THREAD);
+    }
+
+    private List<Message> excludeLatestMessage(List<Message> messages, UUID latestMessageId) {
+        if (messages == null || messages.isEmpty()) {
+            return List.of();
+        }
+        return messages.stream()
+                .filter(message -> !latestMessageId.equals(message.getId()))
+                .toList();
     }
 
     private List<ReplyDraftSuggestionContextResult> findRecent(Message latestMessage, Set<UUID> excludedMessageIds) {
