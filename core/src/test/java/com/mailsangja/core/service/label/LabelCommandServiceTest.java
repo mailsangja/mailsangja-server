@@ -47,7 +47,7 @@ class LabelCommandServiceTest {
     void create_notificationPolicyIsNull_defaultsToInheritAndTrimsName() {
         User user = User.builder().id(UUID.randomUUID()).build();
         LabelRule rule = rule("invoice");
-        LabelCreateRequest request = new LabelCreateRequest("  업무  ", "#3366FF", null, 3, rule);
+        LabelCreateRequest request = new LabelCreateRequest("  업무  ", "#3366FF", null, 3, true, rule);
         when(labelRepositoryPort.save(any(Label.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Label saved = labelCommandService.create(user, request);
@@ -57,6 +57,7 @@ class LabelCommandServiceTest {
         assertEquals("#3366FF", saved.getColorCode());
         assertEquals(NotificationPolicy.INHERIT, saved.getNotificationPolicy());
         assertEquals(3, saved.getDisplayOrder());
+        assertTrue(saved.isSensitive());
         assertSame(rule, saved.getRule());
     }
 
@@ -68,8 +69,9 @@ class LabelCommandServiceTest {
                 .colorCode("#111111")
                 .notificationPolicy(NotificationPolicy.INHERIT)
                 .displayOrder(1)
+                .isSensitive(false)
                 .build();
-        LabelUpdateRequest request = new LabelUpdateRequest("  새 이름  ", null, NotificationPolicy.SILENT, null);
+        LabelUpdateRequest request = new LabelUpdateRequest("  새 이름  ", null, NotificationPolicy.SILENT, null, true);
         when(labelRepositoryPort.save(label)).thenReturn(label);
 
         Label updated = labelCommandService.update(label, request);
@@ -79,6 +81,7 @@ class LabelCommandServiceTest {
         assertEquals("#111111", label.getColorCode());
         assertEquals(NotificationPolicy.SILENT, label.getNotificationPolicy());
         assertEquals(1, label.getDisplayOrder());
+        assertTrue(label.isSensitive());
     }
 
     @Test

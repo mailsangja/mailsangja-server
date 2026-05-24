@@ -28,7 +28,7 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 목록 조회",
-            description = "로그인한 사용자의 활성 라벨 목록을 displayOrder ASC 정렬로 반환합니다. 라벨별 읽지 않은 스레드 수를 포함합니다.",
+            description = "로그인한 사용자의 활성 라벨 목록을 displayOrder ASC 정렬로 반환합니다. 라벨별 읽지 않은 스레드 수와 민감 라벨 여부를 포함합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -42,7 +42,7 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 상세 조회",
-            description = "특정 라벨의 메타 정보와 타입이 고정된 rule 객체를 반환합니다.",
+            description = "특정 라벨의 메타 정보, 민감 라벨 여부, 타입이 고정된 rule 객체를 반환합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -59,7 +59,7 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 생성",
-            description = "새 라벨을 생성합니다. rule이 존재하면 과거 메일 재분류 작업이 비동기로 발행됩니다.",
+            description = "새 라벨을 생성합니다. isSensitive로 AI 기능 제외 대상 여부를 지정할 수 있습니다. rule이 존재하면 과거 메일 재분류 작업이 비동기로 발행됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -78,7 +78,7 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 수정",
-            description = "라벨의 이름, 색상, 알림 설정, 순서를 수정합니다. null 필드는 변경하지 않습니다.",
+            description = "라벨의 이름, 색상, 알림 설정, 순서, 민감 라벨 여부를 수정합니다. null 필드는 변경하지 않습니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
@@ -186,7 +186,7 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 제안 단건 승인",
-            description = "라벨 제안을 수정하여 confirmed=true로 전환합니다. 요청 바디로 이름·색상·순서·알림정책·규칙을 원하는 값으로 변경한 뒤 승인할 수 있습니다. rule이 있는 라벨은 승인 후 과거 메일 재분류 작업이 비동기로 발행됩니다.",
+            description = "라벨 제안을 수정하여 confirmed=true로 전환합니다. 요청 바디로 이름·색상·순서·알림정책·민감 라벨 여부·규칙을 원하는 값으로 변경한 뒤 승인할 수 있습니다. rule이 있는 라벨은 승인 후 과거 메일 재분류 작업이 비동기로 발행됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({

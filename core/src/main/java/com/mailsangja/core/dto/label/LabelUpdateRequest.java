@@ -15,6 +15,9 @@ public record LabelUpdateRequest(
         NotificationPolicy notificationPolicy,
 
         @Schema(description = "표시 순서", example = "1")
-        Integer order
+        Integer order,
+
+        @Schema(description = "AI 기능에서 제외할 민감 라벨 여부", example = "true")
+        Boolean isSensitive
 ) {
 }

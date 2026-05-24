@@ -23,6 +23,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
     ON labels (user_id, lower(name))
     WHERE deleted_at IS NULL;;
 
+ALTER TABLE labels ADD COLUMN IF NOT EXISTS is_sensitive BOOLEAN NOT NULL DEFAULT FALSE;;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_webhook_id
     ON orders (webhook_id);;
 
