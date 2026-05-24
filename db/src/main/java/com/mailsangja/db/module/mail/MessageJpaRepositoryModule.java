@@ -96,8 +96,46 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailThreadId") String gmailThreadId
     );
 
+    @EntityGraph(attributePaths = {"attachments"})
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+              AND m.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
+            ORDER BY m.sentAt ASC
+            """)
+    List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
+
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount", "thread.mailAccount.user"})
     Optional<Message> findById(UUID id);
+
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount", "thread.mailAccount.user"})
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.id = :messageId
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
+            """)
+    Optional<Message> findByIdIncludingDeletedAndSensitiveLabelsExcluded(@Param("messageId") UUID messageId);
 
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id = :mailAccountId AND m.thread.gmailThreadId = :gmailThreadId ORDER BY m.sentAt ASC")

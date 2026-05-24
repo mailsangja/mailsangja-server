@@ -387,6 +387,49 @@ class MessageAddedHistoryEventHandlerTest {
         verify(fcmPushCommandService).sendNewMailPush(context);
     }
 
+    @Test
+    void handle_민감라벨이매칭되면답장추천메시지를발행하지않는다() {
+        UUID userId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(userId, mailAccountId);
+        GmailHistoryEvent event = createEvent(mailAccountId);
+        NewMailPushContext context = new NewMailPushContext(
+                mailAccountId,
+                "Alice",
+                "subject",
+                "snippet",
+                UUID.randomUUID(),
+                messageId,
+                Direction.INBOUND,
+                List.of("alice@example.com"),
+                1
+        );
+        Label sensitiveLabel = createLabel(NotificationPolicy.INHERIT, true);
+        Message message = Message.builder()
+                .id(messageId)
+                .gmailMessageId("gmail-message-1")
+                .build();
+
+        when(gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event)).thenReturn(Optional.of(context));
+        when(labelQueryService.findAllActiveByUserId(userId)).thenReturn(List.of(sensitiveLabel));
+        when(labelQueryService.findActiveMessageWithLabelsById(messageId)).thenReturn(Optional.of(message));
+        when(attachmentRepositoryPort.findAllByMessageIdAndDeletedAtIsNull(messageId)).thenReturn(List.of());
+        when(labelRuleCompiler.compile(List.of(sensitiveLabel), new MessageBatch(List.of(message), Set.of())))
+                .thenReturn(Map.of(messageId, List.of(sensitiveLabel)));
+
+        handler.handle(mailAccount, event);
+
+        verify(messageLabelCommandService).applyLabels(
+                List.of(message),
+                Map.of(messageId, List.of(sensitiveLabel)),
+                Set.of(sensitiveLabel.getId())
+        );
+        verifyNoInteractions(replyDraftSuggestionQueryService);
+        verifyNoInteractions(replyDraftSuggestionPublisher);
+        verify(fcmPushCommandService).sendNewMailPush(context);
+    }
+
     private MailAccount createMailAccount(UUID userId, UUID mailAccountId) {
         User user = User.builder()
                 .id(userId)
@@ -418,12 +461,17 @@ class MessageAddedHistoryEventHandlerTest {
     }
 
     private Label createLabel(NotificationPolicy notificationPolicy) {
+        return createLabel(notificationPolicy, false);
+    }
+
+    private Label createLabel(NotificationPolicy notificationPolicy, boolean isSensitive) {
         return Label.builder()
                 .id(UUID.randomUUID())
                 .name("label")
                 .colorCode("#111111")
                 .notificationPolicy(notificationPolicy)
                 .displayOrder(1)
+                .isSensitive(isSensitive)
                 .build();
     }
 }

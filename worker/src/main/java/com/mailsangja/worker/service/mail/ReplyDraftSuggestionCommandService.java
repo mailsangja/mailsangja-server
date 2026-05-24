@@ -57,7 +57,7 @@ public class ReplyDraftSuggestionCommandService {
         if (messageId == null) {
             throw new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_MESSAGE);
         }
-        com.mailsangja.db.entity.mail.Message message = messageRepositoryPort.findByIdIncludingDeleted(messageId)
+        com.mailsangja.db.entity.mail.Message message = messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId)
                 .orElseThrow(() -> new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_MESSAGE));
         if (message.isDeleted()) {
             throw new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_MESSAGE);
