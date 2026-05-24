@@ -61,7 +61,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 queryService,
                 transactionTemplate
         );
-        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.of(message));
         when(queryService.existsByMessageId(messageId)).thenReturn(true);
 
         // when
@@ -106,7 +107,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 queryService,
                 transactionTemplate
         );
-        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.of(message));
         when(queryService.existsByMessageId(messageId)).thenReturn(false);
         when(queryService.createPrompt(eq(messageId), contains("suggestions")))
                 .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));
@@ -159,7 +161,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 queryService,
                 transactionTemplate
         );
-        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.of(message));
         when(queryService.existsByMessageId(messageId)).thenReturn(false);
         when(queryService.createPrompt(eq(messageId), contains("suggestions")))
                 .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));
@@ -199,7 +202,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 queryService,
                 transactionTemplate
         );
-        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.of(message));
         when(queryService.existsByMessageId(messageId)).thenReturn(false);
         when(queryService.createPrompt(eq(messageId), contains("suggestions")))
                 .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));
@@ -227,7 +231,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 queryService,
                 transactionTemplate()
         );
-        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.empty());
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.empty());
 
         // when
         MqException exception = assertThrows(MqException.class, () -> service.generate(messageId));
@@ -252,7 +257,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 queryService,
                 transactionTemplate()
         );
-        when(messageRepositoryPort.findByIdIncludingDeleted(messageId)).thenReturn(Optional.of(message));
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.of(message));
         when(queryService.existsByMessageId(messageId)).thenReturn(false);
         when(queryService.createPrompt(eq(messageId), contains("suggestions")))
                 .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));

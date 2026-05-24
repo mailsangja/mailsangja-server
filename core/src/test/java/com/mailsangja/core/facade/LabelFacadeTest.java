@@ -67,8 +67,10 @@ class LabelFacadeTest {
 
         assertEquals(2, responses.size());
         assertEquals(first.getId(), responses.get(0).id());
+        assertEquals(first.isSensitive(), responses.get(0).isSensitive());
         assertEquals(7L, responses.get(0).unreadThreadCount());
         assertEquals(second.getId(), responses.get(1).id());
+        assertEquals(second.isSensitive(), responses.get(1).isSensitive());
         assertEquals(0L, responses.get(1).unreadThreadCount());
     }
 
@@ -82,13 +84,14 @@ class LabelFacadeTest {
         LabelDetailResponse response = labelFacade.getLabelDetail(user, label.getId());
 
         assertEquals(label.getId(), response.id());
+        assertEquals(label.isSensitive(), response.isSensitive());
         assertSame(rule, response.rule());
     }
 
     @Test
     void 라벨생성_생성전이름중복시_예외발생하고생성안됨() {
         User user = user();
-        LabelCreateRequest request = new LabelCreateRequest("  업무  ", "#3366FF", NotificationPolicy.INHERIT, 1, null);
+        LabelCreateRequest request = new LabelCreateRequest("  업무  ", "#3366FF", NotificationPolicy.INHERIT, 1, false, null);
         when(labelQueryService.existsByUserIdAndName(user.getId(), "업무")).thenReturn(true);
 
         LabelException exception = assertThrows(LabelException.class, () -> labelFacade.createLabel(user, request));
@@ -101,7 +104,7 @@ class LabelFacadeTest {
     void 라벨생성_규칙있을때_규칙검증및PendingJob병합() {
         User user = user();
         LabelRule rule = rule("invoice");
-        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.URGENT, 1, rule);
+        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.URGENT, 1, true, rule);
         Label saved = label("업무", 1, rule);
         when(labelQueryService.existsByUserIdAndName(user.getId(), "업무")).thenReturn(false);
         when(labelCommandService.create(user, request)).thenReturn(saved);
@@ -112,13 +115,14 @@ class LabelFacadeTest {
         verify(pendingJobStore).checkRateLimit(user.getId());
         verify(pendingJobStore).mergePendingJob(user.getId(), saved.getId());
         assertEquals(saved.getId(), response.id());
+        assertEquals(saved.isSensitive(), response.isSensitive());
         assertSame(rule, response.rule());
     }
 
     @Test
     void 라벨생성_규칙없을때_PendingJob생성안됨() {
         User user = user();
-        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.INHERIT, 1, null);
+        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.INHERIT, 1, false, null);
         Label saved = label("업무", 1, null);
         when(labelCommandService.create(user, request)).thenReturn(saved);
 
@@ -132,7 +136,7 @@ class LabelFacadeTest {
     @Test
     void 라벨생성_DB중복시_이름중복예외발생() {
         User user = user();
-        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.INHERIT, 1, null);
+        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.INHERIT, 1, false, null);
         when(labelCommandService.create(user, request)).thenThrow(new DataIntegrityViolationException("duplicate"));
 
         LabelException exception = assertThrows(LabelException.class, () -> labelFacade.createLabel(user, request));
@@ -144,7 +148,7 @@ class LabelFacadeTest {
     void 라벨수정_이름이공백이면_이름공백예외발생() {
         User user = user();
         Label label = label("기존", 1);
-        LabelUpdateRequest request = new LabelUpdateRequest("  ", null, null, null);
+        LabelUpdateRequest request = new LabelUpdateRequest("  ", null, null, null, null);
         when(labelQueryService.findActiveByIdAndUserId(label.getId(), user.getId())).thenReturn(label);
 
         LabelException exception = assertThrows(LabelException.class, () -> labelFacade.updateLabel(user, label.getId(), request));
@@ -157,7 +161,7 @@ class LabelFacadeTest {
     void 라벨생성_RateLimit초과시_예외전파되고PendingJob병합안됨() {
         User user = user();
         LabelRule rule = rule("invoice");
-        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.URGENT, 1, rule);
+        LabelCreateRequest request = new LabelCreateRequest("업무", "#3366FF", NotificationPolicy.URGENT, 1, true, rule);
         Label saved = label("업무", 1, rule);
         when(labelQueryService.existsByUserIdAndName(user.getId(), "업무")).thenReturn(false);
         when(labelCommandService.create(user, request)).thenReturn(saved);

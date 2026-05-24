@@ -46,22 +46,21 @@ public class MessageAddedHistoryEventHandler {
     public void handle(MailAccount mailAccount, GmailHistoryEvent event) {
         gmailNewMessageSyncCommandService.syncNewMessage(mailAccount, event).ifPresent(context -> {
             mailEmbeddingPublisher.publish(new MailEmbeddingMessage(context.messageId()));
-            publishReplyDraftSuggestionIfEligible(mailAccount, event, context);
 
             List<Label> activeLabels = labelQueryService.findAllActiveByUserId(mailAccount.getUser().getId());
 
             boolean isOutbound = context.direction() == Direction.OUTBOUND;
+            LabelApplyResult labelApplyResult = LabelApplyResult.empty();
 
-            if (activeLabels.isEmpty()) {
-                if (!isOutbound) {
-                    sendFcmPush(context);
-                }
-                return;
+            if (!activeLabels.isEmpty()) {
+                labelApplyResult = applyLabelsAndResolveResult(context, activeLabels);
             }
 
-            boolean notificationShouldSend = applyLabelsAndCheckNotification(context, activeLabels);
+            if (!labelApplyResult.hasSensitiveLabel()) {
+                publishReplyDraftSuggestionIfEligible(mailAccount, event, context);
+            }
 
-            if (!isOutbound && notificationShouldSend) {
+            if (!isOutbound && labelApplyResult.notificationShouldSend()) {
                 sendFcmPush(context);
             }
         });
@@ -94,14 +93,14 @@ public class MessageAddedHistoryEventHandler {
                 .anyMatch(address -> connectedEmail.equalsIgnoreCase(address.trim()));
     }
 
-    private boolean applyLabelsAndCheckNotification(NewMailPushContext context, List<Label> activeLabels) {
+    private LabelApplyResult applyLabelsAndResolveResult(NewMailPushContext context, List<Label> activeLabels) {
         try {
             Message message = labelQueryService.findActiveMessageWithLabelsById(context.messageId())
                     .orElse(null);
 
             if (message == null) {
                 log.warn("Message not found for labeling: messageId={}", context.messageId());
-                return true;
+                return LabelApplyResult.empty();
             }
 
             Set<UUID> messageIdsWithAttachments = Set.of();
@@ -120,13 +119,17 @@ public class MessageAddedHistoryEventHandler {
             messageLabelCommandService.applyLabels(List.of(message), labelsByMessageId, activeLabelIds);
 
             List<Label> matchedLabels = labelsByMessageId.getOrDefault(context.messageId(), List.of());
-            return resolveNotification(matchedLabels);
+            return new LabelApplyResult(resolveNotification(matchedLabels), hasSensitiveLabel(matchedLabels));
 
         } catch (Exception e) {
             log.warn("Label apply failed for messageId={} — falling back to send FCM push. error={}",
                     context.messageId(), e.getMessage());
-            return true;
+            return new LabelApplyResult(true, true);
         }
+    }
+
+    private boolean hasSensitiveLabel(List<Label> matchedLabels) {
+        return matchedLabels.stream().anyMatch(Label::isSensitive);
     }
 
     private boolean resolveNotification(List<Label> matchedLabels) {
@@ -144,6 +147,13 @@ public class MessageAddedHistoryEventHandler {
             fcmPushCommandService.sendNewMailPush(context);
         } catch (Exception e) {
             log.warn("FCM push skipped due to unexpected error: mailAccountId={} error={}", context.mailAccountId(), e.getMessage());
+        }
+    }
+
+    private record LabelApplyResult(boolean notificationShouldSend, boolean hasSensitiveLabel) {
+
+        private static LabelApplyResult empty() {
+            return new LabelApplyResult(true, false);
         }
     }
 }

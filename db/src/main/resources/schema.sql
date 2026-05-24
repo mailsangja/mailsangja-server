@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS labels (
     display_order        INT          NOT NULL DEFAULT 0,
     rule                 JSONB        NULL,
     confirmed            BOOLEAN      NOT NULL DEFAULT TRUE,
+    is_sensitive         BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at           TIMESTAMP    NOT NULL,
     modified_at          TIMESTAMP    NOT NULL,
     deleted_at           TIMESTAMP    NULL,

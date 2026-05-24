@@ -43,6 +43,11 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     }
 
     @Override
+    public Optional<Message> findByIdIncludingDeletedAndSensitiveLabelsExcluded(UUID messageId) {
+        return messageJpaRepositoryModule.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId);
+    }
+
+    @Override
     public Optional<Message> findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
             UUID mailAccountId,
             String gmailThreadId,
@@ -112,6 +117,17 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
     @Override
     public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId) {
         return messageJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId);
+    }
+
+    @Override
+    public List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+            UUID mailAccountId,
+            String gmailThreadId
+    ) {
+        return messageJpaRepositoryModule.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+                mailAccountId,
+                gmailThreadId
+        );
     }
 
     @Override
@@ -207,7 +223,13 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
         }
         return messageJpaRepositoryModule.findLabelsByThreadIdIn(threadIds)
                 .stream()
-                .map(p -> new ThreadMessageLabelView(p.getThreadId(), p.getLabelId(), p.getLabelName(), p.getLabelColorCode()))
+                .map(p -> new ThreadMessageLabelView(
+                        p.getThreadId(),
+                        p.getLabelId(),
+                        p.getLabelName(),
+                        p.getLabelColorCode(),
+                        p.getLabelIsSensitive()
+                ))
                 .toList();
     }
 

@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_mail_accounts_user_provider_email_active
     ON mail_accounts (user_id, provider, email_address)
     WHERE deleted_at IS NULL;;
@@ -22,6 +24,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_user_email_active
 CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
     ON labels (user_id, lower(name))
     WHERE deleted_at IS NULL;;
+
+ALTER TABLE labels ADD COLUMN IF NOT EXISTS is_sensitive BOOLEAN NOT NULL DEFAULT FALSE;;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_webhook_id
     ON orders (webhook_id);;
@@ -101,7 +105,7 @@ CREATE INDEX IF NOT EXISTS idx_threads_last_message_at ON threads(last_message_a
 -- WHERE filename_vector IS NULL;
 
 -- ── Full-Text Search (English, pg_trgm) ──────────────────────────────────────
--- pg_trgm 확장은 extensions.sql(docker-entrypoint-initdb.d)에서 superuser로 설치됨
+-- pg_trgm 확장은 이 스크립트 상단에서 보장됨
 
 -- messages.search_text: 영어 부분/대소문자 무시 검색을 위한 소문자 정규화 텍스트
 -- body_text는 인덱스 크기 제한을 위해 앞 5000자만 포함

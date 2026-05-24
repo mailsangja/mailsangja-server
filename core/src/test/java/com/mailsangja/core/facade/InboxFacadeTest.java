@@ -11,6 +11,7 @@ import com.mailsangja.core.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.core.service.mail.InlineImageService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.core.service.search.MailSearchQueryService;
+import com.mailsangja.db.dto.ThreadMessageLabelView;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -58,8 +59,9 @@ class InboxFacadeTest {
         // given
         User user = user();
         Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "민감", "#123456", true);
         when(inboxQueryService.findInboxThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 50)))
-                .thenReturn(threadListResult(List.of(thread), false));
+                .thenReturn(threadListResult(List.of(thread), Map.of(thread.getId(), List.of(label)), false));
         when(inboxQueryService.countUnreadInbox(user.getId(), null, null)).thenReturn(3L);
         when(inboxQueryService.countInbox(user.getId(), null, null)).thenReturn(7L);
 
@@ -69,6 +71,7 @@ class InboxFacadeTest {
 
         // then
         assertEquals(1, result.content().size());
+        assertEquals(label.isSensitive(), result.content().getFirst().labels().getFirst().isSensitive());
         assertEquals(3L, result.unreadCount());
         assertEquals(7L, result.totalCount());
         verify(mailSearchQueryService, never()).searchInboxThreadsResult(any(), any(), anyList(), any(), any(), any());
@@ -194,6 +197,14 @@ class InboxFacadeTest {
 
     private ThreadListResult threadListResult(List<Thread> threads, boolean hasNext) {
         return new ThreadListResult(new SliceImpl<>(threads, PageRequest.of(0, 50), hasNext), Map.of(), Map.of(), Map.of());
+    }
+
+    private ThreadListResult threadListResult(
+            List<Thread> threads,
+            Map<UUID, List<ThreadMessageLabelView>> labelsByThreadId,
+            boolean hasNext
+    ) {
+        return new ThreadListResult(new SliceImpl<>(threads, PageRequest.of(0, 50), hasNext), Map.of(), Map.of(), labelsByThreadId);
     }
 
     private User user() {
