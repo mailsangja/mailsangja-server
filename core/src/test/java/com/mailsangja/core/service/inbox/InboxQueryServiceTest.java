@@ -57,7 +57,7 @@ class InboxQueryServiceTest {
         message.replaceAttachments(List.of(attachment));
         UUID labelId = UUID.randomUUID();
         List<UUID> labelIds = Arrays.asList(labelId, null, labelId);
-        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), labelId, "업무", "#123456");
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), labelId, "업무", "#123456", true);
         when(threadRepositoryPort.findInboxByUserIdAndFilters(
                 user.getId(), List.of(labelId), false, null, PageRequest.of(0, 20)))
                 .thenReturn(new SliceImpl<>(List.of(thread), PageRequest.of(0, 20), false));
@@ -113,7 +113,7 @@ class InboxQueryServiceTest {
                 .toAddresses(List.of("to@example.com"))
                 .ccAddresses(List.of("cc@example.com"))
                 .build();
-        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "중요", "#ff0000");
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "중요", "#ff0000", true);
         when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
                 account.getId(), thread.getGmailThreadId()))
                 .thenReturn(List.of(message));

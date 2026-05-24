@@ -207,7 +207,13 @@ public class MessageRepositoryAdapter implements MessageRepositoryPort {
         }
         return messageJpaRepositoryModule.findLabelsByThreadIdIn(threadIds)
                 .stream()
-                .map(p -> new ThreadMessageLabelView(p.getThreadId(), p.getLabelId(), p.getLabelName(), p.getLabelColorCode()))
+                .map(p -> new ThreadMessageLabelView(
+                        p.getThreadId(),
+                        p.getLabelId(),
+                        p.getLabelName(),
+                        p.getLabelColorCode(),
+                        p.getLabelIsSensitive()
+                ))
                 .toList();
     }
 

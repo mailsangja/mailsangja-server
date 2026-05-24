@@ -310,7 +310,8 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             SELECT DISTINCT ml.message.thread.id AS threadId,
                             ml.label.id  AS labelId,
                             ml.label.name AS labelName,
-                            ml.label.colorCode AS labelColorCode
+                            ml.label.colorCode AS labelColorCode,
+                            ml.label.isSensitive AS labelIsSensitive
             FROM MessageLabel ml
             WHERE ml.message.thread.id IN :threadIds
               AND ml.deletedAt IS NULL
