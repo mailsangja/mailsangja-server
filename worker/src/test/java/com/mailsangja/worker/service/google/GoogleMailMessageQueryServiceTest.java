@@ -58,7 +58,7 @@ class GoogleMailMessageQueryServiceTest {
                                 "parts": [
                                   {
                                     "mimeType": "text/plain",
-                                    "body": {"data": "aGVsbG8"}
+                                    "body": {"data": "aGVsbG8KPHNjcmlwdD4"}
                                   },
                                   {
                                     "mimeType": "image/png",
@@ -95,7 +95,8 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals("reply@example.com", results.getFirst().messages().getFirst().replyToAddress());
         assertEquals("Reply Alias", results.getFirst().messages().getFirst().replyToName());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());
-        assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
+        assertEquals("hello\n<script>", results.getFirst().messages().getFirst().bodyText());
+        assertEquals("<div>hello<br>&lt;script&gt;</div>", results.getFirst().messages().getFirst().bodyHtml());
         assertEquals(1, results.getFirst().messages().getFirst().attachments().size());
         assertEquals("inline-1", results.getFirst().messages().getFirst().attachments().getFirst().contentId());
         assertEquals(AttachmentDisposition.INLINE, results.getFirst().messages().getFirst().attachments().getFirst().disposition());

@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.HtmlUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
@@ -312,7 +313,17 @@ public class GmailMessageApiService {
 
         String text = decodeBody(findBodyData(payload, "text/plain"));
         String html = decodeBody(findBodyData(payload, "text/html"));
+        if (isBlank(html) && !isBlank(text)) {
+            html = plainTextToHtml(text);
+        }
         return new MimeBodyContent(text, html);
+    }
+
+    private String plainTextToHtml(String text) {
+        String normalized = text
+                .replace("\r\n", "\n")
+                .replace('\r', '\n');
+        return "<div>" + HtmlUtils.htmlEscape(normalized).replace("\n", "<br>") + "</div>";
     }
 
     private String findBodyData(GoogleMailThreadResponse.GoogleMailThreadPayloadResponse payload, String mimeType) {
