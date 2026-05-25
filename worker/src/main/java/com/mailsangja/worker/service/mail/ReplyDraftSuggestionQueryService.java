@@ -119,7 +119,7 @@ public class ReplyDraftSuggestionQueryService {
         if (messageId == null) {
             throw new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_MESSAGE);
         }
-        Message message = messageRepositoryPort.findByIdIncludingDeleted(messageId)
+        Message message = messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId)
                 .orElseThrow(() -> new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_MESSAGE));
         if (message.isDeleted()) {
             throw new MqException(MqErrorCode.INVALID_REPLY_DRAFT_SUGGESTION_MESSAGE);
@@ -128,7 +128,7 @@ public class ReplyDraftSuggestionQueryService {
     }
 
     private List<ReplyDraftSuggestionContextResult> findThread(Message latestMessage) {
-        List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+        List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
                 latestMessage.getThread().getMailAccount().getId(),
                 latestMessage.getThread().getGmailThreadId()
         );

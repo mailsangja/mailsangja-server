@@ -50,6 +50,10 @@ public class Label extends BaseEntity {
     @Column(name = "confirmed", nullable = false)
     private boolean confirmed = true;
 
+    @Builder.Default
+    @Column(name = "is_sensitive", nullable = false)
+    private boolean isSensitive = false;
+
     public void confirm() {
         this.confirmed = true;
     }
@@ -72,5 +76,9 @@ public class Label extends BaseEntity {
 
     public void updateRule(LabelRule rule) {
         this.rule = rule;
+    }
+
+    public void updateSensitive(boolean isSensitive) {
+        this.isSensitive = isSensitive;
     }
 }

@@ -6,5 +6,6 @@ public record ThreadMessageLabelView(
         UUID threadId,
         UUID labelId,
         String labelName,
-        String colorCode
+        String colorCode,
+        boolean isSensitive
 ) {}

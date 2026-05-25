@@ -51,7 +51,7 @@ class MailSearchQueryServiceTest {
         Message message = message(thread);
         Attachment attachment = attachment(message);
         message.replaceAttachments(List.of(attachment));
-        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "업무", "#123456");
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "업무", "#123456", false);
         when(mailSearchRepositoryPort.searchInboxThreads(
                 user.getId(), "프로젝트", List.of(), null, null, PageRequest.of(0, 20)))
                 .thenReturn(new SliceImpl<>(List.of(thread), PageRequest.of(0, 20), false));
@@ -147,7 +147,7 @@ class MailSearchQueryServiceTest {
         Message message = message(thread);
         Attachment attachment = attachment(message);
         message.replaceAttachments(List.of(attachment));
-        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "채용", "#0077B5");
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "채용", "#0077B5", false);
         when(mailSearchRepositoryPort.searchInboxThreads(
                 user.getId(), "LinkedIn", null, null, null, PageRequest.of(0, 20)))
                 .thenReturn(new SliceImpl<>(List.of(thread), PageRequest.of(0, 20), false));

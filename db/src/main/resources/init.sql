@@ -1,5 +1,3 @@
--- ── Unique Indexes ────────────────────────────────────────────────────────────
-
 CREATE UNIQUE INDEX IF NOT EXISTS uq_mail_accounts_user_provider_email_active
     ON mail_accounts (user_id, provider, email_address)
     WHERE deleted_at IS NULL;;
@@ -24,6 +22,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_user_email_active
 CREATE UNIQUE INDEX IF NOT EXISTS uq_labels_user_name_active
     ON labels (user_id, lower(name))
     WHERE deleted_at IS NULL;;
+
+ALTER TABLE labels ADD COLUMN IF NOT EXISTS is_sensitive BOOLEAN NOT NULL DEFAULT FALSE;;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_webhook_id
     ON orders (webhook_id);;

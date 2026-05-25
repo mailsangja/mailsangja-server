@@ -138,8 +138,12 @@ class ReplyDraftSuggestionQueryServiceTest {
         );
 
         ReplyDraftSuggestionQueryService service = createService();
-        when(messageRepositoryPort.findByIdIncludingDeleted(latestMessageId)).thenReturn(Optional.of(latestMessage));
-        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(latestMessageId))
+                .thenReturn(Optional.of(latestMessage));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+                mailAccountId,
+                "gmail-thread-1"
+        ))
                 .thenReturn(threadMessages);
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class)))
                 .thenReturn(List.of(sameRecipientSent));
@@ -185,8 +189,12 @@ class ReplyDraftSuggestionQueryServiceTest {
                 LocalDateTime.now()
         );
         ReplyDraftSuggestionQueryService service = createService();
-        when(messageRepositoryPort.findByIdIncludingDeleted(latestMessageId)).thenReturn(Optional.of(latestMessage));
-        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(latestMessageId))
+                .thenReturn(Optional.of(latestMessage));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+                mailAccountId,
+                "gmail-thread-1"
+        ))
                 .thenReturn(List.of(latestMessage));
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
         when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of());
@@ -233,8 +241,12 @@ class ReplyDraftSuggestionQueryServiceTest {
                 LocalDateTime.now()
         );
         ReplyDraftSuggestionQueryService service = createService();
-        when(messageRepositoryPort.findByIdIncludingDeleted(latestMessageId)).thenReturn(Optional.of(latestMessage));
-        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, "gmail-thread-1"))
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(latestMessageId))
+                .thenReturn(Optional.of(latestMessage));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+                mailAccountId,
+                "gmail-thread-1"
+        ))
                 .thenReturn(List.of(latestMessage));
         when(referenceQueryPort.findWrittenMessagesByHints(any(), any(), any(), any(Integer.class))).thenReturn(List.of());
         when(referenceQueryPort.findRecentWrittenMessages(userId, mailAccountId, 10)).thenReturn(List.of());
