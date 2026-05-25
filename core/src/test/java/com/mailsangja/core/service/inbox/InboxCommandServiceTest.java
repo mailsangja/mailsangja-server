@@ -393,6 +393,56 @@ class InboxCommandServiceTest {
     }
 
     @Test
+    void toggleStar_별표없는스레드에별표를등록하면true를반환한다() {
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId("gmail-thread-star-1")
+                .direction(Direction.INBOUND)
+                .star(false)
+                .build();
+
+        boolean result = inboxCommandService.toggleStar(thread);
+
+        assertTrue(result);
+        assertTrue(thread.isStar());
+    }
+
+    @Test
+    void toggleStar_별표있는스레드의별표를해제하면false를반환한다() {
+        MailAccount mailAccount = MailAccount.builder()
+                .id(UUID.randomUUID())
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+        Thread thread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId("gmail-thread-star-2")
+                .direction(Direction.INBOUND)
+                .star(true)
+                .build();
+
+        boolean result = inboxCommandService.toggleStar(thread);
+
+        assertFalse(result);
+        assertFalse(thread.isStar());
+    }
+
+    @Test
     void markMessageAsUnread_이미안읽은메시지에도안전하게동작한다() {
         UUID mailAccountId = UUID.randomUUID();
         String gmailThreadId = "gmail-thread-8";
