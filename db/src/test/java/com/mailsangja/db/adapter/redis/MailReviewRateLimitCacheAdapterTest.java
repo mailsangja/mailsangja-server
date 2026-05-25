@@ -18,27 +18,27 @@ import static org.mockito.Mockito.when;
 class MailReviewRateLimitCacheAdapterTest {
 
     @Test
-    void tryConsumeMonthlyLimit_증가된카운트가review설정값이하이면true를반환한다() {
-        RedisFixture fixture = createFixture(10L, 10L);
+    void tryConsumeWeeklyLimit_증가된카운트가review설정값이하이면true를반환한다() {
+        RedisFixture fixture = createFixture(20L, 20L);
 
-        boolean result = fixture.adapter().tryConsumeMonthlyLimit(UUID.randomUUID());
+        boolean result = fixture.adapter().tryConsumeWeeklyLimit(UUID.randomUUID());
 
         assertTrue(result);
-        verify(fixture.operations()).increment(startsWith("MailReview:rate:month:"));
+        verify(fixture.operations()).increment(startsWith("MailReview:rate:week:"));
     }
 
     @Test
-    void tryConsumeMonthlyLimit_증가된카운트가review설정값을초과하면false를반환한다() {
-        RedisFixture fixture = createFixture(10L, 11L);
+    void tryConsumeWeeklyLimit_증가된카운트가review설정값을초과하면false를반환한다() {
+        RedisFixture fixture = createFixture(20L, 21L);
 
-        boolean result = fixture.adapter().tryConsumeMonthlyLimit(UUID.randomUUID());
+        boolean result = fixture.adapter().tryConsumeWeeklyLimit(UUID.randomUUID());
 
         assertFalse(result);
     }
 
-    private RedisFixture createFixture(long reviewMonthlyLimit, long incrementedCount) {
+    private RedisFixture createFixture(long weeklyReviewLimit, long incrementedCount) {
         MailRateLimitProperties properties = new MailRateLimitProperties();
-        properties.setReviewMonthlyLimit(reviewMonthlyLimit);
+        properties.setWeeklyReviewLimit(weeklyReviewLimit);
         StringRedisTemplate template = mock(StringRedisTemplate.class);
         ValueOperations<String, String> operations = mock(ValueOperations.class);
         when(template.opsForValue()).thenReturn(operations);

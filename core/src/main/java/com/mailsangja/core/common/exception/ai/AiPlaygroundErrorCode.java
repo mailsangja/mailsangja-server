@@ -11,6 +11,7 @@ public enum AiPlaygroundErrorCode implements ErrorCode {
     INVALID_REQUEST(400, "MS-AI-PLAYGROUND-INVALID-REQUEST", "AI 플레이그라운드 요청이 올바르지 않습니다."),
     FORBIDDEN_USER(403, "MS-AI-PLAYGROUND-FORBIDDEN-USER", "AI 플레이그라운드 사용 권한이 없습니다."),
     MAIL_ACCOUNT_REQUIRED(403, "MS-AI-PLAYGROUND-MAIL-ACCOUNT-REQUIRED", "AI 플레이그라운드는 메일 계정을 등록한 사용자만 사용할 수 있습니다."),
+    RATE_LIMIT_EXCEEDED(429, "MS-AI-PLAYGROUND-RATE-LIMIT-EXCEEDED", "AI 플레이그라운드 주간 사용 한도를 초과했습니다."),
     CHAT_MODEL_NOT_AVAILABLE(503, "MS-AI-PLAYGROUND-CHAT-MODEL-NOT-AVAILABLE", "사용 가능한 AI 채팅 모델이 없습니다."),
     PROVIDER_FAILURE(502, "MS-AI-PLAYGROUND-PROVIDER-FAILURE", "AI Provider 호출에 실패했습니다.");
 

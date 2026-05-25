@@ -19,6 +19,9 @@ public record LabelListResponse(
         @Schema(description = "표시 순서", example = "0")
         int order,
 
+        @Schema(description = "AI 기능에서 제외할 민감 라벨 여부", example = "false")
+        boolean isSensitive,
+
         @Schema(description = "읽지 않은 스레드 수", example = "12")
         long unreadThreadCount
 ) {
@@ -29,6 +32,7 @@ public record LabelListResponse(
                 label.getName(),
                 label.getColorCode(),
                 label.getDisplayOrder(),
+                label.isSensitive(),
                 unreadThreadCount
         );
     }

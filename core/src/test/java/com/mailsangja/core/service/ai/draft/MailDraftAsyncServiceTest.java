@@ -185,7 +185,7 @@ class MailDraftAsyncServiceTest {
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.queryService(), fixture.commandService());
         inOrder.verify(fixture.queryService()).generalPrompt(eq(command), any());
         inOrder.verify(fixture.commandService()).resolveModel(command.model());
-        inOrder.verify(fixture.commandService()).validateMonthlyRateLimit(command.userId());
+        inOrder.verify(fixture.commandService()).validateWeeklyRateLimit(command.userId());
         inOrder.verify(fixture.commandService()).streamSubject(eq(emitter), any(), any(), any(), any());
     }
 
@@ -195,7 +195,7 @@ class MailDraftAsyncServiceTest {
         Fixture fixture = createFixture();
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
-        doThrow(mock(MailDraftException.class)).when(fixture.commandService()).validateMonthlyRateLimit(command.userId());
+        doThrow(mock(MailDraftException.class)).when(fixture.commandService()).validateWeeklyRateLimit(command.userId());
 
         // when
         fixture.asyncService().streamGeneral(emitter, command);

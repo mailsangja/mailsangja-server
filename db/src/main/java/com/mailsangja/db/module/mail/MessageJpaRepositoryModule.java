@@ -96,8 +96,46 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             @Param("gmailThreadId") String gmailThreadId
     );
 
+    @EntityGraph(attributePaths = {"attachments"})
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.thread.mailAccount.id = :mailAccountId
+              AND m.thread.gmailThreadId = :gmailThreadId
+              AND m.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
+            ORDER BY m.sentAt ASC
+            """)
+    List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(
+            @Param("mailAccountId") UUID mailAccountId,
+            @Param("gmailThreadId") String gmailThreadId
+    );
+
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount", "thread.mailAccount.user"})
     Optional<Message> findById(UUID id);
+
+    @EntityGraph(attributePaths = {"thread", "thread.mailAccount", "thread.mailAccount.user"})
+    @Query("""
+            SELECT m
+            FROM Message m
+            WHERE m.id = :messageId
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
+            """)
+    Optional<Message> findByIdIncludingDeletedAndSensitiveLabelsExcluded(@Param("messageId") UUID messageId);
 
     @EntityGraph(attributePaths = {"attachments"})
     @Query("SELECT m FROM Message m WHERE m.thread.mailAccount.id = :mailAccountId AND m.thread.gmailThreadId = :gmailThreadId ORDER BY m.sentAt ASC")
@@ -310,7 +348,8 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             SELECT DISTINCT ml.message.thread.id AS threadId,
                             ml.label.id  AS labelId,
                             ml.label.name AS labelName,
-                            ml.label.colorCode AS labelColorCode
+                            ml.label.colorCode AS labelColorCode,
+                            ml.label.isSensitive AS labelIsSensitive
             FROM MessageLabel ml
             WHERE ml.message.thread.id IN :threadIds
               AND ml.deletedAt IS NULL
@@ -370,6 +409,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             ORDER BY m.sentAt DESC, m.id DESC
             """)
     List<Message> findRecentByUserIdAndMailAccountIdAndDirection(
@@ -390,6 +437,15 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deleted_at IS NULL
               AND t.deleted_at IS NULL
               AND ma.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM message_labels ml
+                  JOIN labels l ON l.id = ml.label_id
+                  WHERE ml.message_id = m.id
+                    AND ml.deleted_at IS NULL
+                    AND l.deleted_at IS NULL
+                    AND l.is_sensitive = true
+              )
               AND (
                   LOWER(COALESCE(m.subject, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
                   OR LOWER(COALESCE(m.body_text, '')) LIKE LOWER(CONCAT('%', :hint, '%'))
@@ -415,6 +471,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             ORDER BY m.sentAt DESC, m.id DESC
             """)
     List<Message> findRecentByUserIdAndDirection(
@@ -433,6 +497,15 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deleted_at IS NULL
               AND t.deleted_at IS NULL
               AND ma.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM message_labels ml
+                  JOIN labels l ON l.id = ml.label_id
+                  WHERE ml.message_id = m.id
+                    AND ml.deleted_at IS NULL
+                    AND l.deleted_at IS NULL
+                    AND l.is_sensitive = true
+              )
               AND (
                   (
                       m.direction = 'OUTBOUND'
@@ -474,6 +547,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             """)
     List<Message> findActiveByIdIn(@Param("messageIds") List<UUID> messageIds);
 
@@ -490,6 +571,14 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deletedAt IS NULL
               AND m.thread.deletedAt IS NULL
               AND m.thread.mailAccount.deletedAt IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM MessageLabel ml
+                  WHERE ml.message.id = m.id
+                    AND ml.deletedAt IS NULL
+                    AND ml.label.deletedAt IS NULL
+                    AND ml.label.isSensitive = true
+              )
             ORDER BY m.sentAt ASC, m.id ASC
             """)
     List<Message> findThreadContextByReplyMessageId(@Param("replyMessageId") UUID replyMessageId);

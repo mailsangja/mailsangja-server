@@ -21,6 +21,9 @@ public record LabelCreateRequest(
         @Schema(description = "표시 순서", example = "0")
         int order,
 
+        @Schema(description = "AI 기능에서 제외할 민감 라벨 여부", example = "false")
+        Boolean isSensitive,
+
         @Schema(description = "라벨 자동 분류 규칙")
         LabelRule rule
 ) {

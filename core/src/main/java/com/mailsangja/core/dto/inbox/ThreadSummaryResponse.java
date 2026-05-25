@@ -38,7 +38,8 @@ public record ThreadSummaryResponse(
     public record LabelSummary(
             @Schema(description = "라벨 ID") UUID labelId,
             @Schema(description = "라벨 이름") String name,
-            @Schema(description = "라벨 색상 코드", example = "#FF5733") String colorCode
+            @Schema(description = "라벨 색상 코드", example = "#FF5733") String colorCode,
+            @Schema(description = "AI 기능에서 제외할 민감 라벨 여부", example = "false") boolean isSensitive
     ) {}
 
     public static ThreadSummaryResponse from(
@@ -59,7 +60,7 @@ public record ThreadSummaryResponse(
                 attachments.stream().map(AttachmentResponse::from).toList(),
                 thread.getMessageCount(),
                 labelViews.stream()
-                        .map(v -> new LabelSummary(v.labelId(), v.labelName(), v.colorCode()))
+                        .map(v -> new LabelSummary(v.labelId(), v.labelName(), v.colorCode(), v.isSensitive()))
                         .toList()
         );
     }

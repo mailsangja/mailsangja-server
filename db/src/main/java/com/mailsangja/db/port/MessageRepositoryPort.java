@@ -37,10 +37,12 @@ public interface MessageRepositoryPort {
             Direction direction
     );
     Optional<Message> findByIdIncludingDeleted(UUID messageId);
+    Optional<Message> findByIdIncludingDeletedAndSensitiveLabelsExcluded(UUID messageId);
     List<Message> findAllByThreadIdAndDeletedAtIsNull(UUID threadId);
     List<Message> findAllByThreadIdIncludingDeleted(UUID threadId);
     List<Message> findAllByThreadIdInAndDeletedAtIsNull(List<UUID> threadIds);
     List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(UUID mailAccountId, String gmailThreadId);
+    List<Message> findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNullAndSensitiveLabelsExcluded(UUID mailAccountId, String gmailThreadId);
     List<Message> findAllByMailAccountIdAndGmailThreadId(UUID mailAccountId, String gmailThreadId);
     Slice<Message> findDeletedByUserId(UUID userId, UUID markerId, Pageable pageable);
     Slice<Message> findDeletedByUserIdAndFilters(UUID userId, UUID markerId, List<UUID> labelIds, Boolean read, Pageable pageable);

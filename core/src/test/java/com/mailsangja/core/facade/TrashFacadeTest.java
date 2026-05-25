@@ -267,7 +267,7 @@ class TrashFacadeTest {
         Thread inbound = thread(account, "gmail-thread-1", Direction.INBOUND);
         Message message = message(inbound);
         Attachment attachment = attachment(message);
-        ThreadMessageLabelView label = new ThreadMessageLabelView(inbound.getId(), UUID.randomUUID(), "업무", "#123456");
+        ThreadMessageLabelView label = new ThreadMessageLabelView(inbound.getId(), UUID.randomUUID(), "업무", "#123456", false);
         stubTrashCounts(user.getId());
         when(trashQueryService.findDeletedMessagesByUserId(any(), any(), anyInt(), any(), any()))
                 .thenReturn(sliceOf(message));
@@ -386,7 +386,7 @@ class TrashFacadeTest {
                 List.of("cc@example.com")
         );
         Message second = detailedMessage(thread, "from@example.com", List.of("to@example.com"), null);
-        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "중요", "#ff0000");
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "중요", "#ff0000", false);
         when(trashQueryService.findThreadByIdIncludingDeleted(thread.getId())).thenReturn(thread);
         when(mailAccountQueryService.findAllActiveByUserId(user.getId())).thenReturn(List.of(account));
         when(trashQueryService.findDeletedMessagesByMailAccountIdAndGmailThreadId(account.getId(), thread.getGmailThreadId()))

@@ -59,7 +59,7 @@ public class MailReviewCommandService {
     private final MailReviewQueryService mailReviewQueryService;
 
     public MailReviewResult review(MailReviewCommand command) {
-        validateMonthlyRateLimit(command);
+        validateWeeklyRateLimit(command);
         List<MailReviewSegment> segments = mailReviewQueryService.createSegments(command);
         if (segments.isEmpty()) {
             return new MailReviewResult(List.of());
@@ -72,8 +72,8 @@ public class MailReviewCommandService {
         return new MailReviewResult(filterAttachmentIssues(command, issues));
     }
 
-    private void validateMonthlyRateLimit(MailReviewCommand command) {
-        if (!rateLimitCachePort.tryConsumeMonthlyLimit(command.userId())) {
+    private void validateWeeklyRateLimit(MailReviewCommand command) {
+        if (!rateLimitCachePort.tryConsumeWeeklyLimit(command.userId())) {
             throw new MailReviewException(MailReviewErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }

@@ -24,6 +24,9 @@ public record LabelDetailResponse(
         @Schema(description = "알림 정책 (URGENT/INHERIT/SILENT)", example = "INHERIT")
         NotificationPolicy notificationPolicy,
 
+        @Schema(description = "AI 기능에서 제외할 민감 라벨 여부", example = "false")
+        boolean isSensitive,
+
         @Schema(description = "라벨 자동 분류 규칙")
         LabelRule rule
 ) {
@@ -35,6 +38,7 @@ public record LabelDetailResponse(
                 label.getColorCode(),
                 label.getDisplayOrder(),
                 label.getNotificationPolicy(),
+                label.isSensitive(),
                 rule
         );
     }

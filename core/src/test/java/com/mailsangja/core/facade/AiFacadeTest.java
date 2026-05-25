@@ -10,6 +10,7 @@ import com.mailsangja.core.dto.ai.AiPlaygroundChatResult;
 import com.mailsangja.core.dto.ai.AiPlaygroundUsageResult;
 import com.mailsangja.core.service.ai.AiPlaygroundCommandService;
 import com.mailsangja.core.service.ai.AiQueryService;
+import com.mailsangja.core.service.ai.AiUsageQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.user.Role;
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -36,6 +38,7 @@ class AiFacadeTest {
         AiFacade facade = new AiFacade(
                 mock(AiPlaygroundCommandService.class),
                 queryService,
+                mock(AiUsageQueryService.class),
                 mock(MailAccountQueryService.class)
         );
         when(queryService.getModels()).thenReturn(AiModelListResult.of(
@@ -60,11 +63,11 @@ class AiFacadeTest {
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mailAccountQueryService);
+        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mock(AiUsageQueryService.class), mailAccountQueryService);
 
         when(mailAccountQueryService.findAllActiveByUserId(user.getId()))
                 .thenReturn(List.of(mock(MailAccount.class)));
-        when(playgroundCommandService.chat(request))
+        when(playgroundCommandService.chat(user.getId(), request))
                 .thenReturn(new AiPlaygroundChatResult(
                         "OPENROUTER",
                         "google/gemini-3.5-flash",
@@ -83,7 +86,7 @@ class AiFacadeTest {
         assertEquals(10, response.usage().inputTokens());
         assertEquals(20, response.usage().outputTokens());
         assertEquals(30, response.usage().totalTokens());
-        verify(playgroundCommandService).chat(request);
+        verify(playgroundCommandService).chat(user.getId(), request);
     }
 
     @Test
@@ -93,7 +96,7 @@ class AiFacadeTest {
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mailAccountQueryService);
+        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mock(AiUsageQueryService.class), mailAccountQueryService);
 
         when(mailAccountQueryService.findAllActiveByUserId(user.getId())).thenReturn(List.of());
 
@@ -105,7 +108,7 @@ class AiFacadeTest {
 
         // then
         assertEquals(AiPlaygroundErrorCode.MAIL_ACCOUNT_REQUIRED, exception.getErrorCode());
-        verify(playgroundCommandService, never()).chat(request);
+        verify(playgroundCommandService, never()).chat(any(), any());
     }
 
     @Test
@@ -115,7 +118,7 @@ class AiFacadeTest {
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
-        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mailAccountQueryService);
+        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mock(AiUsageQueryService.class), mailAccountQueryService);
 
         // when
         AiPlaygroundException exception = assertThrows(
@@ -126,7 +129,7 @@ class AiFacadeTest {
         // then
         assertEquals(AiPlaygroundErrorCode.FORBIDDEN_USER, exception.getErrorCode());
         verify(mailAccountQueryService, never()).findAllActiveByUserId(user.getId());
-        verify(playgroundCommandService, never()).chat(request);
+        verify(playgroundCommandService, never()).chat(any(), any());
     }
 
     private AiPlaygroundChatRequest createChatRequest() {

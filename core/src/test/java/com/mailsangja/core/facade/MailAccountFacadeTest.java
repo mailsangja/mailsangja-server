@@ -10,6 +10,7 @@ import com.mailsangja.core.dto.mail.MailAccountListResponse;
 import com.mailsangja.core.dto.mail.MailAccountResponse;
 import com.mailsangja.core.common.exception.mail.MailAccountErrorCode;
 import com.mailsangja.core.common.exception.mail.MailAccountException;
+import com.mailsangja.core.config.properties.MailAccountProperties;
 import com.mailsangja.core.service.contact.ContactCommandService;
 import com.mailsangja.core.service.google.GoogleMailWatchQueryService;
 import com.mailsangja.core.service.google.GoogleOAuthQueryService;
@@ -53,6 +54,7 @@ class MailAccountFacadeTest {
         GooglePeopleContactQueryService googlePeopleContactQueryService = mock(GooglePeopleContactQueryService.class);
         ContactCommandService contactCommandService = mock(ContactCommandService.class);
         MailAccountFacade facade = new MailAccountFacade(
+                mailAccountProperties(),
                 mailAccountCommandService,
                 mailAccountQueryService,
                 googleOAuthQueryService,
@@ -88,6 +90,7 @@ class MailAccountFacadeTest {
         GooglePeopleContactQueryService googlePeopleContactQueryService = mock(GooglePeopleContactQueryService.class);
         ContactCommandService contactCommandService = mock(ContactCommandService.class);
         MailAccountFacade facade = new MailAccountFacade(
+                mailAccountProperties(),
                 mailAccountCommandService,
                 mailAccountQueryService,
                 googleOAuthQueryService,
@@ -139,6 +142,7 @@ class MailAccountFacadeTest {
         GooglePeopleContactQueryService googlePeopleContactQueryService = mock(GooglePeopleContactQueryService.class);
         ContactCommandService contactCommandService = mock(ContactCommandService.class);
         MailAccountFacade facade = new MailAccountFacade(
+                mailAccountProperties(),
                 mailAccountCommandService,
                 mailAccountQueryService,
                 googleOAuthQueryService,
@@ -187,6 +191,7 @@ class MailAccountFacadeTest {
         GooglePeopleContactQueryService googlePeopleContactQueryService = mock(GooglePeopleContactQueryService.class);
         ContactCommandService contactCommandService = mock(ContactCommandService.class);
         MailAccountFacade facade = new MailAccountFacade(
+                mailAccountProperties(),
                 mailAccountCommandService,
                 mailAccountQueryService,
                 googleOAuthQueryService,
@@ -441,6 +446,7 @@ class MailAccountFacadeTest {
             ContactCommandService contactCommandService
     ) {
         return new MailAccountFacade(
+                mailAccountProperties(),
                 mailAccountCommandService,
                 mailAccountQueryService,
                 googleOAuthQueryService,
@@ -449,5 +455,11 @@ class MailAccountFacadeTest {
                 googlePeopleContactQueryService,
                 contactCommandService
         );
+    }
+
+    private MailAccountProperties mailAccountProperties() {
+        MailAccountProperties properties = new MailAccountProperties();
+        properties.setMaxCount(2);
+        return properties;
     }
 }

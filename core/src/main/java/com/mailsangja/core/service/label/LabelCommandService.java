@@ -39,6 +39,7 @@ public class LabelCommandService {
                 .displayOrder(request.order())
                 .rule(request.rule())
                 .confirmed(true)
+                .isSensitive(Boolean.TRUE.equals(request.isSensitive()))
                 .build();
         return labelRepositoryPort.save(label);
     }
@@ -56,6 +57,7 @@ public class LabelCommandService {
                 .displayOrder(request.order())
                 .rule(request.rule())
                 .confirmed(false)
+                .isSensitive(Boolean.TRUE.equals(request.isSensitive()))
                 .build();
         return labelRepositoryPort.save(label);
     }
@@ -69,6 +71,7 @@ public class LabelCommandService {
         );
         suggestion.updateDisplayOrder(request.order());
         suggestion.updateRule(request.rule());
+        suggestion.updateSensitive(Boolean.TRUE.equals(request.isSensitive()));
         suggestion.confirm();
         return labelRepositoryPort.save(suggestion);
     }
@@ -86,6 +89,9 @@ public class LabelCommandService {
         }
         if (request.order() != null) {
             label.updateDisplayOrder(request.order());
+        }
+        if (request.isSensitive() != null) {
+            label.updateSensitive(request.isSensitive());
         }
         return labelRepositoryPort.save(label);
     }

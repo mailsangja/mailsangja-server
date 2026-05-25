@@ -7,4 +7,5 @@ public interface ThreadMessageLabelProjection {
     UUID getLabelId();
     String getLabelName();
     String getLabelColorCode();
+    boolean getLabelIsSensitive();
 }

@@ -94,7 +94,7 @@ public class LabelFacade {
         List<Label> existingLabels = labelQueryService.findAllActiveByUserId(user.getId());
         LlmLabelSuggestionResult result = labelSuggestionAiService.suggest(user.getId(), existingLabels);
         return result.suggestions().stream()
-                .map(item -> new LabelCreateRequest(item.name(), item.colorCode(), item.notificationPolicy(), item.order(), item.rule()))
+                .map(item -> new LabelCreateRequest(item.name(), item.colorCode(), item.notificationPolicy(), item.order(), false, item.rule()))
                 .filter(request -> !labelQueryService.existsByUserIdAndName(user.getId(), request.name().trim()))
                 .map(request -> {
                     Label suggestion = labelCommandService.createSuggestion(user, request);
@@ -104,7 +104,7 @@ public class LabelFacade {
     }
 
     private void validateSuggestionRateLimit(UUID userId) {
-        if (!suggestionRateLimitCachePort.tryConsumeMonthlyLimit(userId)) {
+        if (!suggestionRateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
             throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED);
         }
     }
