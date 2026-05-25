@@ -393,7 +393,7 @@ class InboxCommandServiceTest {
     }
 
     @Test
-    void toggleStar_별표없는스레드에별표를등록하면true를반환한다() {
+    void toggleStar_별표없는스레드에별표를등록하면락을잡고true를반환한다() {
         MailAccount mailAccount = MailAccount.builder()
                 .id(UUID.randomUUID())
                 .provider(MailProvider.GMAIL)
@@ -413,12 +413,13 @@ class InboxCommandServiceTest {
 
         boolean result = inboxCommandService.toggleStar(thread);
 
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, "gmail-thread-star-1");
         assertTrue(result);
         assertTrue(thread.isStar());
     }
 
     @Test
-    void toggleStar_별표있는스레드의별표를해제하면false를반환한다() {
+    void toggleStar_별표있는스레드의별표를해제하면락을잡고false를반환한다() {
         MailAccount mailAccount = MailAccount.builder()
                 .id(UUID.randomUUID())
                 .provider(MailProvider.GMAIL)
@@ -438,6 +439,7 @@ class InboxCommandServiceTest {
 
         boolean result = inboxCommandService.toggleStar(thread);
 
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, "gmail-thread-star-2");
         assertFalse(result);
         assertFalse(thread.isStar());
     }

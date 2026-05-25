@@ -87,6 +87,7 @@ public class InboxCommandService {
 
     @Transactional
     public boolean toggleStar(Thread thread) {
+        gmailThreadLockRepositoryPort.acquireThreadLock(thread.getMailAccount(), thread.getGmailThreadId());
         thread.toggleStar();
         return thread.isStar();
     }
