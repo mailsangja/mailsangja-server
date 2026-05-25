@@ -61,6 +61,9 @@ public class Thread extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
+    @Column(name = "is_star", nullable = false)
+    private boolean star;
+
     @Column(name = "message_count", nullable = false)
     private int messageCount;
 
@@ -104,6 +107,10 @@ public class Thread extends BaseEntity {
 
     public void updateReadStatus(boolean read) {
         this.read = read;
+    }
+
+    public void toggleStar() {
+        this.star = !this.star;
     }
 
     public void updateMessageCount(int messageCount) {
