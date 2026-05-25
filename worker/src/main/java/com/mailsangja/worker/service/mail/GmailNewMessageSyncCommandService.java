@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageSaveCommand;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
@@ -31,7 +32,7 @@ public class GmailNewMessageSyncCommandService {
         ).isEmpty();
 
         List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
-                mailAccount.getAccessToken(),
+                GoogleMailApiContext.from(mailAccount),
                 List.of(event.gmailThreadId())
         );
 

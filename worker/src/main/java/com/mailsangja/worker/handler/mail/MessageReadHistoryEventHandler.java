@@ -3,6 +3,7 @@ package com.mailsangja.worker.handler.mail;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
@@ -46,7 +47,7 @@ public class MessageReadHistoryEventHandler implements GmailHistoryEventHandler 
             return null;
         }
         List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
-                mailAccount.getAccessToken(), List.of(event.gmailThreadId())
+                GoogleMailApiContext.from(mailAccount), List.of(event.gmailThreadId())
         );
         if (threadResults.isEmpty()) {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);

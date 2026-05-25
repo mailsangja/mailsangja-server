@@ -3,6 +3,7 @@ package com.mailsangja.worker.handler.mail;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class MessageReadHistoryEventHandlerTest {
@@ -74,7 +76,7 @@ class MessageReadHistoryEventHandlerTest {
                 ArgumentCaptor.forClass(InitialMailSyncThreadSaveCommand.class);
         verify(gmailHistoryStateApplyCommandService).applyMessageReadState(eq(refreshed), eq(event), eq(true), commandCaptor.capture());
         assertNull(commandCaptor.getValue());
-        verify(gmailMessageApiService, never()).getThreads("access-token", List.of("thread-1"));
+        verify(gmailMessageApiService, never()).getThreads(any(GoogleMailApiContext.class), eq(List.of("thread-1")));
     }
 
     @Test
@@ -86,7 +88,7 @@ class MessageReadHistoryEventHandlerTest {
         when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
         when(googleAccessTokenEnsureService.ensureValidGoogleAccessToken(mailAccount)).thenReturn(mailAccount);
         when(gmailHistoryStateQueryService.existsMessage(mailAccountId, "thread-1", "message-1")).thenReturn(false);
-        when(gmailMessageApiService.getThreads("access-token", List.of("thread-1")))
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("thread-1")))
                 .thenReturn(List.of(new InitialMailSyncThreadResult("thread-1", "history-1", List.of())));
 
         handler.handle(event);
@@ -106,7 +108,7 @@ class MessageReadHistoryEventHandlerTest {
         when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
         when(googleAccessTokenEnsureService.ensureValidGoogleAccessToken(mailAccount)).thenReturn(mailAccount);
         when(gmailHistoryStateQueryService.existsMessage(mailAccountId, "thread-1", "message-1")).thenReturn(false);
-        when(gmailMessageApiService.getThreads("access-token", List.of("thread-1"))).thenReturn(List.of());
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("thread-1"))).thenReturn(List.of());
 
         MailPushException exception = assertThrows(MailPushException.class, () -> handler.handle(event));
 
@@ -116,6 +118,7 @@ class MessageReadHistoryEventHandlerTest {
     private MailAccount createMailAccount(UUID mailAccountId) {
         return MailAccount.builder()
                 .id(mailAccountId)
+                .emailAddress("alice@example.com")
                 .accessToken("access-token")
                 .build();
     }

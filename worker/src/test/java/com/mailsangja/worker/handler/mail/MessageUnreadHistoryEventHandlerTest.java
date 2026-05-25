@@ -52,6 +52,7 @@ class MessageUnreadHistoryEventHandlerTest {
         UUID mailAccountId = UUID.randomUUID();
         MailAccount mailAccount = MailAccount.builder()
                 .id(mailAccountId)
+                .emailAddress("alice@example.com")
                 .accessToken("access-token")
                 .build();
         GmailHistoryEvent event = new GmailHistoryEvent(

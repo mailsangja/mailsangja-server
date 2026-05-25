@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadListResponse;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncAttachmentResult;
@@ -42,22 +43,25 @@ public class GmailMessageApiService {
 
     private final GoogleMailInitialSyncProperties googleMailInitialSyncProperties;
     private final RestClient googleMailMessageRestClient;
+    private final GmailApiRateLimitService gmailApiRateLimitService;
 
     public GmailMessageApiService(
             GoogleMailInitialSyncProperties googleMailInitialSyncProperties,
-            @Qualifier("googleMailMessageRestClient") RestClient googleMailMessageRestClient
+            @Qualifier("googleMailMessageRestClient") RestClient googleMailMessageRestClient,
+            GmailApiRateLimitService gmailApiRateLimitService
     ) {
         this.googleMailInitialSyncProperties = googleMailInitialSyncProperties;
         this.googleMailMessageRestClient = googleMailMessageRestClient;
+        this.gmailApiRateLimitService = gmailApiRateLimitService;
     }
 
-    public List<String> getInitialThreadIds(String accessToken) {
-        validateThreadListInput(accessToken);
+    public List<String> getInitialThreadIds(GoogleMailApiContext context) {
+        validateThreadListInput(context);
 
         Set<String> threadIds = new LinkedHashSet<>();
         String pageToken = null;
         do {
-            GoogleMailThreadListResponse response = requestThreadList(accessToken, pageToken, remainingThreadCount(threadIds));
+            GoogleMailThreadListResponse response = requestThreadList(context, pageToken, remainingThreadCount(threadIds));
             appendThreadIds(threadIds, response);
             pageToken = response.nextPageToken();
         } while (threadIds.size() < googleMailInitialSyncProperties.getMaxThreads() && !isBlank(pageToken));
@@ -67,16 +71,18 @@ public class GmailMessageApiService {
                 .toList();
     }
 
-    public List<InitialMailSyncThreadResult> getThreads(String accessToken, List<String> threadIds) {
-        validateThreadInput(accessToken, threadIds);
+    public List<InitialMailSyncThreadResult> getThreads(GoogleMailApiContext context, List<String> threadIds) {
+        validateThreadInput(context, threadIds);
 
         return threadIds.stream()
-                .map(threadId -> toThreadResult(getThread(accessToken, threadId)))
+                .map(threadId -> toThreadResult(getThread(context, threadId)))
                 .toList();
     }
 
-    private void validateThreadListInput(String accessToken) {
-        if (isBlank(accessToken)
+    private void validateThreadListInput(GoogleMailApiContext context) {
+        if (context == null
+                || isBlank(context.accessToken())
+                || isBlank(context.accountKey())
                 || isBlank(googleMailInitialSyncProperties.getThreadsUri())
                 || googleMailInitialSyncProperties.getMaxThreads() <= 0
                 || googleMailInitialSyncProperties.getThreadListPageSize() <= 0
@@ -90,12 +96,13 @@ public class GmailMessageApiService {
         return googleMailInitialSyncProperties.getMaxThreads() - threadIds.size();
     }
 
-    private GoogleMailThreadListResponse requestThreadList(String accessToken, String pageToken, int remainingThreadCount) {
+    private GoogleMailThreadListResponse requestThreadList(GoogleMailApiContext context, String pageToken, int remainingThreadCount) {
         try {
+            gmailApiRateLimitService.consumeThreadList(context.accountKey());
             GoogleMailThreadListResponse response = googleMailMessageRestClient
                     .get()
                     .uri(buildThreadListUri(pageToken, remainingThreadCount))
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + context.accessToken())
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(GoogleMailThreadListResponse.class);
@@ -141,12 +148,13 @@ public class GmailMessageApiService {
                 .forEach(threadIds::add);
     }
 
-    private GoogleMailThreadResponse getThread(String accessToken, String threadId) {
+    private GoogleMailThreadResponse getThread(GoogleMailApiContext context, String threadId) {
         try {
+            gmailApiRateLimitService.consumeThreadGet(context.accountKey());
             GoogleMailThreadResponse response = googleMailMessageRestClient
                     .get()
                     .uri(buildThreadUri(threadId))
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + context.accessToken())
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(GoogleMailThreadResponse.class);
@@ -164,8 +172,10 @@ public class GmailMessageApiService {
                 .toUriString();
     }
 
-    private void validateThreadInput(String accessToken, List<String> threadIds) {
-        if (isBlank(accessToken)
+    private void validateThreadInput(GoogleMailApiContext context, List<String> threadIds) {
+        if (context == null
+                || isBlank(context.accessToken())
+                || isBlank(context.accountKey())
                 || isBlank(googleMailInitialSyncProperties.getThreadsUri())
                 || threadIds == null
                 || threadIds.isEmpty()

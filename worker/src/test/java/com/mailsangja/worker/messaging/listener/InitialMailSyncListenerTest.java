@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
@@ -96,7 +97,7 @@ class InitialMailSyncListenerTest {
 
         when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
         when(googleAccessTokenEnsureService.ensureValidGoogleAccessToken(mailAccount)).thenReturn(mailAccount);
-        when(gmailMessageApiService.getInitialThreadIds("access-token"))
+        when(gmailMessageApiService.getInitialThreadIds(new GoogleMailApiContext("access-token", "alice@example.com")))
                 .thenReturn(List.of("thread-1", "thread-2", "thread-3", "thread-4", "thread-5"));
         when(googleMailInitialSyncProperties.getThreadBatchSize()).thenReturn(2);
         when(googleMailInitialSyncProperties.getMaxThreads()).thenReturn(2000);
@@ -133,7 +134,7 @@ class InitialMailSyncListenerTest {
 
         when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
         when(googleAccessTokenEnsureService.ensureValidGoogleAccessToken(mailAccount)).thenReturn(mailAccount);
-        when(gmailMessageApiService.getThreads("access-token", List.of("gmail-thread-1")))
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("gmail-thread-1")))
                 .thenReturn(List.of(new InitialMailSyncThreadResult("gmail-thread-1", "history-1", List.of())));
         when(initialMailSyncCommandService.saveThreadBatch(eq(mailAccount), anyList()))
                 .thenReturn(new InitialMailSyncSaveResult(List.of(threadId), List.of(firstMessageId, secondMessageId)));

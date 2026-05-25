@@ -3,6 +3,7 @@ package com.mailsangja.worker.messaging.listener;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
@@ -47,9 +48,8 @@ public class InitialMailSyncListener {
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
 
-        List<String> threadIds = gmailMessageApiService.getInitialThreadIds(
-                mailAccount.getAccessToken()
-        );
+        GoogleMailApiContext context = GoogleMailApiContext.from(mailAccount);
+        List<String> threadIds = gmailMessageApiService.getInitialThreadIds(context);
 
         List<List<String>> threadBatches = partitionThreadIds(threadIds);
 
@@ -82,10 +82,8 @@ public class InitialMailSyncListener {
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
 
-        List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
-                mailAccount.getAccessToken(),
-                message.threadIds()
-        );
+        GoogleMailApiContext context = GoogleMailApiContext.from(mailAccount);
+        List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(context, message.threadIds());
 
         List<InitialMailSyncThreadSaveCommand> commands = threadResults.stream()
                 .map(InitialMailSyncThreadSaveCommand::from)

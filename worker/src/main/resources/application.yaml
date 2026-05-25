@@ -99,6 +99,12 @@ mailsangja:
       metadata-hash:
         secret: ${AI_METADATA_HASH_SECRET:}
   gmail:
+    rate-limit:
+      enabled: ${GOOGLE_GMAIL_RATE_LIMIT_ENABLED:true}
+      fail-open: ${GOOGLE_GMAIL_RATE_LIMIT_FAIL_OPEN:true}
+      per-user-capacity-units: ${GOOGLE_GMAIL_RATE_LIMIT_PER_USER_CAPACITY_UNITS:12000}
+      per-user-refill-units-per-minute: ${GOOGLE_GMAIL_RATE_LIMIT_PER_USER_REFILL_UNITS_PER_MINUTE:12000}
+      key-ttl: ${GOOGLE_GMAIL_RATE_LIMIT_KEY_TTL:2m}
     watch-renewal:
       enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}
       cron: ${GOOGLE_GMAIL_WATCH_RENEWAL_CRON:0 0 * * * *}

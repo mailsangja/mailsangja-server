@@ -3,6 +3,7 @@ package com.mailsangja.worker.service.google;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class GoogleMailMessageQueryServiceTest {
 
@@ -58,15 +62,17 @@ class GoogleMailMessageQueryServiceTest {
         RestClient restClient = RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
-        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
+        GmailApiRateLimitService rateLimitService = mock(GmailApiRateLimitService.class);
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient, rateLimitService);
 
-        List<String> threadIds = service.getInitialThreadIds("token");
+        List<String> threadIds = service.getInitialThreadIds(new GoogleMailApiContext("token", "alice@example.com"));
 
         assertEquals(List.of("thread-1", "thread-2", "thread-3"), threadIds);
         assertEquals(2, requestFactory.requestUris().size());
         assertEquals("maxResults=2", requestFactory.requestUris().get(0).getQuery());
         assertTrue(requestFactory.requestUris().get(1).getQuery().contains("maxResults=1"));
         assertTrue(requestFactory.requestUris().get(1).getQuery().contains("pageToken=page-2"));
+        verify(rateLimitService, times(2)).consumeThreadList("alice@example.com");
     }
 
     @Test
@@ -121,9 +127,13 @@ class GoogleMailMessageQueryServiceTest {
                         """))
                 .build();
 
-        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
+        GmailApiRateLimitService rateLimitService = mock(GmailApiRateLimitService.class);
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient, rateLimitService);
 
-        List<InitialMailSyncThreadResult> results = service.getThreads("token", List.of("thread-1"));
+        List<InitialMailSyncThreadResult> results = service.getThreads(
+                new GoogleMailApiContext("token", "alice@example.com"),
+                List.of("thread-1")
+        );
 
         assertEquals(1, results.size());
         assertEquals(1, results.getFirst().messages().size());
@@ -144,6 +154,7 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals(1, results.getFirst().messages().getFirst().attachments().size());
         assertEquals("inline-1", results.getFirst().messages().getFirst().attachments().getFirst().contentId());
         assertEquals(AttachmentDisposition.INLINE, results.getFirst().messages().getFirst().attachments().getFirst().disposition());
+        verify(rateLimitService).consumeThreadGet("alice@example.com");
     }
 
     private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {

@@ -6,6 +6,7 @@ import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEvent;
 import com.mailsangja.worker.dto.gmail.history.GmailHistoryEventType;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessageResult;
@@ -71,7 +72,7 @@ class GmailNewMessageSyncCommandServiceTest {
         when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, "thread-1", "message-new"
         )).thenReturn(Optional.empty());
-        when(gmailMessageApiService.getThreads("access-token", List.of("thread-1")))
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("thread-1")))
                 .thenReturn(List.of(threadResult));
         when(gmailNewMessageApplyCommandService.applyNewMessageSync(any(), any(), any()))
                 .thenReturn(3);
@@ -110,7 +111,7 @@ class GmailNewMessageSyncCommandServiceTest {
         when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, "thread-1", "message-old"
         )).thenReturn(Optional.of(com.mailsangja.db.entity.mail.Message.builder().build()));
-        when(gmailMessageApiService.getThreads("access-token", List.of("thread-1")))
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("thread-1")))
                 .thenReturn(List.of(createThreadResult("thread-1", "message-old", Direction.INBOUND)));
         when(gmailNewMessageApplyCommandService.applyNewMessageSync(any(), any(), any()))
                 .thenReturn(1);
@@ -130,7 +131,7 @@ class GmailNewMessageSyncCommandServiceTest {
         when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, "thread-1", "message-1"
         )).thenReturn(Optional.empty());
-        when(gmailMessageApiService.getThreads("access-token", List.of("thread-1"))).thenReturn(List.of());
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("thread-1"))).thenReturn(List.of());
 
         MailPushException exception = assertThrows(MailPushException.class, () -> service.syncNewMessage(mailAccount, event));
 
@@ -147,7 +148,7 @@ class GmailNewMessageSyncCommandServiceTest {
         when(messageRepositoryPort.findByMailAccountIdAndGmailThreadIdAndGmailMessageIdAndDeletedAtIsNull(
                 mailAccountId, "thread-1", "message-new"
         )).thenReturn(Optional.empty());
-        when(gmailMessageApiService.getThreads("access-token", List.of("thread-1")))
+        when(gmailMessageApiService.getThreads(new GoogleMailApiContext("access-token", "alice@example.com"), List.of("thread-1")))
                 .thenReturn(List.of(createThreadResult("thread-1", "message-other", Direction.INBOUND)));
         when(gmailNewMessageApplyCommandService.applyNewMessageSync(any(), any(), any()))
                 .thenReturn(1);
