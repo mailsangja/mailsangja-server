@@ -1,5 +1,6 @@
 package com.mailsangja.core.controller.docs;
 
+import com.mailsangja.core.common.auth.AuthAdmin;
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.dto.ai.AiModelListResponse;
 import com.mailsangja.core.dto.ai.AiPlaygroundChatRequest;
@@ -20,7 +21,7 @@ public interface AiControllerDocs {
             security = @SecurityRequirement(name = "cookieAuth")
     )
     ResponseEntity<AiPlaygroundChatResponse> chat(
-            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(hidden = true) @AuthAdmin User user,
             AiPlaygroundChatRequest request
     );
 

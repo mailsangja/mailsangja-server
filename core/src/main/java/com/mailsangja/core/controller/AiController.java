@@ -1,5 +1,6 @@
 package com.mailsangja.core.controller;
 
+import com.mailsangja.core.common.auth.AuthAdmin;
 import com.mailsangja.core.common.auth.AuthUser;
 import com.mailsangja.core.controller.docs.AiControllerDocs;
 import com.mailsangja.core.dto.ai.AiModelListResponse;
@@ -23,7 +24,7 @@ public class AiController implements AiControllerDocs {
     @Override
     @PostMapping("/api/v1/ai/playground/chat")
     public ResponseEntity<AiPlaygroundChatResponse> chat(
-            @AuthUser User user,
+            @AuthAdmin User user,
             @RequestBody AiPlaygroundChatRequest request
     ) {
         return ResponseEntity.ok(aiFacade.chat(user, request));

@@ -12,6 +12,7 @@ import com.mailsangja.core.service.ai.AiPlaygroundCommandService;
 import com.mailsangja.core.service.ai.AiQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +56,7 @@ class AiFacadeTest {
     @Test
     void chat_활성메일계정이있으면_Playground응답을ResponseDto로조립한다() {
         // given
-        User user = createUser();
+        User user = createAdminUser();
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
@@ -88,7 +89,7 @@ class AiFacadeTest {
     @Test
     void chat_활성메일계정이없으면_예외를던지고_LLM을호출하지않는다() {
         // given
-        User user = createUser();
+        User user = createAdminUser();
         AiPlaygroundChatRequest request = createChatRequest();
         AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
         MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
@@ -104,6 +105,27 @@ class AiFacadeTest {
 
         // then
         assertEquals(AiPlaygroundErrorCode.MAIL_ACCOUNT_REQUIRED, exception.getErrorCode());
+        verify(playgroundCommandService, never()).chat(request);
+    }
+
+    @Test
+    void chat_관리자가아니면_예외를던지고_메일계정과LLM을조회하지않는다() {
+        // given
+        User user = createUser();
+        AiPlaygroundChatRequest request = createChatRequest();
+        AiPlaygroundCommandService playgroundCommandService = mock(AiPlaygroundCommandService.class);
+        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
+        AiFacade facade = new AiFacade(playgroundCommandService, mock(AiQueryService.class), mailAccountQueryService);
+
+        // when
+        AiPlaygroundException exception = assertThrows(
+                AiPlaygroundException.class,
+                () -> facade.chat(user, request)
+        );
+
+        // then
+        assertEquals(AiPlaygroundErrorCode.FORBIDDEN_USER, exception.getErrorCode());
+        verify(mailAccountQueryService, never()).findAllActiveByUserId(user.getId());
         verify(playgroundCommandService, never()).chat(request);
     }
 
@@ -126,6 +148,17 @@ class AiFacadeTest {
                 .name("테스트 사용자")
                 .username("tester@example.com")
                 .password("encoded")
+                .role(Role.USER)
+                .build();
+    }
+
+    private User createAdminUser() {
+        return User.builder()
+                .id(UUID.randomUUID())
+                .name("관리자")
+                .username("admin@example.com")
+                .password("encoded")
+                .role(Role.ADMIN)
                 .build();
     }
 }

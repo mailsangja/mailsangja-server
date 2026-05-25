@@ -8,6 +8,7 @@ import com.mailsangja.core.dto.ai.AiModelListResponse;
 import com.mailsangja.core.service.ai.AiPlaygroundCommandService;
 import com.mailsangja.core.service.ai.AiQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,12 +22,19 @@ public class AiFacade {
     private final MailAccountQueryService mailAccountQueryService;
 
     public AiPlaygroundChatResponse chat(User user, AiPlaygroundChatRequest request) {
+        validateAdmin(user);
         validateRegisteredMailAccount(user);
         return AiPlaygroundChatResponse.from(aiPlaygroundCommandService.chat(request));
     }
 
     public AiModelListResponse getModels() {
         return AiModelListResponse.from(aiQueryService.getModels());
+    }
+
+    private void validateAdmin(User user) {
+        if (user.getRole() != Role.ADMIN) {
+            throw new AiPlaygroundException(AiPlaygroundErrorCode.FORBIDDEN_USER);
+        }
     }
 
     private void validateRegisteredMailAccount(User user) {
