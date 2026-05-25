@@ -112,6 +112,15 @@ public class InboxQueryService {
         return threadRepositoryPort.countSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
+    public ThreadListResult findStarredThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
+        Slice<Thread> threads = threadRepositoryPort.findStarredByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+        return buildThreadListResult(userId, threads);
+    }
+
+    public long countStarred(UUID userId) {
+        return threadRepositoryPort.countStarredByUserId(userId);
+    }
+
     private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
         if (labelIds == null || labelIds.isEmpty()) {
             return List.of();

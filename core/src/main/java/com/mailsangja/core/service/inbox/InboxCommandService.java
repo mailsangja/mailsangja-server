@@ -84,4 +84,10 @@ public class InboxCommandService {
         );
         messages.forEach(Message::markAsUnread);
     }
+
+    @Transactional
+    public boolean toggleStar(Thread thread) {
+        thread.toggleStar();
+        return thread.isStar();
+    }
 }

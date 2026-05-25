@@ -101,4 +101,24 @@ public class InboxController implements InboxControllerDocs {
     public ResponseEntity<UnreadCountResponse> getUnreadCount(@AuthUser User user) {
         return ResponseEntity.ok(UnreadCountResponse.of(inboxFacade.getUnreadCount(user)));
     }
+
+    @Override
+    @PostMapping("/api/v1/threads/{threadId}/star")
+    public ResponseEntity<Void> toggleStar(
+            @AuthUser User user,
+            @PathVariable UUID threadId
+    ) {
+        inboxFacade.toggleStar(user, threadId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @GetMapping("/api/v1/threads/starred")
+    public ResponseEntity<MarkerSliceResponse<ThreadSummaryResponse>> getStarred(
+            @AuthUser User user,
+            @RequestParam(required = false) UUID marker,
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+    ) {
+        return ResponseEntity.ok(inboxFacade.getStarred(user, marker, size));
+    }
 }

@@ -327,6 +327,56 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
     @EntityGraph(attributePaths = {"mailAccount"})
     Optional<Thread> findById(UUID id);
 
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT t FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.deletedAt IS NULL
+              AND (
+                :markerId IS NULL
+                OR t.lastMessageAt < (
+                  SELECT m.lastMessageAt FROM Thread m
+                  WHERE m.id = :markerId
+                    AND m.mailAccount.id IN (
+                      SELECT ma.id FROM MailAccount ma
+                      WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+                    )
+                )
+                OR (
+                  t.lastMessageAt = (
+                    SELECT m.lastMessageAt FROM Thread m
+                    WHERE m.id = :markerId
+                      AND m.mailAccount.id IN (
+                        SELECT ma.id FROM MailAccount ma
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+                      )
+                  )
+                  AND t.id < :markerId
+                )
+              )
+            ORDER BY t.lastMessageAt DESC, t.id DESC
+            """)
+    Slice<Thread> findStarredByUserId(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT COUNT(t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.deletedAt IS NULL
+            """)
+    long countStarredByUserId(@Param("userId") UUID userId);
+
     @Query("SELECT t FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId")
     List<Thread> findAllByMailAccountIdAndGmailThreadId(
             @Param("mailAccountId") UUID mailAccountId,

@@ -26,6 +26,8 @@ public record ThreadSummaryResponse(
         String snippet,
         @Schema(description = "읽음 여부", example = "false")
         boolean isRead,
+        @Schema(description = "별표 여부", example = "false")
+        boolean star,
         @Schema(description = "최신 메시지 시각")
         LocalDateTime lastMessageAt,
         @Schema(description = "스레드 내 첨부파일 목록")
@@ -56,6 +58,7 @@ public record ThreadSummaryResponse(
                 MailAddressResponse.of(thread.getLatestParticipantName(), thread.getLatestParticipantAddress(), contactNameByEmail),
                 thread.getLatestSnippet(),
                 thread.isRead(),
+                thread.isStar(),
                 thread.getLastMessageAt(),
                 attachments.stream().map(AttachmentResponse::from).toList(),
                 thread.getMessageCount(),
