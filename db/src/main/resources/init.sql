@@ -51,9 +51,9 @@ CREATE INDEX IF NOT EXISTS idx_mail_accounts_email_address_active
     ON mail_accounts (email_address)
     WHERE deleted_at IS NULL;;
 
--- user_id + active 조합 조회 (활성 계정 필터링)
+-- user_id + is_active 조합 조회 (활성 계정 필터링)
 CREATE INDEX IF NOT EXISTS idx_mail_accounts_user_id_active_flag
-    ON mail_accounts (user_id, active)
+    ON mail_accounts (user_id, is_active)
     WHERE deleted_at IS NULL;;
 
 -- Gmail watch 갱신 배치: provider + watch_expires_at 범위 스캔
@@ -69,9 +69,9 @@ CREATE INDEX IF NOT EXISTS idx_threads_mail_account_direction_last_msg
     ON threads (mail_account_id, direction, last_message_at DESC)
     WHERE deleted_at IS NULL;;
 
--- 읽지 않은 스레드 카운트 (mail_account_id + read 필터)
+-- 읽지 않은 스레드 카운트 (mail_account_id + is_read 필터)
 CREATE INDEX IF NOT EXISTS idx_threads_mail_account_read
-    ON threads (mail_account_id, read)
+    ON threads (mail_account_id, is_read)
     WHERE deleted_at IS NULL;;
 
 -- ── Messages ──────────────────────────────────────────────────────────────────
