@@ -70,8 +70,8 @@ public class MailDraftCommandService {
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final AiModelProperties modelProperties;
 
-    public void validateMonthlyRateLimit(UUID userId) {
-        if (!rateLimitCachePort.tryConsumeMonthlyLimit(userId)) {
+    public void validateWeeklyRateLimit(UUID userId) {
+        if (!rateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
             throw new MailDraftException(MailDraftErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }

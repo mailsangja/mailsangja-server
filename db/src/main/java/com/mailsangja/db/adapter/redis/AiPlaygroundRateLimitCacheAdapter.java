@@ -1,7 +1,7 @@
 package com.mailsangja.db.adapter.redis;
 
 import com.mailsangja.db.common.redis.MailRateLimitProperties;
-import com.mailsangja.db.port.LabelSuggestionRateLimitCachePort;
+import com.mailsangja.db.port.AiPlaygroundRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,11 +17,11 @@ import java.util.UUID;
 @Repository
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "mailsangja.redis.rate-limit.enabled", havingValue = "true")
-public class LabelSuggestionRateLimitCacheAdapter implements LabelSuggestionRateLimitCachePort {
+public class AiPlaygroundRateLimitCacheAdapter implements AiPlaygroundRateLimitCachePort {
 
     private static final ZoneId KST_ZONE_ID = ZoneId.of("Asia/Seoul");
     private static final WeekFields ISO_WEEK_FIELDS = WeekFields.ISO;
-    private static final String KEY_PREFIX = "LabelSuggestion:rate:week:";
+    private static final String KEY_PREFIX = "AiPlayground:rate:week:";
 
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider;
     private final MailRateLimitProperties properties;
@@ -35,31 +35,17 @@ public class LabelSuggestionRateLimitCacheAdapter implements LabelSuggestionRate
         return isWeeklyLimitAllowed(count);
     }
 
-    @Override
-    public long getWeeklyUsage(UUID userId) {
-        String key = weeklyKey(userId);
-        String value = stringRedisTemplate().opsForValue().get(key);
-        if (value == null) {
-            return 0L;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
-    }
-
     private StringRedisTemplate stringRedisTemplate() {
         return stringRedisTemplateProvider.getObject();
     }
 
     private boolean isWeeklyLimitAllowed(Long count) {
-        return safeCount(count) <= properties.getWeeklySuggestionLimit();
+        return safeCount(count) <= properties.getWeeklyPlaygroundLimit();
     }
 
     private String weeklyKey(UUID userId) {
         LocalDate today = LocalDate.now(KST_ZONE_ID);
-        int year = today.get(ISO_WEEK_FIELDS.weekBasedYear());
+        int year = today.getYear();
         int week = today.get(ISO_WEEK_FIELDS.weekOfWeekBasedYear());
         return KEY_PREFIX + userId + ":" + String.format("%04d%02d", year, week);
     }

@@ -112,9 +112,9 @@ mailsangja:
   redis:
     rate-limit:
       enabled: ${MAILSANGJA_REDIS_RATE_LIMIT_ENABLED:true}
-      monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_MONTHLY_LIMIT:50}
-      review-monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_REVIEW_MONTHLY_LIMIT:50}
-      suggestion-monthly-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_SUGGESTION_MONTHLY_LIMIT:10}
+      weekly-draft-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_WEEKLY_DRAFT_LIMIT:10}
+      weekly-review-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_WEEKLY_REVIEW_LIMIT:10}
+      weekly-suggestion-limit: ${MAILSANGJA_REDIS_RATE_LIMIT_WEEKLY_SUGGESTION_LIMIT:2}
   label:
     debounce:
       debounce-seconds: ${LABEL_DEBOUNCE_SECONDS:60}
@@ -140,6 +140,8 @@ mailsangja:
       publisher-mandatory: ${MAIL_TASK_PUBLISHER_MANDATORY:true}
     initial-mail-sync:
       task-name: ${MAIL_SYNC_TASK_NAME:sync.gmail.initial}
+  mail-account:
+    max-count: ${MAIL_ACCOUNT_MAX_COUNT:2}
   inbox:
     page-size: ${INBOX_PAGE_SIZE:50}
     api-base-uri: ${INBOX_API_BASE_URI:http://localhost:8080}

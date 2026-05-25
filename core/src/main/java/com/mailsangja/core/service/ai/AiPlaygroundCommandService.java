@@ -9,6 +9,7 @@ import com.mailsangja.core.dto.ai.AiPlaygroundChatResult;
 import com.mailsangja.core.dto.ai.AiPlaygroundMessageRequest;
 import com.mailsangja.core.dto.ai.AiPlaygroundOptionsRequest;
 import com.mailsangja.core.dto.ai.AiPlaygroundUsageResult;
+import com.mailsangja.db.port.AiPlaygroundRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -30,19 +31,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AiPlaygroundCommandService {
 
+    private final AiPlaygroundRateLimitCachePort rateLimitCachePort;
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ObjectMapper objectMapper;
 
-    public AiPlaygroundChatResult chat(AiPlaygroundChatRequest request) {
+    public AiPlaygroundChatResult chat(UUID userId, AiPlaygroundChatRequest request) {
         if (request == null) {
             throw new AiPlaygroundException(AiPlaygroundErrorCode.INVALID_REQUEST);
         }
+        validateWeeklyRateLimit(userId);
         Prompt prompt = createPrompt(request);
         try {
             ChatResponse response = chatModel().call(prompt);
@@ -52,6 +56,12 @@ public class AiPlaygroundCommandService {
         } catch (RuntimeException e) {
             log.warn("AI playground provider call failed. provider={} model={}", request.provider(), request.model(), e);
             throw new AiPlaygroundException(AiPlaygroundErrorCode.PROVIDER_FAILURE, providerFailureMessage(e));
+        }
+    }
+
+    private void validateWeeklyRateLimit(UUID userId) {
+        if (!rateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
+            throw new AiPlaygroundException(AiPlaygroundErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }
 

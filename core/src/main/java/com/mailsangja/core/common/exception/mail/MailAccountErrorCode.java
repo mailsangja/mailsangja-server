@@ -33,7 +33,8 @@ public enum MailAccountErrorCode implements ErrorCode {
     MAIL_ACCOUNT_ALREADY_CONNECTED_BY_ANOTHER_USER(409, "MS-MAIL-ACCOUNT-ALREADY-CONNECTED-BY-ANOTHER-USER", "다른 사용자가 이미 연결한 메일 계정입니다."),
     MAIL_ACCOUNT_NOT_FOUND(404, "MS-MAIL-ACCOUNT-NOT-FOUND", "메일 계정을 찾을 수 없습니다."),
     MAIL_ACCOUNT_ACCESS_DENIED(403, "MS-MAIL-ACCOUNT-ACCESS-DENIED", "해당 메일 계정에 접근 권한이 없습니다."),
-    MAIL_ACCOUNT_NO_FIELD_TO_UPDATE(400, "MS-MAIL-ACCOUNT-NO-FIELD-TO-UPDATE", "변경할 항목을 하나 이상 입력해주세요.");
+    MAIL_ACCOUNT_NO_FIELD_TO_UPDATE(400, "MS-MAIL-ACCOUNT-NO-FIELD-TO-UPDATE", "변경할 항목을 하나 이상 입력해주세요."),
+    MAIL_ACCOUNT_LIMIT_EXCEEDED(409, "MS-MAIL-ACCOUNT-LIMIT-EXCEEDED", "메일 계정은 최대 2개까지 등록할 수 있습니다.");
 
     private final int status;
     private final String code;

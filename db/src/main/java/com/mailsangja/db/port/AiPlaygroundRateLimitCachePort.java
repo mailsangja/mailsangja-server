@@ -2,9 +2,7 @@ package com.mailsangja.db.port;
 
 import java.util.UUID;
 
-public interface MailReviewRateLimitCachePort {
+public interface AiPlaygroundRateLimitCachePort {
 
     boolean tryConsumeWeeklyLimit(UUID userId);
-
-    long getWeeklyUsage(UUID userId);
 }
