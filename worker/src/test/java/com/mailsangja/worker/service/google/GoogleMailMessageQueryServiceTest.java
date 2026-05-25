@@ -18,12 +18,56 @@ import org.springframework.web.client.RestClient;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GoogleMailMessageQueryServiceTest {
+
+    @Test
+    void getInitialThreadIds_fetchesThreadListUntilMaxThreads() {
+        GoogleMailInitialSyncProperties properties = new GoogleMailInitialSyncProperties();
+        properties.setThreadsUri("https://gmail.googleapis.com/gmail/v1/users/me/threads");
+        properties.setMaxThreads(3);
+        properties.setThreadListPageSize(2);
+
+        SequenceClientHttpRequestFactory requestFactory = new SequenceClientHttpRequestFactory(List.of(
+                """
+                        {
+                          "threads": [
+                            {"id": "thread-1"},
+                            {"id": "thread-2"}
+                          ],
+                          "nextPageToken": "page-2",
+                          "resultSizeEstimate": 4
+                        }
+                        """,
+                """
+                        {
+                          "threads": [
+                            {"id": "thread-3"},
+                            {"id": "thread-4"}
+                          ],
+                          "resultSizeEstimate": 4
+                        }
+                        """
+        ));
+        RestClient restClient = RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
+
+        List<String> threadIds = service.getInitialThreadIds("token");
+
+        assertEquals(List.of("thread-1", "thread-2", "thread-3"), threadIds);
+        assertEquals(2, requestFactory.requestUris().size());
+        assertEquals("maxResults=2", requestFactory.requestUris().get(0).getQuery());
+        assertTrue(requestFactory.requestUris().get(1).getQuery().contains("maxResults=1"));
+        assertTrue(requestFactory.requestUris().get(1).getQuery().contains("pageToken=page-2"));
+    }
 
     @Test
     void getThreads_normalizesMailAddressesFromHeaders() {
@@ -111,6 +155,37 @@ class GoogleMailMessageQueryServiceTest {
 
         @Override
         public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            return new MockClientHttpRequest(httpMethod, uri) {
+                @Override
+                protected ClientHttpResponse executeInternal() {
+                    MockClientHttpResponse response = new MockClientHttpResponse(
+                            responseBody.getBytes(StandardCharsets.UTF_8),
+                            HttpStatus.OK
+                    );
+                    response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+                    return response;
+                }
+            };
+        }
+    }
+
+    private static final class SequenceClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
+        private final List<String> responseBodies;
+        private final List<URI> requestUris = new ArrayList<>();
+        private int requestIndex;
+
+        private SequenceClientHttpRequestFactory(List<String> responseBodies) {
+            this.responseBodies = responseBodies;
+        }
+
+        private List<URI> requestUris() {
+            return requestUris;
+        }
+
+        @Override
+        public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            requestUris.add(uri);
+            String responseBody = responseBodies.get(requestIndex++);
             return new MockClientHttpRequest(httpMethod, uri) {
                 @Override
                 protected ClientHttpResponse executeInternal() {

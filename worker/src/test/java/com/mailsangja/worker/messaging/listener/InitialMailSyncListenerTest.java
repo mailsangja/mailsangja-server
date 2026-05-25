@@ -4,6 +4,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
+import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
@@ -78,6 +79,38 @@ class InitialMailSyncListenerTest {
                 labelReclassifyPublisher,
                 mailEmbeddingPublisher
         );
+    }
+
+    @Test
+    void handle_스레드아이디를배치로나누어발행한다() {
+        // given
+        UUID mailAccountId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(mailAccountId);
+        InitialMailSyncMessage message = new InitialMailSyncMessage(
+                mailAccountId,
+                userId,
+                MailProvider.GMAIL.name(),
+                "alice@example.com"
+        );
+
+        when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
+        when(googleAccessTokenEnsureService.ensureValidGoogleAccessToken(mailAccount)).thenReturn(mailAccount);
+        when(gmailMessageApiService.getInitialThreadIds("access-token"))
+                .thenReturn(List.of("thread-1", "thread-2", "thread-3", "thread-4", "thread-5"));
+        when(googleMailInitialSyncProperties.getThreadBatchSize()).thenReturn(2);
+        when(googleMailInitialSyncProperties.getMaxThreads()).thenReturn(2000);
+
+        // when
+        listener.handle(message);
+
+        // then
+        ArgumentCaptor<InitialMailSyncThreadBatchMessage> messageCaptor =
+                ArgumentCaptor.forClass(InitialMailSyncThreadBatchMessage.class);
+        verify(initialMailSyncThreadBatchPublisher, times(3)).publish(messageCaptor.capture());
+        assertEquals(List.of("thread-1", "thread-2"), messageCaptor.getAllValues().get(0).threadIds());
+        assertEquals(List.of("thread-3", "thread-4"), messageCaptor.getAllValues().get(1).threadIds());
+        assertEquals(List.of("thread-5"), messageCaptor.getAllValues().get(2).threadIds());
     }
 
     @Test
