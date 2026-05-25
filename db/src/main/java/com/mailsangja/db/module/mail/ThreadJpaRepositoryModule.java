@@ -345,6 +345,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                       SELECT ma.id FROM MailAccount ma
                       WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                     )
+                    AND m.star = true
                 )
                 OR (
                   t.lastMessageAt = (
@@ -354,6 +355,7 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
                         SELECT ma.id FROM MailAccount ma
                         WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
                       )
+                      AND m.star = true
                   )
                   AND t.id < :markerId
                 )
