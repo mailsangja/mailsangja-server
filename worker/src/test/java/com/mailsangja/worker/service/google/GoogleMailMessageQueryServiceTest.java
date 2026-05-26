@@ -3,6 +3,7 @@ package com.mailsangja.worker.service.google;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.AttachmentDisposition;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadResult;
 import org.junit.jupiter.api.Test;
@@ -18,12 +19,61 @@ import org.springframework.web.client.RestClient;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class GoogleMailMessageQueryServiceTest {
+
+    @Test
+    void getInitialThreadIds_fetchesThreadListUntilMaxThreads() {
+        GoogleMailInitialSyncProperties properties = new GoogleMailInitialSyncProperties();
+        properties.setThreadsUri("https://gmail.googleapis.com/gmail/v1/users/me/threads");
+        properties.setMaxThreads(3);
+        properties.setThreadListPageSize(2);
+
+        SequenceClientHttpRequestFactory requestFactory = new SequenceClientHttpRequestFactory(List.of(
+                """
+                        {
+                          "threads": [
+                            {"id": "thread-1"},
+                            {"id": "thread-2"}
+                          ],
+                          "nextPageToken": "page-2",
+                          "resultSizeEstimate": 4
+                        }
+                        """,
+                """
+                        {
+                          "threads": [
+                            {"id": "thread-3"},
+                            {"id": "thread-4"}
+                          ],
+                          "resultSizeEstimate": 4
+                        }
+                        """
+        ));
+        RestClient restClient = RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
+        GmailApiRateLimitService rateLimitService = mock(GmailApiRateLimitService.class);
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient, rateLimitService);
+
+        List<String> threadIds = service.getInitialThreadIds(new GoogleMailApiContext("token", "alice@example.com"));
+
+        assertEquals(List.of("thread-1", "thread-2", "thread-3"), threadIds);
+        assertEquals(2, requestFactory.requestUris().size());
+        assertEquals("maxResults=2", requestFactory.requestUris().get(0).getQuery());
+        assertTrue(requestFactory.requestUris().get(1).getQuery().contains("maxResults=1"));
+        assertTrue(requestFactory.requestUris().get(1).getQuery().contains("pageToken=page-2"));
+        verify(rateLimitService, times(2)).consumeThreadList("alice@example.com");
+    }
 
     @Test
     void getThreads_normalizesMailAddressesFromHeaders() {
@@ -58,7 +108,7 @@ class GoogleMailMessageQueryServiceTest {
                                 "parts": [
                                   {
                                     "mimeType": "text/plain",
-                                    "body": {"data": "aGVsbG8"}
+                                    "body": {"data": "aGVsbG8KPHNjcmlwdD4"}
                                   },
                                   {
                                     "mimeType": "image/png",
@@ -77,9 +127,13 @@ class GoogleMailMessageQueryServiceTest {
                         """))
                 .build();
 
-        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
+        GmailApiRateLimitService rateLimitService = mock(GmailApiRateLimitService.class);
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient, rateLimitService);
 
-        List<InitialMailSyncThreadResult> results = service.getThreads("token", List.of("thread-1"));
+        List<InitialMailSyncThreadResult> results = service.getThreads(
+                new GoogleMailApiContext("token", "alice@example.com"),
+                List.of("thread-1")
+        );
 
         assertEquals(1, results.size());
         assertEquals(1, results.getFirst().messages().size());
@@ -95,10 +149,12 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals("reply@example.com", results.getFirst().messages().getFirst().replyToAddress());
         assertEquals("Reply Alias", results.getFirst().messages().getFirst().replyToName());
         assertEquals(Direction.INBOUND, results.getFirst().messages().getFirst().direction());
-        assertEquals("hello", results.getFirst().messages().getFirst().bodyText());
+        assertEquals("hello\n<script>", results.getFirst().messages().getFirst().bodyText());
+        assertEquals("<div>hello<br>&lt;script&gt;</div>", results.getFirst().messages().getFirst().bodyHtml());
         assertEquals(1, results.getFirst().messages().getFirst().attachments().size());
         assertEquals("inline-1", results.getFirst().messages().getFirst().attachments().getFirst().contentId());
         assertEquals(AttachmentDisposition.INLINE, results.getFirst().messages().getFirst().attachments().getFirst().disposition());
+        verify(rateLimitService).consumeThreadGet("alice@example.com");
     }
 
     private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
@@ -110,6 +166,37 @@ class GoogleMailMessageQueryServiceTest {
 
         @Override
         public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            return new MockClientHttpRequest(httpMethod, uri) {
+                @Override
+                protected ClientHttpResponse executeInternal() {
+                    MockClientHttpResponse response = new MockClientHttpResponse(
+                            responseBody.getBytes(StandardCharsets.UTF_8),
+                            HttpStatus.OK
+                    );
+                    response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+                    return response;
+                }
+            };
+        }
+    }
+
+    private static final class SequenceClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
+        private final List<String> responseBodies;
+        private final List<URI> requestUris = new ArrayList<>();
+        private int requestIndex;
+
+        private SequenceClientHttpRequestFactory(List<String> responseBodies) {
+            this.responseBodies = responseBodies;
+        }
+
+        private List<URI> requestUris() {
+            return requestUris;
+        }
+
+        @Override
+        public ClientHttpRequest createRequest(URI uri, HttpMethod httpMethod) {
+            requestUris.add(uri);
+            String responseBody = responseBodies.get(requestIndex++);
             return new MockClientHttpRequest(httpMethod, uri) {
                 @Override
                 protected ClientHttpResponse executeInternal() {

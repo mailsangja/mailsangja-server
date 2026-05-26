@@ -99,6 +99,12 @@ mailsangja:
       metadata-hash:
         secret: ${AI_METADATA_HASH_SECRET:}
   gmail:
+    rate-limit:
+      enabled: ${GOOGLE_GMAIL_RATE_LIMIT_ENABLED:true}
+      fail-open: ${GOOGLE_GMAIL_RATE_LIMIT_FAIL_OPEN:true}
+      per-user-capacity-units: ${GOOGLE_GMAIL_RATE_LIMIT_PER_USER_CAPACITY_UNITS:12000}
+      per-user-refill-units-per-minute: ${GOOGLE_GMAIL_RATE_LIMIT_PER_USER_REFILL_UNITS_PER_MINUTE:12000}
+      key-ttl: ${GOOGLE_GMAIL_RATE_LIMIT_KEY_TTL:2m}
     watch-renewal:
       enabled: ${GOOGLE_GMAIL_WATCH_RENEWAL_ENABLED:false}
       cron: ${GOOGLE_GMAIL_WATCH_RENEWAL_CRON:0 0 * * * *}
@@ -122,9 +128,9 @@ mailsangja:
         audience: ${GOOGLE_PUBSUB_PUSH_OIDC_AUDIENCE}
         allowed-service-account-email: ${GOOGLE_PUBSUB_PUSH_OIDC_ALLOWED_SERVICE_ACCOUNT_EMAIL:}
     initial-sync:
-      max-results: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_RESULTS:20}
+      max-threads: ${GOOGLE_GMAIL_INITIAL_SYNC_MAX_THREADS:2000}
+      thread-list-page-size: ${GOOGLE_GMAIL_INITIAL_SYNC_THREAD_LIST_PAGE_SIZE:500}
       thread-batch-size: ${GOOGLE_GMAIL_INITIAL_SYNC_THREAD_BATCH_SIZE:5}
-      messages-uri: ${GOOGLE_GMAIL_MESSAGES_URI:https://gmail.googleapis.com/gmail/v1/users/me/messages}
       threads-uri: ${GOOGLE_GMAIL_THREADS_URI:https://gmail.googleapis.com/gmail/v1/users/me/threads}
       connect-timeout: ${GOOGLE_GMAIL_MESSAGES_CONNECT_TIMEOUT:3s}
       read-timeout: ${GOOGLE_GMAIL_MESSAGES_READ_TIMEOUT:5s}

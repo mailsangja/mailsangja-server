@@ -3,7 +3,7 @@ package com.mailsangja.worker.messaging.listener;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.ai.embedding.MailEmbeddingMessage;
-import com.mailsangja.worker.dto.gmail.message.GoogleMailMessageListResult;
+import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncMessage;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncSaveResult;
 import com.mailsangja.worker.dto.mail.sync.InitialMailSyncThreadBatchMessage;
@@ -23,7 +23,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -49,11 +48,9 @@ public class InitialMailSyncListener {
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
 
-        GoogleMailMessageListResult result = gmailMessageApiService.getLatestMessages(
-                mailAccount.getAccessToken()
-        );
+        GoogleMailApiContext context = GoogleMailApiContext.from(mailAccount);
+        List<String> threadIds = gmailMessageApiService.getInitialThreadIds(context);
 
-        List<String> threadIds = extractThreadIds(result);
         List<List<String>> threadBatches = partitionThreadIds(threadIds);
 
         for (List<String> threadBatch : threadBatches) {
@@ -67,10 +64,10 @@ public class InitialMailSyncListener {
         }
 
         log.info(
-                "Prepared initial mail sync thread batches. mailAccountId={} emailAddress={} fetchedCount={} uniqueThreadCount={} batchCount={}",
+                "Prepared initial mail sync thread batches. mailAccountId={} emailAddress={} maxThreadCount={} fetchedThreadCount={} batchCount={}",
                 message.mailAccountId(),
                 message.emailAddress(),
-                result.fetchedCount(),
+                googleMailInitialSyncProperties.getMaxThreads(),
                 threadIds.size(),
                 threadBatches.size()
         );
@@ -85,10 +82,8 @@ public class InitialMailSyncListener {
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
 
-        List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(
-                mailAccount.getAccessToken(),
-                message.threadIds()
-        );
+        GoogleMailApiContext context = GoogleMailApiContext.from(mailAccount);
+        List<InitialMailSyncThreadResult> threadResults = gmailMessageApiService.getThreads(context, message.threadIds());
 
         List<InitialMailSyncThreadSaveCommand> commands = threadResults.stream()
                 .map(InitialMailSyncThreadSaveCommand::from)
@@ -114,17 +109,6 @@ public class InitialMailSyncListener {
         messageIds.stream()
                 .map(MailEmbeddingMessage::new)
                 .forEach(mailEmbeddingPublisher::publish);
-    }
-
-    private List<String> extractThreadIds(GoogleMailMessageListResult result) {
-        if (result == null || result.messages() == null) {
-            return List.of();
-        }
-        LinkedHashSet<String> deduplicatedThreadIds = new LinkedHashSet<>();
-        result.messages().stream()
-                .filter(m -> m != null && m.threadId() != null && !m.threadId().isBlank())
-                .forEach(m -> deduplicatedThreadIds.add(m.threadId()));
-        return List.copyOf(deduplicatedThreadIds);
     }
 
     private List<List<String>> partitionThreadIds(List<String> threadIds) {

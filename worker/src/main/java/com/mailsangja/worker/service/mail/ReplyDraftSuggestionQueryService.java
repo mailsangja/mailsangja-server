@@ -15,6 +15,9 @@ import com.mailsangja.worker.dto.mail.reply.ReplyDraftSuggestionPromptResult;
 import com.mailsangja.worker.service.ai.masking.PhileasMaskingService;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
@@ -23,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -34,9 +38,20 @@ public class ReplyDraftSuggestionQueryService {
     private static final String SOURCE_RECENT_SENT = "recent_sent";
     private static final String SOURCE_RECIPIENT_HISTORY = "recipient_history";
     private static final int THREAD_CONTEXT_LIMIT = 20;
-    private static final int SAME_RECIPIENT_SENT_LIMIT = 8;
-    private static final int RECENT_WRITTEN_LIMIT = 10;
-    private static final int RECIPIENT_HISTORY_LIMIT = 6;
+    private static final int SAME_RECIPIENT_SENT_LIMIT = 4;
+    private static final int RECENT_WRITTEN_LIMIT = 4;
+    private static final int RECIPIENT_HISTORY_LIMIT = 4;
+    private static final Set<String> BLOCK_TAGS = Set.of(
+            "p", "div", "section", "article", "header", "footer", "main", "aside",
+            "table", "tr", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+            "blockquote", "pre"
+    );
+    private static final Set<String> SKIP_TAGS = Set.of("script", "style", "noscript");
+    private static final Pattern QUOTED_LINE_PATTERN = Pattern.compile("^>+\\s?.*");
+    private static final Pattern ENGLISH_QUOTE_HEADER_PATTERN = Pattern.compile("^On\\s+.+\\s+wrote:$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern KOREAN_QUOTE_HEADER_PATTERN = Pattern.compile("^.+님이\\s*작성:$");
+    private static final Pattern ORIGINAL_MESSAGE_PATTERN = Pattern.compile("^-+\\s*Original Message\\s*-+$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FORWARDED_MESSAGE_PATTERN = Pattern.compile("^-+\\s*Forwarded message\\s*-+$", Pattern.CASE_INSENSITIVE);
     private static final String SYSTEM_PROMPT = """
             You are Mailsangja Reply Suggestion Writer.
             Your task is to generate 2 or 3 distinct reply draft options for the authenticated user.
@@ -78,6 +93,7 @@ public class ReplyDraftSuggestionQueryService {
         List<ReplyDraftSuggestionContextResult> thread = findThread(latestMessage);
         Set<UUID> threadMessageIds = messageIds(thread);
         Set<UUID> excludedMessageIds = new HashSet<>(threadMessageIds);
+        excludedMessageIds.add(latestMessage.getId());
         List<ReplyDraftSuggestionContextResult> sameRecipientSent = findSameRecipientSent(latestMessage, excludedMessageIds);
         addMessageIds(excludedMessageIds, sameRecipientSent);
         List<ReplyDraftSuggestionContextResult> recent = findRecent(latestMessage, excludedMessageIds);
@@ -132,7 +148,16 @@ public class ReplyDraftSuggestionQueryService {
                 latestMessage.getThread().getMailAccount().getId(),
                 latestMessage.getThread().getGmailThreadId()
         );
-        return toMaskedMessageContexts(limitThread(messages), SOURCE_THREAD);
+        return toMaskedMessageContexts(limitThread(excludeLatestMessage(messages, latestMessage.getId())), SOURCE_THREAD);
+    }
+
+    private List<Message> excludeLatestMessage(List<Message> messages, UUID latestMessageId) {
+        if (messages == null || messages.isEmpty()) {
+            return List.of();
+        }
+        return messages.stream()
+                .filter(message -> !latestMessageId.equals(message.getId()))
+                .toList();
     }
 
     private List<ReplyDraftSuggestionContextResult> findRecent(Message latestMessage, Set<UUID> excludedMessageIds) {
@@ -272,7 +297,7 @@ public class ReplyDraftSuggestionQueryService {
                 List.of(),
                 List.of(),
                 maskPast(message.subject()),
-                maskPast(message.body())
+                maskPast(cleanText(message.body()))
         );
     }
 
@@ -339,16 +364,98 @@ public class ReplyDraftSuggestionQueryService {
 
     private String bodyOf(Message message) {
         if (message.getBodyText() != null && !message.getBodyText().isBlank()) {
-            return message.getBodyText();
+            return cleanText(message.getBodyText());
         }
-        return htmlTextOf(message.getBodyHtml());
+        return cleanHtml(message.getBodyHtml());
     }
 
-    private String htmlTextOf(String bodyHtml) {
-        if (bodyHtml == null || bodyHtml.isBlank()) {
+    private String cleanText(String text) {
+        if (text == null || text.isBlank()) {
             return "";
         }
-        return Jsoup.parse(bodyHtml).text();
+        return removeQuotedLines(normalizeLineEndings(text));
+    }
+
+    private String cleanHtml(String html) {
+        if (html == null || html.isBlank()) {
+            return "";
+        }
+        org.jsoup.nodes.Document document = Jsoup.parse(html);
+        document.select(String.join(",", SKIP_TAGS)).remove();
+        document.select("blockquote,.gmail_quote,.gmail_attr,.yahoo_quoted,.moz-cite-prefix,div[type=cite]").remove();
+
+        StringBuilder builder = new StringBuilder();
+        appendNodeText(document.body(), builder);
+        return cleanText(builder.toString());
+    }
+
+    private String normalizeLineEndings(String text) {
+        return text
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .replace('\u00A0', ' ');
+    }
+
+    private String removeQuotedLines(String text) {
+        StringBuilder builder = new StringBuilder();
+        for (String line : text.split("\n")) {
+            String compactLine = line.replaceAll("[\\t\\x0B\\f ]+", " ").trim();
+            if (compactLine.isBlank()) {
+                continue;
+            }
+            if (isQuoteStart(compactLine)) {
+                break;
+            }
+            if (QUOTED_LINE_PATTERN.matcher(compactLine).matches()) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append('\n');
+            }
+            builder.append(compactLine);
+        }
+        return builder.toString();
+    }
+
+    private boolean isQuoteStart(String line) {
+        return ENGLISH_QUOTE_HEADER_PATTERN.matcher(line).matches()
+                || KOREAN_QUOTE_HEADER_PATTERN.matcher(line).matches()
+                || ORIGINAL_MESSAGE_PATTERN.matcher(line).matches()
+                || FORWARDED_MESSAGE_PATTERN.matcher(line).matches();
+    }
+
+    private void appendNodeText(Node node, StringBuilder builder) {
+        if (node instanceof TextNode textNode) {
+            builder.append(textNode.getWholeText());
+            return;
+        }
+        if (!(node instanceof Element element)) {
+            for (Node childNode : node.childNodes()) {
+                appendNodeText(childNode, builder);
+            }
+            return;
+        }
+
+        String tagName = element.tagName();
+        if (SKIP_TAGS.contains(tagName)) {
+            return;
+        }
+        if ("br".equals(tagName)) {
+            appendNewLine(builder);
+            return;
+        }
+        for (Node childNode : element.childNodes()) {
+            appendNodeText(childNode, builder);
+        }
+        if (BLOCK_TAGS.contains(tagName)) {
+            appendNewLine(builder);
+        }
+    }
+
+    private void appendNewLine(StringBuilder builder) {
+        if (!builder.isEmpty() && builder.charAt(builder.length() - 1) != '\n') {
+            builder.append('\n');
+        }
     }
 
     private String maskPast(String text) {
