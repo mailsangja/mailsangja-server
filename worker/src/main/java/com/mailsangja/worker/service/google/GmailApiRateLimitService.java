@@ -25,13 +25,16 @@ public class GmailApiRateLimitService {
     public static final long THREAD_GET_QUOTA_UNITS = 40;
 
     private static final String KEY_PREFIX = "gmail:rate-limit:user:";
+    private static final long UNIT_SCALE = 1000;
+    private static final long MILLIS_PER_MINUTE = 60000;
     private static final DefaultRedisScript<Long> TOKEN_BUCKET_SCRIPT = new DefaultRedisScript<>("""
             local key = KEYS[1]
             local capacity = tonumber(ARGV[1])
-            local refill_per_ms = tonumber(ARGV[2])
+            local refill_per_minute = tonumber(ARGV[2])
             local now_ms = tonumber(ARGV[3])
             local cost = tonumber(ARGV[4])
             local ttl_ms = tonumber(ARGV[5])
+            local millis_per_minute = tonumber(ARGV[6])
 
             local tokens = tonumber(redis.call('HGET', key, 'tokens'))
             local updated_at = tonumber(redis.call('HGET', key, 'updatedAtMillis'))
@@ -46,7 +49,8 @@ public class GmailApiRateLimitService {
             end
 
             local elapsed_ms = now_ms - updated_at
-            tokens = math.min(capacity, tokens + (elapsed_ms * refill_per_ms))
+            local refill = math.floor((elapsed_ms * refill_per_minute) / millis_per_minute)
+            tokens = math.min(capacity, tokens + refill)
 
             local allowed = 0
             if tokens >= cost then
@@ -82,11 +86,12 @@ public class GmailApiRateLimitService {
             Long allowed = stringRedisTemplate.execute(
                     TOKEN_BUCKET_SCRIPT,
                     List.of(redisKey(accountKey)),
-                    String.valueOf(properties.getPerUserCapacityUnits()),
-                    String.valueOf(refillUnitsPerMillis()),
+                    String.valueOf(toScaledUnits(properties.getPerUserCapacityUnits())),
+                    String.valueOf(toScaledUnits(properties.getPerUserRefillUnitsPerMinute())),
                     String.valueOf(clock.millis()),
-                    String.valueOf(costUnits),
-                    String.valueOf(properties.getKeyTtl().toMillis())
+                    String.valueOf(toScaledUnits(costUnits)),
+                    String.valueOf(properties.getKeyTtl().toMillis()),
+                    String.valueOf(MILLIS_PER_MINUTE)
             );
             if (!Long.valueOf(1L).equals(allowed)) {
                 throw new MailPushException(MailPushErrorCode.GMAIL_RATE_LIMIT_EXCEEDED);
@@ -108,8 +113,11 @@ public class GmailApiRateLimitService {
         }
     }
 
-    private double refillUnitsPerMillis() {
-        return properties.getPerUserRefillUnitsPerMinute() / 60000.0;
+    private long toScaledUnits(long units) {
+        if (units > Long.MAX_VALUE / UNIT_SCALE) {
+            throw new MailPushException(MailPushErrorCode.GMAIL_RATE_LIMIT_CONFIG_INVALID);
+        }
+        return units * UNIT_SCALE;
     }
 
     private String redisKey(String accountKey) {

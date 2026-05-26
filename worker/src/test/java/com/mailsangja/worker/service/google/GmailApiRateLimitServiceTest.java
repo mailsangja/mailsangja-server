@@ -14,6 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -32,7 +34,16 @@ class GmailApiRateLimitServiceTest {
 
         service.consume("alice@example.com", 40);
 
-        verify(redisTemplate).execute(any(RedisScript.class), anyList(), any(Object[].class));
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                anyList(),
+                eq("12000000"),
+                eq("12000000"),
+                anyString(),
+                eq("40000"),
+                eq("120000"),
+                eq("60000")
+        );
     }
 
     @Test
