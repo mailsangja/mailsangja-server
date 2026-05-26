@@ -393,9 +393,11 @@ class InboxCommandServiceTest {
     }
 
     @Test
-    void toggleStar_별표없는스레드에별표를등록하면락을잡고true를반환한다() {
+    void toggleStar_별표없는스레드에별표를등록하면모든스레드와메시지에별표가적용된다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-star-1";
         MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
+                .id(mailAccountId)
                 .provider(MailProvider.GMAIL)
                 .emailAddress("user@example.com")
                 .alias("gmail")
@@ -403,25 +405,49 @@ class InboxCommandServiceTest {
                 .color("#4285F4")
                 .accessToken("token")
                 .build();
-        Thread thread = Thread.builder()
+        Thread inboundThread = Thread.builder()
                 .id(UUID.randomUUID())
                 .mailAccount(mailAccount)
-                .gmailThreadId("gmail-thread-star-1")
+                .gmailThreadId(gmailThreadId)
                 .direction(Direction.INBOUND)
                 .star(false)
                 .build();
+        Thread outboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.OUTBOUND)
+                .star(false)
+                .build();
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(inboundThread)
+                .gmailMessageId("msg-1")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .star(false)
+                .build();
 
-        boolean result = inboxCommandService.toggleStar(thread);
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread, outboundThread));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(message));
 
-        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, "gmail-thread-star-1");
+        boolean result = inboxCommandService.toggleStar(inboundThread);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         assertTrue(result);
-        assertTrue(thread.isStar());
+        assertTrue(inboundThread.isStar());
+        assertTrue(outboundThread.isStar());
+        assertTrue(message.isStar());
     }
 
     @Test
-    void toggleStar_별표있는스레드의별표를해제하면락을잡고false를반환한다() {
+    void toggleStar_별표있는스레드의별표를해제하면모든스레드와메시지별표가해제된다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-star-2";
         MailAccount mailAccount = MailAccount.builder()
-                .id(UUID.randomUUID())
+                .id(mailAccountId)
                 .provider(MailProvider.GMAIL)
                 .emailAddress("user@example.com")
                 .alias("gmail")
@@ -429,19 +455,33 @@ class InboxCommandServiceTest {
                 .color("#4285F4")
                 .accessToken("token")
                 .build();
-        Thread thread = Thread.builder()
+        Thread inboundThread = Thread.builder()
                 .id(UUID.randomUUID())
                 .mailAccount(mailAccount)
-                .gmailThreadId("gmail-thread-star-2")
+                .gmailThreadId(gmailThreadId)
                 .direction(Direction.INBOUND)
                 .star(true)
                 .build();
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(inboundThread)
+                .gmailMessageId("msg-2")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .star(true)
+                .build();
 
-        boolean result = inboxCommandService.toggleStar(thread);
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(message));
 
-        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, "gmail-thread-star-2");
+        boolean result = inboxCommandService.toggleStar(inboundThread);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         assertFalse(result);
-        assertFalse(thread.isStar());
+        assertFalse(inboundThread.isStar());
+        assertFalse(message.isStar());
     }
 
     @Test
@@ -481,5 +521,145 @@ class InboxCommandServiceTest {
         verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
         assertFalse(unreadMessage.isRead());
         assertFalse(thread.isRead());
+    }
+
+    @Test
+    void toggleMessageStar_별표없는메시지에별표를등록하면메시지와모든스레드에별표가적용된다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-msg-star-1";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+        Thread inboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .star(false)
+                .build();
+        Thread outboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.OUTBOUND)
+                .star(false)
+                .build();
+        Message message = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(inboundThread)
+                .gmailMessageId("msg-star-1")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .star(false)
+                .build();
+
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread, outboundThread));
+
+        boolean result = inboxCommandService.toggleMessageStar(message);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertTrue(result);
+        assertTrue(message.isStar());
+        assertTrue(inboundThread.isStar());
+        assertTrue(outboundThread.isStar());
+    }
+
+    @Test
+    void toggleMessageStar_별표있는메시지의별표를해제해도스레드에별표메시지가남아있으면스레드별표는유지된다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-msg-star-2";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+        Thread inboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .star(true)
+                .build();
+        Message targetMessage = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(inboundThread)
+                .gmailMessageId("msg-star-2a")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .star(true)
+                .build();
+        Message otherStarredMessage = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(inboundThread)
+                .gmailMessageId("msg-star-2b")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .star(true)
+                .build();
+
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(targetMessage, otherStarredMessage));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread));
+
+        boolean result = inboxCommandService.toggleMessageStar(targetMessage);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertFalse(result);
+        assertFalse(targetMessage.isStar());
+        assertTrue(inboundThread.isStar());
+    }
+
+    @Test
+    void toggleMessageStar_별표있는메시지의별표를해제할때스레드에별표메시지가없으면스레드별표도해제된다() {
+        UUID mailAccountId = UUID.randomUUID();
+        String gmailThreadId = "gmail-thread-msg-star-3";
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("user@example.com")
+                .alias("gmail")
+                .icon("gmail")
+                .color("#4285F4")
+                .accessToken("token")
+                .build();
+        Thread inboundThread = Thread.builder()
+                .id(UUID.randomUUID())
+                .mailAccount(mailAccount)
+                .gmailThreadId(gmailThreadId)
+                .direction(Direction.INBOUND)
+                .star(true)
+                .build();
+        Message targetMessage = Message.builder()
+                .id(UUID.randomUUID())
+                .thread(inboundThread)
+                .gmailMessageId("msg-star-3")
+                .direction(Direction.INBOUND)
+                .fromAddress("sender@example.com")
+                .star(true)
+                .build();
+
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(targetMessage));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccountId, gmailThreadId))
+                .thenReturn(List.of(inboundThread));
+
+        boolean result = inboxCommandService.toggleMessageStar(targetMessage);
+
+        verify(gmailThreadLockRepositoryPort).acquireThreadLock(mailAccount, gmailThreadId);
+        assertFalse(result);
+        assertFalse(targetMessage.isStar());
+        assertFalse(inboundThread.isStar());
     }
 }

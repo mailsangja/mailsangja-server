@@ -151,23 +151,6 @@ public class InboxFacade {
         return inboxQueryService.countUnreadInbox(user.getId());
     }
 
-    public boolean toggleStar(User user, UUID threadId) {
-        Thread thread = inboxQueryService.findThreadById(threadId);
-        validateThreadAccess(mailAccountQueryService.findAllActiveByUserId(user.getId()), thread);
-        return inboxCommandService.toggleStar(thread);
-    }
-
-    public MarkerSliceResponse<ThreadSummaryResponse> getStarred(User user, UUID marker, int size) {
-        ThreadListResult result = inboxQueryService.findStarredThreadsResult(
-                user.getId(), marker, PageRequest.of(0, size));
-        long totalCount = inboxQueryService.countStarred(user.getId());
-        return toMarkerSlice(result, 0L, totalCount);
-    }
-
-    private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(ThreadListResult result) {
-        return toMarkerSlice(result, 0L, 0L);
-    }
-
     private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(
             ThreadListResult result,
             long unreadCount,
