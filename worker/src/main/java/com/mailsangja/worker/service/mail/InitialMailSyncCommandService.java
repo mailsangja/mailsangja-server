@@ -110,7 +110,6 @@ public class InitialMailSyncCommandService {
                 aggregate.lastMessageAt(),
                 aggregate.read()
         );
-        thread.updateMessageCount(aggregate.messageCount());
         return new ThreadDirectionSaveResult(thread.getId(), savedMessageIds);
     }
 
