@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +46,10 @@ public class MailCommandService {
         );
 
         if (inserted) {
-            thread.updateMessageCount(thread.getMessageCount() + 1);
+            synchronizeThreadMessageCount(
+                    command.mailAccount().getId(),
+                    command.messageResult().gmailThreadId()
+            );
         }
     }
 
@@ -93,6 +97,17 @@ public class MailCommandService {
         message.replaceAttachments(createAttachments(message, command.messageResult().attachments()));
         messageRepositoryPort.save(message);
         return false;
+    }
+
+    private void synchronizeThreadMessageCount(UUID mailAccountId, String gmailThreadId) {
+        int activeCount = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId
+        ).size();
+        threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId
+        ).forEach(thread -> thread.updateMessageCount(activeCount));
     }
 
     private List<Attachment> createAttachments(

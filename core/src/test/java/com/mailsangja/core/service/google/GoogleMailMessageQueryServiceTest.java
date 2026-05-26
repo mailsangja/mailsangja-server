@@ -72,6 +72,56 @@ class GoogleMailMessageQueryServiceTest {
         assertEquals(AttachmentDisposition.INLINE, result.attachments().getFirst().disposition());
     }
 
+    @Test
+    void getMessage_contentId가있어도첨부파일Disposition이면Attachment로분류한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        properties.setMessagesUri("https://gmail.googleapis.com/gmail/v1/users/me/messages");
+
+        RestClient restClient = RestClient.builder()
+                .requestFactory(new StubClientHttpRequestFactory("""
+                        {
+                          "id": "message-1",
+                          "threadId": "thread-1",
+                          "snippet": "snippet",
+                          "historyId": "history-1",
+                          "internalDate": "1712822400000",
+                          "payload": {
+                            "mimeType": "multipart/mixed",
+                            "headers": [
+                              {"name": "Subject", "value": "subject"},
+                              {"name": "From", "value": "Alice <alice@example.com>"},
+                              {"name": "To", "value": "Bob <bob@example.com>"},
+                              {"name": "Message-ID", "value": "<message-id@example.com>"}
+                            ],
+                            "parts": [
+                              {
+                                "mimeType": "text/plain",
+                                "body": {"data": "aGVsbG8"}
+                              },
+                              {
+                                "mimeType": "application/haansofthwp",
+                                "filename": "document.hwp",
+                                "headers": [
+                                  {"name": "Content-ID", "value": "<f_mpmdzs8f0>"},
+                                  {"name": "Content-Disposition", "value": "attachment; filename=document.hwp"}
+                                ],
+                                "body": {"attachmentId": "gmail-attachment-id", "size": 100}
+                              }
+                            ]
+                          }
+                        }
+                        """))
+                .build();
+
+        GoogleMailMessageQueryService service = new GoogleMailMessageQueryService(properties, restClient);
+
+        GoogleMailMessageResult result = service.getMessage("token", "message-1");
+
+        assertEquals(1, result.attachments().size());
+        assertEquals("f_mpmdzs8f0", result.attachments().getFirst().contentId());
+        assertEquals(AttachmentDisposition.ATTACHMENT, result.attachments().getFirst().disposition());
+    }
+
     private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
         private final String responseBody;
 

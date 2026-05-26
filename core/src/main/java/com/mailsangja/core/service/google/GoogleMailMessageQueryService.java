@@ -311,7 +311,16 @@ public class GoogleMailMessageQueryService {
 
     private AttachmentDisposition resolveDisposition(GoogleMailMessageResponse.GoogleMailPayloadResponse part) {
         String disposition = extractPartHeaderValue(part, "Content-Disposition");
-        if (!isBlank(disposition) && disposition.trim().toLowerCase().startsWith("inline")) {
+        String normalizedDisposition = disposition == null ? null : disposition.trim().toLowerCase();
+        if (!isBlank(normalizedDisposition) && normalizedDisposition.startsWith("attachment")) {
+            return AttachmentDisposition.ATTACHMENT;
+        }
+
+        if (!isInlineImage(part)) {
+            return AttachmentDisposition.ATTACHMENT;
+        }
+
+        if (!isBlank(normalizedDisposition) && normalizedDisposition.startsWith("inline")) {
             return AttachmentDisposition.INLINE;
         }
 
@@ -320,6 +329,12 @@ public class GoogleMailMessageQueryService {
         }
 
         return AttachmentDisposition.ATTACHMENT;
+    }
+
+    private boolean isInlineImage(GoogleMailMessageResponse.GoogleMailPayloadResponse part) {
+        return part != null
+                && part.mimeType() != null
+                && part.mimeType().trim().toLowerCase().startsWith("image/");
     }
 
     private String normalizeContentId(String contentId) {

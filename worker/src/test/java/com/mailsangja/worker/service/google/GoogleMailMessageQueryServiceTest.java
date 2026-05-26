@@ -157,6 +157,64 @@ class GoogleMailMessageQueryServiceTest {
         verify(rateLimitService).consumeThreadGet("alice@example.com");
     }
 
+    @Test
+    void getThreads_contentId가있어도첨부파일Disposition이면Attachment로분류한다() {
+        GoogleMailInitialSyncProperties properties = new GoogleMailInitialSyncProperties();
+        properties.setThreadsUri("https://gmail.googleapis.com/gmail/v1/users/me/threads");
+
+        RestClient restClient = RestClient.builder()
+                .requestFactory(new StubClientHttpRequestFactory("""
+                        {
+                          "id": "thread-1",
+                          "historyId": "history-1",
+                          "messages": [
+                            {
+                              "id": "message-1",
+                              "threadId": "thread-1",
+                              "labelIds": ["INBOX"],
+                              "snippet": "snippet",
+                              "historyId": "history-1",
+                              "internalDate": "1712822400000",
+                              "payload": {
+                                "mimeType": "multipart/mixed",
+                                "headers": [
+                                  {"name": "Subject", "value": "subject"},
+                                  {"name": "From", "value": "Alice <alice@example.com>"},
+                                  {"name": "To", "value": "Bob <bob@example.com>"},
+                                  {"name": "Message-ID", "value": "<message-id@example.com>"}
+                                ],
+                                "parts": [
+                                  {
+                                    "mimeType": "text/plain",
+                                    "body": {"data": "aGVsbG8"}
+                                  },
+                                  {
+                                    "mimeType": "application/haansofthwp",
+                                    "filename": "document.hwp",
+                                    "headers": [
+                                      {"name": "Content-ID", "value": "<f_mpmdzs8f0>"},
+                                      {"name": "Content-Disposition", "value": "attachment; filename=document.hwp"}
+                                    ],
+                                    "body": {"attachmentId": "gmail-attachment-id", "size": 100}
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                        """))
+                .build();
+
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
+
+        List<InitialMailSyncThreadResult> results = service.getThreads("token", List.of("thread-1"));
+
+        assertEquals(1, results.size());
+        assertEquals(1, results.getFirst().messages().getFirst().attachments().size());
+        assertEquals("f_mpmdzs8f0", results.getFirst().messages().getFirst().attachments().getFirst().contentId());
+        assertEquals(AttachmentDisposition.ATTACHMENT, results.getFirst().messages().getFirst().attachments().getFirst().disposition());
+    }
+
     private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
         private final String responseBody;
 
