@@ -101,4 +101,5 @@ public class InboxController implements InboxControllerDocs {
     public ResponseEntity<UnreadCountResponse> getUnreadCount(@AuthUser User user) {
         return ResponseEntity.ok(UnreadCountResponse.of(inboxFacade.getUnreadCount(user)));
     }
+
 }

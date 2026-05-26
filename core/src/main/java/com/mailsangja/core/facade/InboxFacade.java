@@ -151,10 +151,6 @@ public class InboxFacade {
         return inboxQueryService.countUnreadInbox(user.getId());
     }
 
-    private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(ThreadListResult result) {
-        return toMarkerSlice(result, 0L, 0L);
-    }
-
     private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(
             ThreadListResult result,
             long unreadCount,

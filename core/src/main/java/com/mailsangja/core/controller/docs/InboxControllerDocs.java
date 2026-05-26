@@ -209,4 +209,5 @@ public interface InboxControllerDocs {
     ResponseEntity<UnreadCountResponse> getUnreadCount(
             @Parameter(hidden = true) @AuthUser User user
     );
+
 }

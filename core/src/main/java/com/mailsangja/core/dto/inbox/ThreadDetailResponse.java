@@ -22,6 +22,8 @@ public record ThreadDetailResponse(
         String latestSubject,
         @Schema(description = "읽음 여부", example = "false")
         boolean isRead,
+        @Schema(description = "별표 여부", example = "false")
+        boolean star,
         @Schema(description = "최신 메시지 시각")
         LocalDateTime lastMessageAt,
         @Schema(description = "스레드에 적용된 라벨 목록")
@@ -61,6 +63,7 @@ public record ThreadDetailResponse(
                 thread.getMailAccount().getId(),
                 thread.getLatestSubject(),
                 thread.isRead(),
+                thread.isStar(),
                 thread.getLastMessageAt(),
                 labels,
                 messageResponses

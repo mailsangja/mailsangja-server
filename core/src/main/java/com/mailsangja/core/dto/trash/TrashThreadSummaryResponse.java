@@ -28,6 +28,8 @@ public record TrashThreadSummaryResponse(
         String snippet,
         @Schema(description = "읽음 여부", example = "false")
         boolean isRead,
+        @Schema(description = "별표 여부", example = "false")
+        boolean star,
         @Schema(description = "최신 메시지 시각")
         LocalDateTime lastMessageAt,
         @Schema(description = "스레드 내 첨부파일 목록")
@@ -62,6 +64,7 @@ public record TrashThreadSummaryResponse(
                 ),
                 representative.getLatestSnippet(),
                 representative.isRead(),
+                representative.isStar(),
                 representative.getLastMessageAt(),
                 attachments.stream().map(AttachmentResponse::from).toList(),
                 messageCount,

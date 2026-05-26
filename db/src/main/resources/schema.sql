@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS messages (
     cc_names         JSONB        NULL,
     snippet          VARCHAR(500) NULL,
     is_read          BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_star          BOOLEAN      NOT NULL DEFAULT FALSE,
     sent_at          TIMESTAMP    NULL,
     body_text        TEXT         NULL,
     body_html        TEXT         NULL,

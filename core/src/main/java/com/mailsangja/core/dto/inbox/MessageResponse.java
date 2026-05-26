@@ -31,6 +31,8 @@ public record MessageResponse(
         String snippet,
         @Schema(description = "읽음 여부", example = "true")
         boolean isRead,
+        @Schema(description = "별표 여부", example = "false")
+        boolean isStar,
         @Schema(description = "발송/수신 시각")
         LocalDateTime sentAt,
         @Schema(description = "본문 plain text")
@@ -95,6 +97,7 @@ public record MessageResponse(
                 ccAddresses,
                 message.getSnippet(),
                 message.isRead(),
+                message.isStar(),
                 message.getSentAt(),
                 message.getBodyText(),
                 renderedBodyHtml,

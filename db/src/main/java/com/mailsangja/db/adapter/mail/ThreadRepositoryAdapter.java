@@ -174,4 +174,19 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
         }
         return threadJpaRepositoryModule.findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(userId, labelIds, markerId, pageable);
     }
+
+    @Override
+    public Slice<Thread> findStarredByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable) {
+        return threadJpaRepositoryModule.findStarredByUserId(userId, markerId, pageable);
+    }
+
+    @Override
+    public long countStarredByUserId(UUID userId) {
+        return threadJpaRepositoryModule.countStarredByUserId(userId);
+    }
+
+    @Override
+    public long countUnreadStarredByUserId(UUID userId) {
+        return threadJpaRepositoryModule.countUnreadStarredByUserId(userId);
+    }
 }

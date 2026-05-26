@@ -143,6 +143,67 @@ class InboxQueryServiceTest {
     }
 
     @Test
+    void 별표_스레드_목록_조회는_부가정보를_조립한다() {
+        // given
+        User user = user();
+        MailAccount account = mailAccount(user);
+        Thread thread = thread(account, Direction.INBOUND);
+        Message message = message(thread);
+        Attachment attachment = attachment(message);
+        message.replaceAttachments(List.of(attachment));
+        ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "중요", "#FF0000", false);
+        when(threadRepositoryPort.findStarredByUserIdAndDeletedAtIsNull(user.getId(), null, PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(thread), PageRequest.of(0, 20), false));
+        when(messageRepositoryPort.findAllByThreadIdInAndDeletedAtIsNull(List.of(thread.getId())))
+                .thenReturn(List.of(message));
+        when(messageRepositoryPort.findLabelsByThreadIdIn(List.of(thread.getId()))).thenReturn(List.of(label));
+        when(contactRepositoryPort.findAllByUserIdAndEmailInAndDeletedAtIsNull(
+                user.getId(), List.of("participant@example.com")))
+                .thenReturn(List.of());
+
+        // when
+        ThreadListResult result =
+                inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 20));
+
+        // then
+        assertEquals(1, result.threads().getContent().size());
+        assertEquals(List.of(attachment), result.attachmentsByThreadId().get(thread.getId()));
+        assertEquals(List.of(label), result.labelsByThreadId().get(thread.getId()));
+    }
+
+    @Test
+    void 별표_스레드_목록이_비어있으면_라벨과_첨부와_연락처를_조회하지_않는다() {
+        // given
+        User user = user();
+        when(threadRepositoryPort.findStarredByUserIdAndDeletedAtIsNull(user.getId(), null, PageRequest.of(0, 10)))
+                .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, 10), false));
+
+        // when
+        ThreadListResult result =
+                inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 10));
+
+        // then
+        assertEquals(0, result.threads().getContent().size());
+        verify(messageRepositoryPort, never()).findAllByThreadIdInAndDeletedAtIsNull(anyList());
+        verify(messageRepositoryPort, never()).findLabelsByThreadIdIn(anyList());
+        verify(contactRepositoryPort, never()).findAllByUserIdAndEmailInAndDeletedAtIsNull(org.mockito.ArgumentMatchers.any(), anyList());
+    }
+
+    @Test
+    void 별표_스레드_카운트는_port에_userId를_전달한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        when(threadRepositoryPort.countStarredByUserId(userId)).thenReturn(5L);
+
+        // when
+        long result = inboxQueryService.countStarred(userId);
+
+        // then
+        assertEquals(5L, result);
+        verify(threadRepositoryPort).countStarredByUserId(userId);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void 읽지_않은_인박스_카운트는_정규화된_라벨_ID를_전달한다() {
         // given
