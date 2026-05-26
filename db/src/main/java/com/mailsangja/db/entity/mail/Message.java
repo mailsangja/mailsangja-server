@@ -90,7 +90,7 @@ public class Message extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
-    @Column(name = "is_star", nullable = false)
+    @Column(name = "is_star", nullable = false, columnDefinition = "boolean default false")
     private boolean star;
 
     @Column(name = "sent_at")
