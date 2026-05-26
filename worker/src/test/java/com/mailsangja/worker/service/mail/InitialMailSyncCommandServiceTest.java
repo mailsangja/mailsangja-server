@@ -18,7 +18,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -449,6 +451,91 @@ class InitialMailSyncCommandServiceTest {
         // then
         assertEquals(java.util.List.of(thread.getId()), result.threadIds());
         assertEquals(java.util.List.of(messageId), result.messageIds());
+    }
+
+    @Test
+    void saveThreadBatch_updatesAllDirectionThreadCountsWithFullConversationCount() {
+        MailAccount mailAccount = createMailAccount();
+        Thread inboundThread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        Thread outboundThread = createThread(mailAccount, "thread-1", Direction.OUTBOUND);
+        List<Message> activeMessages = new ArrayList<>();
+
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(inboundThread));
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.OUTBOUND
+        )).thenReturn(Optional.of(outboundThread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(inboundThread.getId(), "message-inbound"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(outboundThread.getId(), "message-outbound"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            activeMessages.add(message);
+            return message;
+        });
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenAnswer(invocation -> List.copyOf(activeMessages));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenReturn(List.of(inboundThread, outboundThread));
+
+        InitialMailSyncSaveResult result = service.saveThreadBatch(mailAccount, List.of(new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(
+                        new InitialMailSyncMessageSaveCommand(
+                                "message-inbound",
+                                "history-1",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                Direction.INBOUND,
+                                "inbound subject",
+                                "alice@example.com",
+                                "Alice",
+                                List.of("me@example.com"),
+                                List.of("Me"),
+                                List.of(),
+                                List.of(),
+                                "inbound snippet",
+                                false,
+                                LocalDateTime.of(2026, 4, 11, 10, 0),
+                                "body",
+                                null,
+                                List.of()
+                        ),
+                        new InitialMailSyncMessageSaveCommand(
+                                "message-outbound",
+                                "history-1",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                Direction.OUTBOUND,
+                                "outbound subject",
+                                "me@example.com",
+                                "Me",
+                                List.of("alice@example.com"),
+                                List.of("Alice"),
+                                List.of(),
+                                List.of(),
+                                "outbound snippet",
+                                true,
+                                LocalDateTime.of(2026, 4, 11, 11, 0),
+                                "body",
+                                null,
+                                List.of()
+                        )
+                )
+        )));
+
+        assertEquals(2, result.threadMessageCount());
+        assertEquals(2, inboundThread.getMessageCount());
+        assertEquals(2, outboundThread.getMessageCount());
     }
 
     private MailAccount createMailAccount() {

@@ -78,7 +78,7 @@ public class InitialMailSyncCommandService {
         return new InitialMailSyncSaveResult(
                 results.stream().map(ThreadDirectionSaveResult::threadId).toList(),
                 results.stream().flatMap(result -> result.messageIds().stream()).toList(),
-                results.stream().mapToInt(ThreadDirectionSaveResult::messageCount).sum()
+                synchronizeThreadMessageCount(mailAccount.getId(), command.gmailThreadId())
         );
     }
 
@@ -111,7 +111,7 @@ public class InitialMailSyncCommandService {
                 aggregate.read()
         );
         thread.updateMessageCount(aggregate.messageCount());
-        return new ThreadDirectionSaveResult(thread.getId(), savedMessageIds, thread.getMessageCount());
+        return new ThreadDirectionSaveResult(thread.getId(), savedMessageIds);
     }
 
     private void saveMissingMessagesByDirection(
@@ -150,8 +150,22 @@ public class InitialMailSyncCommandService {
         }
 
         if (insertedCount > 0) {
-            thread.updateMessageCount(thread.getMessageCount() + insertedCount);
+            synchronizeThreadMessageCount(mailAccount.getId(), gmailThreadId);
         }
+    }
+
+    private int synchronizeThreadMessageCount(UUID mailAccountId, String gmailThreadId) {
+        List<Message> activeMessages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId
+        );
+        int activeCount = activeMessages.size();
+        List<Thread> threads = threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                mailAccountId,
+                gmailThreadId
+        );
+        threads.forEach(thread -> thread.updateMessageCount(activeCount));
+        return activeCount;
     }
 
     private Optional<UUID> saveMessage(
@@ -238,8 +252,7 @@ public class InitialMailSyncCommandService {
 
     private record ThreadDirectionSaveResult(
             UUID threadId,
-            List<UUID> messageIds,
-            int messageCount
+            List<UUID> messageIds
     ) {
         private ThreadDirectionSaveResult {
             messageIds = messageIds == null ? List.of() : List.copyOf(messageIds);
