@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS pg_trgm;;
-
 CREATE UNIQUE INDEX IF NOT EXISTS uq_mail_accounts_user_provider_email_active
     ON mail_accounts (user_id, provider, email_address)
     WHERE deleted_at IS NULL;;
@@ -33,6 +31,115 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_webhook_id
 CREATE UNIQUE INDEX IF NOT EXISTS uq_label_groups_user_name_active
     ON label_groups (user_id, lower(name))
     WHERE deleted_at IS NULL;;
+
+-- ── Users ─────────────────────────────────────────────────────────────────────
+
+-- 로그인 시 username 단건 조회
+CREATE INDEX IF NOT EXISTS idx_users_username
+    ON users (username)
+    WHERE deleted_at IS NULL;;
+
+-- ── Mail Accounts ─────────────────────────────────────────────────────────────
+
+-- user_id 기반 계정 목록 (가장 빈번한 패턴)
+CREATE INDEX IF NOT EXISTS idx_mail_accounts_user_id_active
+    ON mail_accounts (user_id)
+    WHERE deleted_at IS NULL;;
+
+-- Pub/Sub webhook 수신 시 email_address로 계정 탐색
+CREATE INDEX IF NOT EXISTS idx_mail_accounts_email_address_active
+    ON mail_accounts (email_address)
+    WHERE deleted_at IS NULL;;
+
+-- user_id + is_active 조합 조회 (활성 계정 필터링)
+CREATE INDEX IF NOT EXISTS idx_mail_accounts_user_id_active_flag
+    ON mail_accounts (user_id, is_active)
+    WHERE deleted_at IS NULL;;
+
+-- Gmail watch 갱신 배치: provider + watch_expires_at 범위 스캔
+CREATE INDEX IF NOT EXISTS idx_mail_accounts_renewal_target
+    ON mail_accounts (provider, watch_expires_at)
+    WHERE deleted_at IS NULL;;
+
+-- ── Threads ───────────────────────────────────────────────────────────────────
+
+-- 받은편지함/보낸편지함 목록 + 정렬 핵심 쿼리
+-- (mail_account_id, direction) 필터 후 last_message_at DESC 정렬
+CREATE INDEX IF NOT EXISTS idx_threads_mail_account_direction_last_msg
+    ON threads (mail_account_id, direction, last_message_at DESC)
+    WHERE deleted_at IS NULL;;
+
+-- 읽지 않은 스레드 카운트 (mail_account_id + is_read 필터)
+CREATE INDEX IF NOT EXISTS idx_threads_mail_account_read
+    ON threads (mail_account_id, is_read)
+    WHERE deleted_at IS NULL;;
+
+-- ── Messages ──────────────────────────────────────────────────────────────────
+
+-- thread_id 기반 메시지 목록 (핵심 FK 조회)
+CREATE INDEX IF NOT EXISTS idx_messages_thread_id_active
+    ON messages (thread_id)
+    WHERE deleted_at IS NULL;;
+
+-- ── Attachments ───────────────────────────────────────────────────────────────
+
+-- message_id 기반 첨부파일 목록
+CREATE INDEX IF NOT EXISTS idx_attachments_message_id_active
+    ON attachments (message_id)
+    WHERE deleted_at IS NULL;;
+
+-- ── Message Labels ────────────────────────────────────────────────────────────
+
+-- label_id 역방향 조회 (레이블별 메시지·스레드 필터링)
+-- 복합 PK가 (message_id, label_id) 순서이므로 label_id 단독 인덱스 필요
+CREATE INDEX IF NOT EXISTS idx_message_labels_label_id
+    ON message_labels (label_id);;
+
+-- ── Labels ────────────────────────────────────────────────────────────────────
+
+-- user_id 기반 레이블 목록
+CREATE INDEX IF NOT EXISTS idx_labels_user_id_active
+    ON labels (user_id)
+    WHERE deleted_at IS NULL;;
+
+-- ── Label Groups ──────────────────────────────────────────────────────────────
+
+-- user_id 기반 그룹 목록
+CREATE INDEX IF NOT EXISTS idx_label_groups_user_id_active
+    ON label_groups (user_id)
+    WHERE deleted_at IS NULL;;
+
+-- label_id 역방향 조회 (레이블이 속한 그룹 탐색)
+-- 복합 PK가 (label_group_id, label_id) 순서이므로 label_id 단독 인덱스 필요
+CREATE INDEX IF NOT EXISTS idx_label_group_labels_label_id
+    ON label_group_labels (label_id);;
+
+-- ── Contacts ──────────────────────────────────────────────────────────────────
+
+-- user_id 기반 연락처 목록
+CREATE INDEX IF NOT EXISTS idx_contacts_user_id_active
+    ON contacts (user_id)
+    WHERE deleted_at IS NULL;;
+
+-- ── Reply Draft Suggestions ───────────────────────────────────────────────────
+
+-- message_id 기반 AI 답장 초안 조회 및 삽입 잠금
+CREATE INDEX IF NOT EXISTS idx_reply_draft_suggestions_message_id_active
+    ON reply_draft_suggestions (message_id)
+    WHERE deleted_at IS NULL;;
+
+-- ── User Devices ──────────────────────────────────────────────────────────────
+
+-- user_id 기반 FCM 디바이스 목록 (푸시 알림 발송)
+CREATE INDEX IF NOT EXISTS idx_user_devices_user_id_active
+    ON user_devices (user_id)
+    WHERE deleted_at IS NULL;;
+
+-- ── Orders ────────────────────────────────────────────────────────────────────
+
+-- user_id 기반 주문 이력 조회
+CREATE INDEX IF NOT EXISTS idx_orders_user_id
+    ON orders (user_id);;
 
 -- ── Full-Text Search (Korean) ────────────────────────────────────────────────
 
@@ -105,7 +212,7 @@ CREATE INDEX IF NOT EXISTS idx_threads_last_message_at ON threads(last_message_a
 -- WHERE filename_vector IS NULL;
 
 -- ── Full-Text Search (English, pg_trgm) ──────────────────────────────────────
--- pg_trgm 확장은 이 스크립트 상단에서 보장됨
+-- pg_trgm 확장은 extensions.sql(docker-entrypoint-initdb.d)에서 superuser로 설치됨
 
 -- messages.search_text: 영어 부분/대소문자 무시 검색을 위한 소문자 정규화 텍스트
 -- body_text는 인덱스 크기 제한을 위해 앞 5000자만 포함
