@@ -88,7 +88,59 @@ public class InboxCommandService {
     @Transactional
     public boolean toggleStar(Thread thread) {
         gmailThreadLockRepositoryPort.acquireThreadLock(thread.getMailAccount(), thread.getGmailThreadId());
-        thread.toggleStar();
-        return thread.isStar();
+
+        boolean newStarState = !thread.isStar();
+
+        List<Thread> threads = threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                thread.getMailAccount().getId(),
+                thread.getGmailThreadId()
+        );
+        threads.forEach(t -> t.updateStar(newStarState));
+
+        List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                thread.getMailAccount().getId(),
+                thread.getGmailThreadId()
+        );
+        if (newStarState) {
+            messages.forEach(Message::markAsStar);
+        } else {
+            messages.forEach(Message::markAsUnstar);
+        }
+
+        return newStarState;
+    }
+
+    @Transactional
+    public boolean toggleMessageStar(Message message) {
+        gmailThreadLockRepositoryPort.acquireThreadLock(
+                message.getThread().getMailAccount(),
+                message.getThread().getGmailThreadId()
+        );
+
+        boolean newStarState = !message.isStar();
+        if (newStarState) {
+            message.markAsStar();
+        } else {
+            message.markAsUnstar();
+        }
+
+        boolean threadStarred;
+        if (newStarState) {
+            threadStarred = true;
+        } else {
+            List<Message> messages = messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                    message.getThread().getMailAccount().getId(),
+                    message.getThread().getGmailThreadId()
+            );
+            threadStarred = messages.stream().anyMatch(Message::isStar);
+        }
+
+        List<Thread> threads = threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(
+                message.getThread().getMailAccount().getId(),
+                message.getThread().getGmailThreadId()
+        );
+        threads.forEach(t -> t.updateStar(threadStarred));
+
+        return newStarState;
     }
 }
