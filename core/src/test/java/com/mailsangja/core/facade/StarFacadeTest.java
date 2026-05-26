@@ -53,12 +53,13 @@ class StarFacadeTest {
         when(inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 20)))
                 .thenReturn(threadListResult(List.of(thread), false));
         when(inboxQueryService.countStarred(user.getId())).thenReturn(3L);
+        when(inboxQueryService.countUnreadStarred(user.getId())).thenReturn(2L);
 
         MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 20);
 
         assertEquals(1, result.content().size());
         assertEquals(3L, result.totalCount());
-        assertEquals(0L, result.unreadCount());
+        assertEquals(2L, result.unreadCount());
         assertNull(result.nextMarker());
     }
 
@@ -68,12 +69,14 @@ class StarFacadeTest {
         when(inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 10)))
                 .thenReturn(threadListResult(List.of(), false));
         when(inboxQueryService.countStarred(user.getId())).thenReturn(0L);
+        when(inboxQueryService.countUnreadStarred(user.getId())).thenReturn(0L);
 
         MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 10);
 
         assertEquals(0, result.content().size());
         assertNull(result.nextMarker());
         assertEquals(0L, result.totalCount());
+        assertEquals(0L, result.unreadCount());
     }
 
     @Test
@@ -83,6 +86,7 @@ class StarFacadeTest {
         when(inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 5)))
                 .thenReturn(threadListResult(List.of(thread), true));
         when(inboxQueryService.countStarred(user.getId())).thenReturn(10L);
+        when(inboxQueryService.countUnreadStarred(user.getId())).thenReturn(4L);
 
         MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 5);
 

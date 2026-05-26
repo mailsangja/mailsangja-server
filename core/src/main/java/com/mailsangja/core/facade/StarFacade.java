@@ -34,6 +34,7 @@ public class StarFacade {
                 user.getId(), marker, PageRequest.of(0, size));
         long totalCount = inboxQueryService.countStarred(user.getId());
 
+        long unreadCount = inboxQueryService.countUnreadStarred(user.getId());
         List<ThreadSummaryResponse> content = result.threads().getContent().stream()
                 .map(thread -> ThreadSummaryResponse.from(
                         thread,
@@ -42,7 +43,7 @@ public class StarFacade {
                         result.labelsByThreadId().getOrDefault(thread.getId(), List.of())))
                 .toList();
         UUID nextMarker = result.threads().hasNext() ? result.threads().getContent().getLast().getId() : null;
-        return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext(), 0L, totalCount);
+        return MarkerSliceResponse.of(content, nextMarker, result.threads().hasNext(), unreadCount, totalCount);
     }
 
     public boolean toggleThreadStar(User user, UUID threadId) {

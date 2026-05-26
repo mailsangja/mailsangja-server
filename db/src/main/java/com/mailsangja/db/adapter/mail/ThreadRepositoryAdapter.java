@@ -184,4 +184,9 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     public long countStarredByUserId(UUID userId) {
         return threadJpaRepositoryModule.countStarredByUserId(userId);
     }
+
+    @Override
+    public long countUnreadStarredByUserId(UUID userId) {
+        return threadJpaRepositoryModule.countUnreadStarredByUserId(userId);
+    }
 }

@@ -121,6 +121,10 @@ public class InboxQueryService {
         return threadRepositoryPort.countStarredByUserId(userId);
     }
 
+    public long countUnreadStarred(UUID userId) {
+        return threadRepositoryPort.countUnreadStarredByUserId(userId);
+    }
+
     private List<UUID> normalizeLabelIds(List<UUID> labelIds) {
         if (labelIds == null || labelIds.isEmpty()) {
             return List.of();

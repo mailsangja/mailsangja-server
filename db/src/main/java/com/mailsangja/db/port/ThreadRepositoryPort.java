@@ -35,4 +35,5 @@ public interface ThreadRepositoryPort {
     Slice<Thread> findInboxByUserIdAndLabelIdsAndDeletedAtIsNull(UUID userId, List<UUID> labelIds, UUID markerId, Pageable pageable);
     Slice<Thread> findStarredByUserIdAndDeletedAtIsNull(UUID userId, UUID markerId, Pageable pageable);
     long countStarredByUserId(UUID userId);
+    long countUnreadStarredByUserId(UUID userId);
 }

@@ -379,6 +379,18 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             """)
     long countStarredByUserId(@Param("userId") UUID userId);
 
+    @Query("""
+            SELECT COUNT(t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.read = false
+              AND t.deletedAt IS NULL
+            """)
+    long countUnreadStarredByUserId(@Param("userId") UUID userId);
+
     @Query("SELECT t FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId")
     List<Thread> findAllByMailAccountIdAndGmailThreadId(
             @Param("mailAccountId") UUID mailAccountId,
