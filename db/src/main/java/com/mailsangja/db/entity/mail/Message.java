@@ -90,6 +90,9 @@ public class Message extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
+    @Column(name = "is_star", nullable = false)
+    private boolean star;
+
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
@@ -187,6 +190,14 @@ public class Message extends BaseEntity {
 
     public void markAsUnread() {
         this.read = false;
+    }
+
+    public void markAsStar() {
+        this.star = true;
+    }
+
+    public void markAsUnstar() {
+        this.star = false;
     }
 
     public void updateFrom(CreateValues values) {

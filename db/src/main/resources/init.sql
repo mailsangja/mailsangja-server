@@ -32,6 +32,10 @@ ALTER TABLE threads ADD COLUMN IF NOT EXISTS is_star BOOLEAN NOT NULL DEFAULT FA
 -- 기존 threads 데이터 backfill (DEFAULT FALSE 로 자동 채워지지만 명시적 보장)
 UPDATE threads SET is_star = false WHERE is_star IS NULL;;
 
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_star BOOLEAN NOT NULL DEFAULT FALSE;;
+
+UPDATE messages SET is_star = false WHERE is_star IS NULL;;
+
 -- 별표 편지함 목록 조회 성능 인덱스 (mail_account_id + last_message_at DESC + id DESC, 별표·미삭제 행만)
 CREATE INDEX IF NOT EXISTS idx_threads_starred
     ON threads(mail_account_id, last_message_at DESC, id DESC)

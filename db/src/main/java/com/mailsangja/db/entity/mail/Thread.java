@@ -113,6 +113,10 @@ public class Thread extends BaseEntity {
         this.star = !this.star;
     }
 
+    public void updateStar(boolean star) {
+        this.star = star;
+    }
+
     public void updateMessageCount(int messageCount) {
         this.messageCount = Math.max(messageCount, 1);
     }
