@@ -5,6 +5,7 @@ import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
+import com.mailsangja.db.entity.user.Plan;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -22,26 +23,26 @@ public class MailDraftAsyncService {
     private final MailDraftCommandService mailDraftCommandService;
 
     @Async
-    public void streamGeneral(SseEmitter emitter, MailDraftCommand command) {
+    public void streamGeneral(SseEmitter emitter, MailDraftCommand command, Plan plan) {
         MailDraftCommandService.StreamCancellation cancellation = mailDraftCommandService.createCancellation();
         registerCancel(emitter, cancellation);
         try {
             MailDraftRagContextResult context = mailDraftQueryService.generalRagContext(command);
             MailDraftPromptResult prompt = mailDraftQueryService.generalPrompt(command, context);
-            stream(emitter, command, prompt, cancellation);
+            stream(emitter, command, prompt, cancellation, plan);
         } catch (Exception exception) {
             handleFailure(emitter, command, exception);
         }
     }
 
     @Async
-    public void streamReply(SseEmitter emitter, MailDraftCommand command) {
+    public void streamReply(SseEmitter emitter, MailDraftCommand command, Plan plan) {
         MailDraftCommandService.StreamCancellation cancellation = mailDraftCommandService.createCancellation();
         registerCancel(emitter, cancellation);
         try {
             MailDraftRagContextResult context = mailDraftQueryService.replyRagContext(command);
             MailDraftPromptResult prompt = mailDraftQueryService.replyPrompt(command, context);
-            streamReplyBody(emitter, command, prompt, cancellation);
+            streamReplyBody(emitter, command, prompt, cancellation, plan);
         } catch (Exception exception) {
             handleFailure(emitter, command, exception);
         }
@@ -78,9 +79,9 @@ public class MailDraftAsyncService {
     }
 
     private void stream(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
-                        MailDraftCommandService.StreamCancellation cancellation) {
+                        MailDraftCommandService.StreamCancellation cancellation, Plan plan) {
         try {
-            streamAfterRateLimit(emitter, command, prompt, cancellation);
+            streamAfterRateLimit(emitter, command, prompt, cancellation, plan);
         } catch (Exception exception) {
             handleFailure(emitter, command, exception);
         }
@@ -99,9 +100,9 @@ public class MailDraftAsyncService {
     }
 
     private void streamAfterRateLimit(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
-                                      MailDraftCommandService.StreamCancellation cancellation) {
+                                      MailDraftCommandService.StreamCancellation cancellation, Plan plan) {
         String model = mailDraftCommandService.resolveModel(command.model());
-        mailDraftCommandService.validateWeeklyRateLimit(command.userId());
+        mailDraftCommandService.validateWeeklyRateLimit(command.userId(), plan);
         MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
         try {
             MailDraftUsageResult usage = mailDraftCommandService.streamCombined(emitter, prompt, restoreContext, cancellation, model);
@@ -129,10 +130,10 @@ public class MailDraftAsyncService {
     }
 
     private void streamReplyBody(SseEmitter emitter, MailDraftCommand command, MailDraftPromptResult prompt,
-                                 MailDraftCommandService.StreamCancellation cancellation) {
+                                 MailDraftCommandService.StreamCancellation cancellation, Plan plan) {
         try {
             String model = mailDraftCommandService.resolveModel(command.model());
-            mailDraftCommandService.validateWeeklyRateLimit(command.userId());
+            mailDraftCommandService.validateWeeklyRateLimit(command.userId(), plan);
             MailDraftRestoreContextResult restoreContext = MailDraftRestoreContextResult.from(command);
             MailDraftUsageResult bodyUsage = mailDraftCommandService.streamBody(emitter, prompt, restoreContext, cancellation, model);
             if (cancellation.isCancelled()) {

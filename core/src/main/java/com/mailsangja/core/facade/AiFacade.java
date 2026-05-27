@@ -34,7 +34,7 @@ public class AiFacade {
     public AiPlaygroundChatResponse chat(User user, AiPlaygroundChatRequest request) {
         validateAdmin(user);
         validateRegisteredMailAccount(user);
-        return AiPlaygroundChatResponse.from(aiPlaygroundCommandService.chat(user.getId(), request));
+        return AiPlaygroundChatResponse.from(aiPlaygroundCommandService.chat(user.getId(), request, user.getPlan()));
     }
 
     public AiModelListResponse getModels() {

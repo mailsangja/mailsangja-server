@@ -14,6 +14,7 @@ import com.mailsangja.core.service.label.LabelCommandService;
 import com.mailsangja.core.service.label.LabelQueryService;
 import com.mailsangja.core.service.label.LabelReclassifyPendingJobStore;
 import com.mailsangja.db.entity.label.Label;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.LabelSuggestionRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
@@ -90,7 +91,7 @@ public class LabelFacade {
     }
 
     public List<LabelListResponse> createSuggestions(User user) {
-        validateSuggestionRateLimit(user.getId());
+        validateSuggestionRateLimit(user.getId(), user.getPlan());
         List<Label> existingLabels = labelQueryService.findAllActiveByUserId(user.getId());
         LlmLabelSuggestionResult result = labelSuggestionAiService.suggest(user.getId(), existingLabels);
         return result.suggestions().stream()
@@ -103,8 +104,9 @@ public class LabelFacade {
                 .toList();
     }
 
-    private void validateSuggestionRateLimit(UUID userId) {
-        if (!suggestionRateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
+    private void validateSuggestionRateLimit(UUID userId, Plan plan) {
+        boolean allowed = suggestionRateLimitCachePort.tryConsumeWeeklyLimit(userId);
+        if (plan != Plan.PRO && !allowed) {
             throw new LabelException(LabelErrorCode.LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED);
         }
     }

@@ -9,6 +9,7 @@ import com.mailsangja.core.dto.ai.AiPlaygroundChatResult;
 import com.mailsangja.core.dto.ai.AiPlaygroundMessageRequest;
 import com.mailsangja.core.dto.ai.AiPlaygroundOptionsRequest;
 import com.mailsangja.core.dto.ai.AiPlaygroundUsageResult;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.port.AiPlaygroundRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,10 +44,14 @@ public class AiPlaygroundCommandService {
     private final ObjectMapper objectMapper;
 
     public AiPlaygroundChatResult chat(UUID userId, AiPlaygroundChatRequest request) {
+        return chat(userId, request, Plan.FREE);
+    }
+
+    public AiPlaygroundChatResult chat(UUID userId, AiPlaygroundChatRequest request, Plan plan) {
         if (request == null) {
             throw new AiPlaygroundException(AiPlaygroundErrorCode.INVALID_REQUEST);
         }
-        validateWeeklyRateLimit(userId);
+        validateWeeklyRateLimit(userId, plan);
         Prompt prompt = createPrompt(request);
         try {
             ChatResponse response = chatModel().call(prompt);
@@ -59,8 +64,9 @@ public class AiPlaygroundCommandService {
         }
     }
 
-    private void validateWeeklyRateLimit(UUID userId) {
-        if (!rateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
+    private void validateWeeklyRateLimit(UUID userId, Plan plan) {
+        boolean allowed = rateLimitCachePort.tryConsumeWeeklyLimit(userId);
+        if (plan != Plan.PRO && !allowed) {
             throw new AiPlaygroundException(AiPlaygroundErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }

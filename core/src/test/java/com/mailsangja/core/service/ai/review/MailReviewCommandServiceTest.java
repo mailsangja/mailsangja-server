@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailsangja.core.dto.mail.MailReviewCommand;
 import com.mailsangja.core.dto.mail.MailReviewIssueType;
 import com.mailsangja.core.dto.mail.MailReviewResult;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.port.MailReviewRateLimitCachePort;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -19,10 +20,33 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MailReviewCommandServiceTest {
+
+    @Test
+    void pro사용자는한도초과여도카운트만소모하고허용한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        MailReviewRateLimitCachePort cachePort = mock(MailReviewRateLimitCachePort.class);
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(false);
+        MailReviewCommandService service = new MailReviewCommandService(
+                cachePort,
+                chatModelProvider(chatModel("{\"issues\":[]}")),
+                new ObjectMapper(),
+                new MailReviewQueryService()
+        );
+        MailReviewCommand command = new MailReviewCommand(userId, "", "검토할 본문입니다.", 0, List.of());
+
+        // when & then
+        assertDoesNotThrow(() -> service.review(command, Plan.PRO));
+
+        // then
+        verify(cachePort).tryConsumeWeeklyLimit(userId);
+    }
 
     @Test
     void llm후보를검증해서적용가능한issue만반환한다() {

@@ -8,13 +8,17 @@ import com.mailsangja.core.dto.label.LabelDetailResponse;
 import com.mailsangja.core.dto.label.LabelListResponse;
 import com.mailsangja.core.dto.label.LabelRuleUpdateRequest;
 import com.mailsangja.core.dto.label.LabelUpdateRequest;
+import com.mailsangja.core.dto.label.LlmLabelSuggestionResult;
+import com.mailsangja.core.service.ai.label.LabelSuggestionAiService;
 import com.mailsangja.core.service.label.LabelCommandService;
 import com.mailsangja.core.service.label.LabelQueryService;
 import com.mailsangja.core.service.label.LabelReclassifyPendingJobStore;
 import com.mailsangja.db.common.label.LabelRule;
 import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.label.Label;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
+import com.mailsangja.db.port.LabelSuggestionRateLimitCachePort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -51,6 +55,12 @@ class LabelFacadeTest {
 
     @Mock
     private LabelRuleValidator labelRuleValidator;
+
+    @Mock
+    private LabelSuggestionAiService labelSuggestionAiService;
+
+    @Mock
+    private LabelSuggestionRateLimitCachePort suggestionRateLimitCachePort;
 
     @InjectMocks
     private LabelFacade labelFacade;
@@ -194,6 +204,38 @@ class LabelFacadeTest {
     }
 
     @Test
+    void 라벨제안_pro사용자는한도초과여도카운트만소모하고허용한다() {
+        User user = user(Plan.PRO);
+        LabelRule rule = rule("invoice");
+        LlmLabelSuggestionResult result = new LlmLabelSuggestionResult(List.of(
+                new LlmLabelSuggestionResult.LabelSuggestionItem("청구서", "#3366FF", NotificationPolicy.INHERIT, 1, rule)
+        ));
+        Label saved = label("청구서", 1, rule);
+        when(suggestionRateLimitCachePort.tryConsumeWeeklyLimit(user.getId())).thenReturn(false);
+        when(labelQueryService.findAllActiveByUserId(user.getId())).thenReturn(List.of());
+        when(labelSuggestionAiService.suggest(user.getId(), List.of())).thenReturn(result);
+        when(labelQueryService.existsByUserIdAndName(user.getId(), "청구서")).thenReturn(false);
+        when(labelCommandService.createSuggestion(any(), any())).thenReturn(saved);
+
+        List<LabelListResponse> responses = labelFacade.createSuggestions(user);
+
+        assertEquals(1, responses.size());
+        verify(suggestionRateLimitCachePort).tryConsumeWeeklyLimit(user.getId());
+        verify(labelSuggestionAiService).suggest(user.getId(), List.of());
+    }
+
+    @Test
+    void 라벨제안_free사용자는한도초과시예외를던지고LLM을호출하지않는다() {
+        User user = user();
+        when(suggestionRateLimitCachePort.tryConsumeWeeklyLimit(user.getId())).thenReturn(false);
+
+        LabelException exception = assertThrows(LabelException.class, () -> labelFacade.createSuggestions(user));
+
+        assertEquals(LabelErrorCode.LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED, exception.getErrorCode());
+        verify(labelSuggestionAiService, never()).suggest(any(), any());
+    }
+
+    @Test
     void updateLabelRule_rateLimit초과_예외전파되고PendingJob병합안됨() {
         User user = user();
         LabelRule rule = rule("invoice");
@@ -250,8 +292,13 @@ class LabelFacadeTest {
     }
 
     private User user() {
+        return user(Plan.FREE);
+    }
+
+    private User user(Plan plan) {
         return User.builder()
                 .id(UUID.randomUUID())
+                .plan(plan)
                 .build();
     }
 

@@ -11,6 +11,7 @@ import com.mailsangja.core.dto.mail.MailReviewIssueResult;
 import com.mailsangja.core.dto.mail.MailReviewIssueType;
 import com.mailsangja.core.dto.mail.MailReviewResult;
 import com.mailsangja.core.dto.mail.MailReviewSegment;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.port.MailReviewRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +60,11 @@ public class MailReviewCommandService {
     private final MailReviewQueryService mailReviewQueryService;
 
     public MailReviewResult review(MailReviewCommand command) {
-        validateWeeklyRateLimit(command);
+        return review(command, Plan.FREE);
+    }
+
+    public MailReviewResult review(MailReviewCommand command, Plan plan) {
+        validateWeeklyRateLimit(command, plan);
         List<MailReviewSegment> segments = mailReviewQueryService.createSegments(command);
         if (segments.isEmpty()) {
             return new MailReviewResult(List.of());
@@ -72,8 +77,9 @@ public class MailReviewCommandService {
         return new MailReviewResult(filterAttachmentIssues(command, issues));
     }
 
-    private void validateWeeklyRateLimit(MailReviewCommand command) {
-        if (!rateLimitCachePort.tryConsumeWeeklyLimit(command.userId())) {
+    private void validateWeeklyRateLimit(MailReviewCommand command, Plan plan) {
+        boolean allowed = rateLimitCachePort.tryConsumeWeeklyLimit(command.userId());
+        if (plan != Plan.PRO && !allowed) {
             throw new MailReviewException(MailReviewErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }

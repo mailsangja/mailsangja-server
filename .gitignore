@@ -53,3 +53,4 @@ out/
 /worker/src/main/resources/firebase-key.json
 /fcm-test-frontend/
 /docs/
+/architecture/

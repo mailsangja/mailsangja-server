@@ -45,7 +45,7 @@ public class MailDraftFacade {
 
     private void streamByPurpose(User user, SseEmitter emitter, MailDraftCommand command) {
         if (command.purpose() == com.mailsangja.core.dto.mail.MailDraftPurpose.GENERAL) {
-            mailDraftAsyncService.streamGeneral(emitter, command);
+            mailDraftAsyncService.streamGeneral(emitter, command, user.getPlan());
             return;
         }
         streamReply(user, emitter, command);
@@ -54,7 +54,7 @@ public class MailDraftFacade {
     private void streamReply(User user, SseEmitter emitter, MailDraftCommand command) {
         Message replyTarget = mailQueryService.findReplyTargetMessage(command.replyMessageId());
         validateReplyTarget(user, replyTarget);
-        mailDraftAsyncService.streamReply(emitter, command);
+        mailDraftAsyncService.streamReply(emitter, command, user.getPlan());
     }
 
     private void validateReplyTarget(User user, Message replyTarget) {
