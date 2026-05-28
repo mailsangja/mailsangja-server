@@ -11,6 +11,7 @@ import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageEvent;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -67,6 +68,21 @@ class MailDraftCommandServiceTest {
 
         // when & then
         assertThrows(MailDraftException.class, () -> service.validateWeeklyRateLimit(userId));
+    }
+
+    @Test
+    void pro사용자는한도초과여도카운트만소모하고허용한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        MailDraftRateLimitCachePort cachePort = mock(MailDraftRateLimitCachePort.class);
+        MailDraftCommandService service = new MailDraftCommandService(cachePort, chatModelProvider(), modelProperties());
+        when(cachePort.tryConsumeWeeklyLimit(userId)).thenReturn(false);
+
+        // when & then
+        assertDoesNotThrow(() -> service.validateWeeklyRateLimit(userId, Plan.PRO));
+
+        // then
+        verify(cachePort).tryConsumeWeeklyLimit(userId);
     }
 
     @Test

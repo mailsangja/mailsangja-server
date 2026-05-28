@@ -16,7 +16,7 @@ public class MailReviewFacade {
     private final MailReviewCommandService mailReviewCommandService;
 
     public MailReviewResponse review(User user, MailReviewRequest request) {
-        MailReviewResult result = mailReviewCommandService.review(MailReviewCommand.of(user.getId(), request));
+        MailReviewResult result = mailReviewCommandService.review(MailReviewCommand.of(user.getId(), request), user.getPlan());
         return MailReviewResponse.from(result);
     }
 }

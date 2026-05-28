@@ -15,6 +15,7 @@ import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -51,7 +52,7 @@ class MailDraftFacadeTest {
 
         // then
         assertNotNull(emitter);
-        verify(fixture.draftAsyncService()).streamGeneral(eq(emitter), any(MailDraftCommand.class));
+        verify(fixture.draftAsyncService()).streamGeneral(eq(emitter), any(MailDraftCommand.class), eq(user.getPlan()));
     }
 
     @Test
@@ -66,8 +67,8 @@ class MailDraftFacadeTest {
         assertThrows(MailAccountException.class, () -> fixture.facade().streamDraft(user, createRequest(account, null)));
 
         // then
-        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
-        verify(fixture.draftAsyncService(), never()).streamReply(any(), any());
+        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any(), any());
+        verify(fixture.draftAsyncService(), never()).streamReply(any(), any(), any());
     }
 
     @Test
@@ -82,8 +83,8 @@ class MailDraftFacadeTest {
 
         // then
         verify(fixture.mailQueryService(), never()).findReplyTargetMessage(any());
-        verify(fixture.draftAsyncService()).streamGeneral(any(), any(MailDraftCommand.class));
-        verify(fixture.draftAsyncService(), never()).streamReply(any(), any());
+        verify(fixture.draftAsyncService()).streamGeneral(any(), any(MailDraftCommand.class), eq(user.getPlan()));
+        verify(fixture.draftAsyncService(), never()).streamReply(any(), any(), any());
     }
 
     @Test
@@ -100,8 +101,8 @@ class MailDraftFacadeTest {
 
         // then
         verify(fixture.mailQueryService()).findReplyTargetMessage(replyMessageId);
-        verify(fixture.draftAsyncService()).streamReply(any(), any(MailDraftCommand.class));
-        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
+        verify(fixture.draftAsyncService()).streamReply(any(), any(MailDraftCommand.class), eq(user.getPlan()));
+        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any(), any());
     }
 
     @Test
@@ -117,8 +118,8 @@ class MailDraftFacadeTest {
         assertThrows(MailDraftException.class, () -> fixture.facade().streamDraft(user, createRequest(account, UUID.randomUUID())));
 
         // then
-        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
-        verify(fixture.draftAsyncService(), never()).streamReply(any(), any());
+        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any(), any());
+        verify(fixture.draftAsyncService(), never()).streamReply(any(), any(), any());
     }
 
     @Test
@@ -134,8 +135,8 @@ class MailDraftFacadeTest {
         fixture.facade().streamDraft(user, createRequest(requestAccount, UUID.randomUUID()));
 
         // then
-        verify(fixture.draftAsyncService()).streamReply(any(), captor.capture());
-        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
+        verify(fixture.draftAsyncService()).streamReply(any(), captor.capture(), eq(user.getPlan()));
+        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any(), any());
         assertEquals(requestAccount.getId(), captor.getValue().mailAccountId());
     }
 
@@ -152,7 +153,7 @@ class MailDraftFacadeTest {
 
         // then
         verify(fixture.draftQueryService(), atLeastOnce()).validatePromptInjection(any());
-        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any());
+        verify(fixture.draftAsyncService(), never()).streamGeneral(any(), any(), any());
     }
 
     private FacadeFixture createFacade(MailAccount account, Message replyTarget) {
@@ -204,7 +205,7 @@ class MailDraftFacadeTest {
     }
 
     private User createUser(UUID id) {
-        return User.builder().id(id).build();
+        return User.builder().id(id).plan(Plan.FREE).build();
     }
 
     private MailAccount createMailAccount(User user, UUID id) {

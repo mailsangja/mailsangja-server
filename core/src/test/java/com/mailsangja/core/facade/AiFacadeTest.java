@@ -13,6 +13,7 @@ import com.mailsangja.core.service.ai.AiQueryService;
 import com.mailsangja.core.service.ai.AiUsageQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.Role;
 import com.mailsangja.db.entity.user.User;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,7 @@ class AiFacadeTest {
 
         when(mailAccountQueryService.findAllActiveByUserId(user.getId()))
                 .thenReturn(List.of(mock(MailAccount.class)));
-        when(playgroundCommandService.chat(user.getId(), request))
+        when(playgroundCommandService.chat(user.getId(), request, user.getPlan()))
                 .thenReturn(new AiPlaygroundChatResult(
                         "OPENROUTER",
                         "google/gemini-3.5-flash",
@@ -86,7 +87,7 @@ class AiFacadeTest {
         assertEquals(10, response.usage().inputTokens());
         assertEquals(20, response.usage().outputTokens());
         assertEquals(30, response.usage().totalTokens());
-        verify(playgroundCommandService).chat(user.getId(), request);
+        verify(playgroundCommandService).chat(user.getId(), request, user.getPlan());
     }
 
     @Test
@@ -151,6 +152,7 @@ class AiFacadeTest {
                 .name("테스트 사용자")
                 .username("tester@example.com")
                 .password("encoded")
+                .plan(Plan.FREE)
                 .role(Role.USER)
                 .build();
     }
@@ -161,6 +163,7 @@ class AiFacadeTest {
                 .name("관리자")
                 .username("admin@example.com")
                 .password("encoded")
+                .plan(Plan.PRO)
                 .role(Role.ADMIN)
                 .build();
     }

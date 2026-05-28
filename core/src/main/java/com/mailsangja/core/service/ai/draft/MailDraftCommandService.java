@@ -11,6 +11,7 @@ import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRestoreContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageEvent;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.port.MailDraftRateLimitCachePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +72,12 @@ public class MailDraftCommandService {
     private final AiModelProperties modelProperties;
 
     public void validateWeeklyRateLimit(UUID userId) {
-        if (!rateLimitCachePort.tryConsumeWeeklyLimit(userId)) {
+        validateWeeklyRateLimit(userId, Plan.FREE);
+    }
+
+    public void validateWeeklyRateLimit(UUID userId, Plan plan) {
+        boolean allowed = rateLimitCachePort.tryConsumeWeeklyLimit(userId);
+        if (plan != Plan.PRO && !allowed) {
             throw new MailDraftException(MailDraftErrorCode.RATE_LIMIT_EXCEEDED);
         }
     }

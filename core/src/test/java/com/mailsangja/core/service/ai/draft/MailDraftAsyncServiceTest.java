@@ -5,6 +5,7 @@ import com.mailsangja.core.dto.mail.MailDraftCommand;
 import com.mailsangja.core.dto.mail.MailDraftPromptResult;
 import com.mailsangja.core.dto.mail.MailDraftRagContextResult;
 import com.mailsangja.core.dto.mail.MailDraftUsageResult;
+import com.mailsangja.db.entity.user.Plan;
 import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -34,7 +35,7 @@ class MailDraftAsyncServiceTest {
         MailDraftCommand command = createCommand();
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
         emitter.disconnect();
 
         // then
@@ -49,7 +50,7 @@ class MailDraftAsyncServiceTest {
         MailDraftCommand command = createCommand();
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
         emitter.timeout();
 
         // then
@@ -64,7 +65,7 @@ class MailDraftAsyncServiceTest {
         MailDraftCommand command = createCommand();
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
         emitter.fail();
 
         // then
@@ -82,7 +83,7 @@ class MailDraftAsyncServiceTest {
         doThrow(new RuntimeException("body failed")).when(fixture.commandService()).streamBody(eq(emitter), any(), any(), any(), any());
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         verify(fixture.commandService()).sendError(eq(emitter), any());
@@ -100,7 +101,7 @@ class MailDraftAsyncServiceTest {
         doThrow(new IllegalStateException("send failed")).when(fixture.commandService()).sendError(eq(emitter), any());
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         verify(fixture.commandService()).sendError(eq(emitter), any());
@@ -119,7 +120,7 @@ class MailDraftAsyncServiceTest {
         when(fixture.commandService().streamBody(eq(emitter), any(), any(), any(), any())).thenReturn(bodyUsage);
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.commandService());
@@ -138,7 +139,7 @@ class MailDraftAsyncServiceTest {
         org.mockito.Mockito.doReturn(usage).when(fixture.commandService()).streamCombined(eq(emitter), any(), any(), any(), any());
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.commandService());
@@ -164,7 +165,7 @@ class MailDraftAsyncServiceTest {
         });
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         verify(fixture.commandService(), org.mockito.Mockito.never()).streamBody(any(), any(), any(), any(), any());
@@ -179,13 +180,13 @@ class MailDraftAsyncServiceTest {
         MailDraftCommand command = createCommand();
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(fixture.queryService(), fixture.commandService());
         inOrder.verify(fixture.queryService()).generalPrompt(eq(command), any());
         inOrder.verify(fixture.commandService()).resolveModel(command.model());
-        inOrder.verify(fixture.commandService()).validateWeeklyRateLimit(command.userId());
+        inOrder.verify(fixture.commandService()).validateWeeklyRateLimit(command.userId(), Plan.FREE);
         inOrder.verify(fixture.commandService()).streamSubject(eq(emitter), any(), any(), any(), any());
     }
 
@@ -195,10 +196,10 @@ class MailDraftAsyncServiceTest {
         Fixture fixture = createFixture();
         SseEmitter emitter = new SseEmitter();
         MailDraftCommand command = createCommand();
-        doThrow(mock(MailDraftException.class)).when(fixture.commandService()).validateWeeklyRateLimit(command.userId());
+        doThrow(mock(MailDraftException.class)).when(fixture.commandService()).validateWeeklyRateLimit(command.userId(), Plan.FREE);
 
         // when
-        fixture.asyncService().streamGeneral(emitter, command);
+        fixture.asyncService().streamGeneral(emitter, command, Plan.FREE);
 
         // then
         verify(fixture.commandService(), org.mockito.Mockito.never()).streamSubject(any(), any(), any(), any(), any());
@@ -216,7 +217,7 @@ class MailDraftAsyncServiceTest {
         when(fixture.queryService().generalPrompt(any(), any())).thenReturn(prompt);
 
         // when
-        fixture.asyncService().streamGeneral(emitter, createCommand());
+        fixture.asyncService().streamGeneral(emitter, createCommand(), Plan.FREE);
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
@@ -237,7 +238,7 @@ class MailDraftAsyncServiceTest {
         when(fixture.commandService().streamBody(eq(emitter), any(), any(), any(), any())).thenReturn(bodyUsage);
 
         // when
-        fixture.asyncService().streamReply(emitter, command);
+        fixture.asyncService().streamReply(emitter, command, Plan.FREE);
 
         // then
         var captor = forClass(MailDraftPromptResult.class);
