@@ -32,7 +32,7 @@ public enum LabelErrorCode implements ErrorCode {
     LABEL_SUGGESTION_NOT_FOUND(404, "MS-LABEL-SUGGESTION-NOT-FOUND", "라벨 제안을 찾을 수 없습니다."),
     LABEL_SUGGESTION_APPROVE_EMPTY(400, "MS-LABEL-SUGGESTION-APPROVE-EMPTY", "승인할 라벨 제안 ID 목록이 비어 있습니다."),
     LABEL_SUGGESTION_AI_FAILED(500, "MS-LABEL-SUGGESTION-AI-FAILED", "AI 라벨 제안 생성에 실패했습니다."),
-    LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED(429, "MS-LABEL-SUGGESTION-RATE-LIMIT-EXCEEDED", "이번 달 라벨 제안 요청 횟수를 초과했습니다.");
+    LABEL_SUGGESTION_RATE_LIMIT_EXCEEDED(429, "MS-LABEL-SUGGESTION-RATE-LIMIT-EXCEEDED", "이번 주 라벨 제안 요청 횟수를 초과했습니다.");
 
     private final int status;
     private final String code;

@@ -99,7 +99,7 @@ public interface MailControllerDocs {
             ),
             @ApiResponse(
                     responseCode = "429",
-                    description = "월간 AI 사용 한도 초과",
+                    description = "주간 AI 사용 한도 초과",
                     content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(

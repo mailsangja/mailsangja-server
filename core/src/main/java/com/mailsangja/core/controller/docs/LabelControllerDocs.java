@@ -137,14 +137,14 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 제안 생성",
-            description = "최근 수신 메일의 제목·발신자 정보를 AI로 분석하여 라벨 규칙 제안을 생성합니다. confirmed=false 상태로 저장되며, 동일 이름의 제안이 이미 존재하면 중복 저장하지 않습니다. 월간 사용 횟수 제한이 적용됩니다.",
+            description = "최근 수신 메일의 제목·발신자 정보를 AI로 분석하여 라벨 규칙 제안을 생성합니다. confirmed=false 상태로 저장되며, 동일 이름의 제안이 이미 존재하면 중복 저장하지 않습니다. 주간 사용 횟수 제한이 적용됩니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "라벨 제안 생성 성공 (새로 저장된 제안 목록만 반환)"),
             @ApiResponse(responseCode = "401", description = "인증 필요",
                     content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "429", description = "이번 달 라벨 제안 요청 횟수 초과",
+            @ApiResponse(responseCode = "429", description = "이번 주 라벨 제안 요청 횟수 초과",
                     content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "500", description = "AI 라벨 제안 생성 실패",
                     content = @Content(schema = @Schema(hidden = true)))
