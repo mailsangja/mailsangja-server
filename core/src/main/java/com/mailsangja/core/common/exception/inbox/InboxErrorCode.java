@@ -15,6 +15,7 @@ public enum InboxErrorCode implements ErrorCode {
     ATTACHMENT_ACCESS_DENIED(403, "MS-INBOX-ATTACHMENT-ACCESS-DENIED", "해당 첨부파일에 접근할 권한이 없습니다."),
     ATTACHMENT_PROVIDER_NOT_SUPPORTED(501, "MS-INBOX-ATTACHMENT-PROVIDER-NOT-SUPPORTED", "해당 메일 제공자의 첨부파일 조회는 아직 지원하지 않습니다."),
     ATTACHMENT_SOURCE_INVALID(502, "MS-INBOX-ATTACHMENT-SOURCE-INVALID", "첨부파일 원본 정보가 올바르지 않습니다."),
+    INVALID_SEARCH_REQUEST(400, "MS-INBOX-INVALID-SEARCH-REQUEST", "메일 검색 요청 형식이 올바르지 않습니다."),
     ATTACHMENT_DOWNLOAD_FAILED(502, "MS-INBOX-ATTACHMENT-DOWNLOAD-FAILED", "첨부파일 다운로드에 실패했습니다.");
 
     private final int status;
