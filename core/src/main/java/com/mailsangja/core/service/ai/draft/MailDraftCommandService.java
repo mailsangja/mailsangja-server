@@ -191,7 +191,7 @@ public class MailDraftCommandService {
     }
 
     public String resolveModel(String requestedModel) {
-        return modelProperties.resolve(requestedModel);
+        return modelProperties.resolveDraft(requestedModel);
     }
 
     private Prompt createPrompt(MailDraftPromptResult prompt, MailDraftPhase phase, String model) {

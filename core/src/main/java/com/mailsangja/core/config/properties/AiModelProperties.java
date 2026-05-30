@@ -18,6 +18,8 @@ import java.util.List;
 public class AiModelProperties {
 
     private String defaultModel;
+    private String draftModel;
+    private String labelSuggestionModel;
     private List<String> allowedModels = List.of();
 
     public String resolve(String requestedModel) {
@@ -35,8 +37,30 @@ public class AiModelProperties {
         return resolve(null);
     }
 
+    public String resolveDraft(String requestedModel) {
+        String model = normalize(requestedModel);
+        if (model == null) {
+            model = normalize(draftModel);
+        }
+        return resolveDefaulted(model);
+    }
+
+    public String labelSuggestionModel() {
+        return resolveDefaulted(normalize(labelSuggestionModel));
+    }
+
     public List<String> allowedModels() {
         return normalizedAllowedModels();
+    }
+
+    private String resolveDefaulted(String model) {
+        if (model == null) {
+            model = normalize(defaultModel);
+        }
+        if (model == null || !normalizedAllowedModels().contains(model)) {
+            throw new AiModelException(AiModelErrorCode.INVALID_MODEL);
+        }
+        return model;
     }
 
     private List<String> normalizedAllowedModels() {

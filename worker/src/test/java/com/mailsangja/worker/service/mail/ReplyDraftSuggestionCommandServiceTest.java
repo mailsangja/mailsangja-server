@@ -13,6 +13,7 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ReplyDraftSuggestionRepositoryPort;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
+import com.mailsangja.worker.config.properties.AiModelProperties;
 import com.mailsangja.worker.dto.mail.reply.ReplyDraftSuggestionPromptResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -59,7 +60,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 messageRepositoryPort,
                 suggestionRepositoryPort,
                 queryService,
-                transactionTemplate
+                transactionTemplate,
+                modelProperties()
         );
         when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
                 .thenReturn(Optional.of(message));
@@ -105,7 +107,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 messageRepositoryPort,
                 suggestionRepositoryPort,
                 queryService,
-                transactionTemplate
+                transactionTemplate,
+                modelProperties()
         );
         when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
                 .thenReturn(Optional.of(message));
@@ -159,7 +162,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 messageRepositoryPort,
                 suggestionRepositoryPort,
                 queryService,
-                transactionTemplate
+                transactionTemplate,
+                modelProperties()
         );
         when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
                 .thenReturn(Optional.of(message));
@@ -173,6 +177,56 @@ class ReplyDraftSuggestionCommandServiceTest {
         // then
         verify(suggestionRepositoryPort).saveAllByMessageIdUpToActiveLimit(eq(messageId), any(), eq(4));
         verify(suggestionRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void generate_답장추천모델을Prompt옵션에설정한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        Message message = createMessage(messageId);
+        MessageRepositoryPort messageRepositoryPort = mock(MessageRepositoryPort.class);
+        ReplyDraftSuggestionRepositoryPort suggestionRepositoryPort = mock(ReplyDraftSuggestionRepositoryPort.class);
+        ReplyDraftSuggestionQueryService queryService = mock(ReplyDraftSuggestionQueryService.class);
+        TransactionTemplate transactionTemplate = transactionTemplate();
+        ChatModel chatModel = mock(ChatModel.class);
+        ReplyDraftSuggestionCommandService service = new ReplyDraftSuggestionCommandService(
+                chatModelProvider(chatModel),
+                messageRepositoryPort,
+                suggestionRepositoryPort,
+                queryService,
+                transactionTemplate,
+                modelProperties()
+        );
+        when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
+                .thenReturn(Optional.of(message));
+        when(queryService.existsByMessageId(messageId)).thenReturn(false);
+        when(queryService.createPrompt(eq(messageId), contains("suggestions")))
+                .thenReturn(new ReplyDraftSuggestionPromptResult("system", "user"));
+        when(chatModel.getDefaultOptions()).thenReturn(ChatOptions.builder().model("gpt-test").build());
+        when(chatModel.call(any(Prompt.class))).thenReturn(response("""
+                {
+                  "suggestions": [
+                    {
+                      "type": "승낙",
+                      "subject": "Re: 회의 일정",
+                      "body": "좋습니다. 해당 일정으로 진행하겠습니다."
+                    },
+                    {
+                      "type": "제안",
+                      "subject": "Re: 회의 일정",
+                      "body": "가능하다면 오후 시간으로 조정 가능할까요?"
+                    }
+                  ]
+                }
+                """));
+
+        // when
+        service.generate(messageId);
+
+        // then
+        org.mockito.ArgumentCaptor<Prompt> captor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
+        verify(chatModel).call(captor.capture());
+        assertEquals("reply-test", captor.getValue().getOptions().getModel());
     }
 
     @Test
@@ -200,7 +254,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 messageRepositoryPort,
                 suggestionRepositoryPort,
                 queryService,
-                transactionTemplate
+                transactionTemplate,
+                modelProperties()
         );
         when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
                 .thenReturn(Optional.of(message));
@@ -229,7 +284,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 messageRepositoryPort,
                 suggestionRepositoryPort,
                 queryService,
-                transactionTemplate()
+                transactionTemplate(),
+                modelProperties()
         );
         when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
                 .thenReturn(Optional.empty());
@@ -255,7 +311,8 @@ class ReplyDraftSuggestionCommandServiceTest {
                 messageRepositoryPort,
                 suggestionRepositoryPort,
                 queryService,
-                transactionTemplate()
+                transactionTemplate(),
+                modelProperties()
         );
         when(messageRepositoryPort.findByIdIncludingDeletedAndSensitiveLabelsExcluded(messageId))
                 .thenReturn(Optional.of(message));
@@ -291,6 +348,14 @@ class ReplyDraftSuggestionCommandServiceTest {
 
     private ChatModel chatModel(String text) {
         return new StubChatModel(response(text));
+    }
+
+    private AiModelProperties modelProperties() {
+        AiModelProperties properties = new AiModelProperties();
+        properties.setDefaultModel("gpt-test");
+        properties.setReplyDraftSuggestionModel("reply-test");
+        properties.setAllowedModels(List.of("gpt-test", "reply-test"));
+        return properties;
     }
 
     private ChatResponse response(String text) {

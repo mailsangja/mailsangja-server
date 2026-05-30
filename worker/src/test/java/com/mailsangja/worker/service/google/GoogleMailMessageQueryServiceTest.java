@@ -205,14 +205,19 @@ class GoogleMailMessageQueryServiceTest {
                         """))
                 .build();
 
-        GmailMessageApiService service = new GmailMessageApiService(properties, restClient);
+        GmailApiRateLimitService rateLimitService = mock(GmailApiRateLimitService.class);
+        GmailMessageApiService service = new GmailMessageApiService(properties, restClient, rateLimitService);
 
-        List<InitialMailSyncThreadResult> results = service.getThreads("token", List.of("thread-1"));
+        List<InitialMailSyncThreadResult> results = service.getThreads(
+                new GoogleMailApiContext("token", "alice@example.com"),
+                List.of("thread-1")
+        );
 
         assertEquals(1, results.size());
         assertEquals(1, results.getFirst().messages().getFirst().attachments().size());
         assertEquals("f_mpmdzs8f0", results.getFirst().messages().getFirst().attachments().getFirst().contentId());
         assertEquals(AttachmentDisposition.ATTACHMENT, results.getFirst().messages().getFirst().attachments().getFirst().disposition());
+        verify(rateLimitService).consumeThreadGet("alice@example.com");
     }
 
     private static final class StubClientHttpRequestFactory extends SimpleClientHttpRequestFactory {
