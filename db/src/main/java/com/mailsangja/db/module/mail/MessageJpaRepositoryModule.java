@@ -609,9 +609,9 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
               AND m.deleted_at IS NULL
               AND t.deleted_at IS NULL
               AND ma.deleted_at IS NULL
-              AND (:mailAccountId IS NULL OR ma.id = :mailAccountId)
-              AND (:direction IS NULL OR m.direction = :direction)
-              AND (:read IS NULL OR m.is_read = :read)
+              AND (CAST(:mailAccountId AS uuid) IS NULL OR ma.id = CAST(:mailAccountId AS uuid))
+              AND (CAST(:direction AS varchar) IS NULL OR m.direction = CAST(:direction AS varchar))
+              AND (CAST(:read AS boolean) IS NULL OR m.is_read = CAST(:read AS boolean))
               AND (:labelsEmpty = TRUE OR EXISTS (
                   SELECT 1
                   FROM message_labels ml
