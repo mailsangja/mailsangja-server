@@ -535,6 +535,70 @@ public interface MessageJpaRepositoryModule extends JpaRepository<Message, UUID>
             Pageable pageable
     );
 
+    @Query(value = """
+            SELECT m.id
+            FROM messages m
+            JOIN threads t ON m.thread_id = t.id
+            JOIN mail_accounts ma ON t.mail_account_id = ma.id
+            WHERE ma.user_id = :userId
+              AND ma.id = :mailAccountId
+              AND m.deleted_at IS NULL
+              AND t.deleted_at IS NULL
+              AND ma.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM message_labels ml
+                  JOIN labels l ON l.id = ml.label_id
+                  WHERE ml.message_id = m.id
+                    AND ml.deleted_at IS NULL
+                    AND l.deleted_at IS NULL
+                    AND l.is_sensitive = true
+              )
+              AND m.search_vector @@ to_tsquery('korean', :tsQuery)
+            ORDER BY
+              ts_rank_cd(m.search_vector, to_tsquery('korean', :tsQuery)) DESC,
+              m.sent_at DESC NULLS LAST,
+              m.id DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<String> findAccountLexicalRelevantMessageIds(
+            @Param("userId") String userId,
+            @Param("mailAccountId") String mailAccountId,
+            @Param("tsQuery") String tsQuery,
+            @Param("limit") int limit
+    );
+
+    @Query(value = """
+            SELECT m.id
+            FROM messages m
+            JOIN threads t ON m.thread_id = t.id
+            JOIN mail_accounts ma ON t.mail_account_id = ma.id
+            WHERE ma.user_id = :userId
+              AND m.deleted_at IS NULL
+              AND t.deleted_at IS NULL
+              AND ma.deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM message_labels ml
+                  JOIN labels l ON l.id = ml.label_id
+                  WHERE ml.message_id = m.id
+                    AND ml.deleted_at IS NULL
+                    AND l.deleted_at IS NULL
+                    AND l.is_sensitive = true
+              )
+              AND m.search_vector @@ to_tsquery('korean', :tsQuery)
+            ORDER BY
+              ts_rank_cd(m.search_vector, to_tsquery('korean', :tsQuery)) DESC,
+              m.sent_at DESC NULLS LAST,
+              m.id DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<String> findUserLexicalRelevantMessageIds(
+            @Param("userId") String userId,
+            @Param("tsQuery") String tsQuery,
+            @Param("limit") int limit
+    );
+
     @EntityGraph(attributePaths = {"thread", "thread.mailAccount"})
     @Query("SELECT m FROM Message m WHERE m.id IN :ids")
     List<Message> findAllByIdInWithThread(@Param("ids") List<UUID> ids);

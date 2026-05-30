@@ -61,7 +61,37 @@ class MailDraftReferenceQueryAdapterTest {
         List<MailDraftReferenceMessageResult> results = adapter.findMessagesByIds(List.of(messageId));
 
         // then
-        assertEquals("문의 user@example.com 감사합니다.", results.getFirst().body());
+        assertEquals("문의 user@example.com\n감사합니다.", results.getFirst().body());
+    }
+
+    @Test
+    void 계정Lexical검색결과Id를Uuid로변환한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        MailDraftReferenceQueryAdapter adapter = createLexicalAdapter(messageId);
+
+        // when
+        List<UUID> results = adapter.findAccountLexicalRelevantMessageIds(
+                UUID.randomUUID(), UUID.randomUUID(), "수강 | 정정", 40
+        );
+
+        // then
+        assertEquals(List.of(messageId), results);
+    }
+
+    @Test
+    void 사용자Lexical검색결과Id를Uuid로변환한다() {
+        // given
+        UUID messageId = UUID.randomUUID();
+        MailDraftReferenceQueryAdapter adapter = createLexicalAdapter(messageId);
+
+        // when
+        List<UUID> results = adapter.findUserLexicalRelevantMessageIds(
+                UUID.randomUUID(), "수강 | 정정", 40
+        );
+
+        // then
+        assertEquals(List.of(messageId), results);
     }
 
     private MailDraftReferenceQueryAdapter createAdapter(Message message) {
@@ -91,6 +121,15 @@ class MailDraftReferenceQueryAdapterTest {
         return new MailDraftReferenceQueryAdapter(module);
     }
 
+    private MailDraftReferenceQueryAdapter createLexicalAdapter(UUID messageId) {
+        MessageJpaRepositoryModule module = (MessageJpaRepositoryModule) Proxy.newProxyInstance(
+                MessageJpaRepositoryModule.class.getClassLoader(),
+                new Class<?>[]{MessageJpaRepositoryModule.class},
+                (proxy, method, args) -> findLexicalMessageIds(method.getName(), messageId)
+        );
+        return new MailDraftReferenceQueryAdapter(module);
+    }
+
     private Object findRecentByUserIdAndMailAccountIdAndDirection(String methodName, Message message) {
         if ("findRecentByUserIdAndMailAccountIdAndDirection".equals(methodName)) {
             return List.of(message);
@@ -108,6 +147,14 @@ class MailDraftReferenceQueryAdapterTest {
     private Object findActiveByIdIn(String methodName, Message message) {
         if ("findActiveByIdIn".equals(methodName)) {
             return List.of(message);
+        }
+        throw new UnsupportedOperationException(methodName);
+    }
+
+    private Object findLexicalMessageIds(String methodName, UUID messageId) {
+        if ("findAccountLexicalRelevantMessageIds".equals(methodName)
+                || "findUserLexicalRelevantMessageIds".equals(methodName)) {
+            return List.of(messageId.toString());
         }
         throw new UnsupportedOperationException(methodName);
     }

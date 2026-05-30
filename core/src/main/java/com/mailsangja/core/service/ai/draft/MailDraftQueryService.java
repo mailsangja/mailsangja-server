@@ -44,6 +44,11 @@ public class MailDraftQueryService {
     private static final int USER_RELEVANT_WRITTEN_LIMIT = 3;
     private static final int RECIPIENT_HISTORY_LIMIT = 6;
     private static final int VECTOR_SEARCH_LIMIT = 40;
+    private static final int HYBRID_LEXICAL_SEARCH_LIMIT = 40;
+    private static final int HYBRID_RESULT_LIMIT = 40;
+    private static final int RRF_K = 60;
+    private static final double VECTOR_RRF_WEIGHT = 0.6;
+    private static final double LEXICAL_RRF_WEIGHT = 0.4;
     private static final String SOURCE_RECENT_SENT = "recent_sent";
     private static final String SOURCE_ENTITY_HINT = "entity_hint";
     private static final String SOURCE_RELEVANT_SENT = "relevant_sent";
@@ -123,6 +128,7 @@ public class MailDraftQueryService {
     private final MailDraftReferenceQueryPort referenceQueryPort;
     private final VectorStore vectorStore;
     private final PhileasMaskingService maskingService;
+    private final MailDraftLexicalQueryBuilder lexicalQueryBuilder;
 
     public void validatePromptInjection(String query) {
         if (query == null) {
@@ -373,7 +379,7 @@ public class MailDraftQueryService {
 
     private List<MailDraftSearchContextResult> findGeneralRelevant(MailDraftCommand command) {
         List<MailDraftSearchContextResult> entity = findEntityHintRelevant(command);
-        List<MailDraftReferenceMessageResult> accountMessages = findAccountVectorMessages(command);
+        List<MailDraftReferenceMessageResult> accountMessages = findAccountHybridMessages(command);
         List<MailDraftSearchContextResult> sent = findAccountRelevantWritten(command, accountMessages);
         List<MailDraftSearchContextResult> received = findAccountRelevantReceived(command, accountMessages);
         List<MailDraftSearchContextResult> user = findUserRelevantWritten(command);
@@ -468,7 +474,7 @@ public class MailDraftQueryService {
     }
 
     private List<MailDraftSearchContextResult> findUserRelevantWritten(MailDraftCommand command) {
-        List<MailDraftReferenceMessageResult> messages = findUserVectorMessages(command);
+        List<MailDraftReferenceMessageResult> messages = findUserHybridMessages(command);
         List<MailDraftReferenceMessageResult> filtered = filterByDirection(
                 messages, Direction.OUTBOUND, USER_RELEVANT_WRITTEN_LIMIT
         );
@@ -505,16 +511,88 @@ public class MailDraftQueryService {
         return toMaskedContexts(filtered, SOURCE_RELEVANT_SENT);
     }
 
-    private List<MailDraftReferenceMessageResult> findAccountVectorMessages(MailDraftCommand command) {
-        return findAccountVectorMessages(command.userId(), command.mailAccountId(), command.maskedQuery());
-    }
-
     private List<MailDraftReferenceMessageResult> findAccountVectorMessages(UUID userId, UUID mailAccountId, String query) {
         return findVectorMessages(query, accountVectorFilter(userId, mailAccountId));
     }
 
-    private List<MailDraftReferenceMessageResult> findUserVectorMessages(MailDraftCommand command) {
-        return findVectorMessages(command.maskedQuery(), userVectorFilter(command.userId()));
+    private List<MailDraftReferenceMessageResult> findAccountHybridMessages(MailDraftCommand command) {
+        if (referenceQueryPort == null) {
+            return List.of();
+        }
+        List<UUID> vectorIds = findVectorMessageIds(command.maskedQuery(), accountVectorFilter(command.userId(), command.mailAccountId()));
+        List<UUID> lexicalIds = findAccountLexicalMessageIds(command);
+        return findRankedMessages(rankHybrid(vectorIds, lexicalIds, HYBRID_RESULT_LIMIT));
+    }
+
+    private List<MailDraftReferenceMessageResult> findUserHybridMessages(MailDraftCommand command) {
+        if (referenceQueryPort == null) {
+            return List.of();
+        }
+        List<UUID> vectorIds = findVectorMessageIds(command.maskedQuery(), userVectorFilter(command.userId()));
+        List<UUID> lexicalIds = findUserLexicalMessageIds(command);
+        return findRankedMessages(rankHybrid(vectorIds, lexicalIds, HYBRID_RESULT_LIMIT));
+    }
+
+    private List<MailDraftReferenceMessageResult> findRankedMessages(List<UUID> rankedIds) {
+        if (rankedIds == null || rankedIds.isEmpty()) {
+            return List.of();
+        }
+        return orderByMessageIds(referenceQueryPort.findMessagesByIds(rankedIds), rankedIds);
+    }
+
+    private List<UUID> findAccountLexicalMessageIds(MailDraftCommand command) {
+        String tsQuery = lexicalQuery(command);
+        if (tsQuery.isBlank()) {
+            return List.of();
+        }
+        try {
+            return referenceQueryPort.findAccountLexicalRelevantMessageIds(
+                    command.userId(), command.mailAccountId(), tsQuery, HYBRID_LEXICAL_SEARCH_LIMIT
+            );
+        } catch (RuntimeException exception) {
+            log.warn("Mail draft account lexical search failed. userId={} mailAccountId={}",
+                    command.userId(), command.mailAccountId(), exception);
+            return List.of();
+        }
+    }
+
+    private List<UUID> findUserLexicalMessageIds(MailDraftCommand command) {
+        String tsQuery = lexicalQuery(command);
+        if (tsQuery.isBlank()) {
+            return List.of();
+        }
+        try {
+            return referenceQueryPort.findUserLexicalRelevantMessageIds(
+                    command.userId(), tsQuery, HYBRID_LEXICAL_SEARCH_LIMIT
+            );
+        } catch (RuntimeException exception) {
+            log.warn("Mail draft user lexical search failed. userId={}", command.userId(), exception);
+            return List.of();
+        }
+    }
+
+    private String lexicalQuery(MailDraftCommand command) {
+        return lexicalQueryBuilder.build(command.maskedQuery(), command.restoreTokenMap());
+    }
+
+    private List<UUID> rankHybrid(List<UUID> vectorIds, List<UUID> lexicalIds, int limit) {
+        Map<UUID, Double> scores = new LinkedHashMap<>();
+        addRrfScores(scores, vectorIds, VECTOR_RRF_WEIGHT);
+        addRrfScores(scores, lexicalIds, LEXICAL_RRF_WEIGHT);
+        return scores.entrySet().stream()
+                .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())
+                .limit(limit)
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    private void addRrfScores(Map<UUID, Double> scores, List<UUID> ids, double weight) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < ids.size(); i++) {
+            scores.merge(ids.get(i), weight / (RRF_K + i + 1), Double::sum);
+        }
     }
 
     private List<MailDraftReferenceMessageResult> findVectorMessages(String query, Filter.Expression filter) {
@@ -527,6 +605,18 @@ public class MailDraftQueryService {
     private List<MailDraftReferenceMessageResult> findVectorMessagesOrEmpty(String query, Filter.Expression filter) {
         try {
             return findVectorMessagesStrict(query, filter);
+        } catch (RuntimeException exception) {
+            log.warn("Mail draft vector search failed. filter={}", filter, exception);
+            return List.of();
+        }
+    }
+
+    private List<UUID> findVectorMessageIds(String query, Filter.Expression filter) {
+        if (vectorStore == null) {
+            return List.of();
+        }
+        try {
+            return messageIdsFromVectorSearch(query, filter);
         } catch (RuntimeException exception) {
             log.warn("Mail draft vector search failed. filter={}", filter, exception);
             return List.of();

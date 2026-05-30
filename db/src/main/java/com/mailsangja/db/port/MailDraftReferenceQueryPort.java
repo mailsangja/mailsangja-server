@@ -13,6 +13,10 @@ public interface MailDraftReferenceQueryPort {
 
     List<MailDraftReferenceMessageResult> findRecipientHistoryMessages(UUID userId, UUID mailAccountId, List<String> recipientHints, int limit);
 
+    List<UUID> findAccountLexicalRelevantMessageIds(UUID userId, UUID mailAccountId, String tsQuery, int limit);
+
+    List<UUID> findUserLexicalRelevantMessageIds(UUID userId, String tsQuery, int limit);
+
     List<MailDraftReferenceMessageResult> findMessagesByIds(List<UUID> messageIds);
 
     List<MailDraftReferenceMessageResult> findThreadContextMessages(UUID replyMessageId);
