@@ -64,6 +64,26 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
     }
 
     @Override
+    public List<UUID> findAccountLexicalRelevantMessageIds(UUID userId, UUID mailAccountId, String tsQuery, int limit) {
+        if (isBlank(tsQuery) || limit <= 0) {
+            return List.of();
+        }
+        return toUuids(messageJpaRepositoryModule.findAccountLexicalRelevantMessageIds(
+                userId.toString(), mailAccountId.toString(), tsQuery, limit
+        ));
+    }
+
+    @Override
+    public List<UUID> findUserLexicalRelevantMessageIds(UUID userId, String tsQuery, int limit) {
+        if (isBlank(tsQuery) || limit <= 0) {
+            return List.of();
+        }
+        return toUuids(messageJpaRepositoryModule.findUserLexicalRelevantMessageIds(
+                userId.toString(), tsQuery, limit
+        ));
+    }
+
+    @Override
     public List<MailDraftReferenceMessageResult> findMessagesByIds(List<UUID> messageIds) {
         if (messageIds == null || messageIds.isEmpty()) {
             return List.of();
@@ -133,6 +153,19 @@ public class MailDraftReferenceQueryAdapter implements MailDraftReferenceQueryPo
             }
         }
         return false;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private List<UUID> toUuids(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return ids.stream()
+                .map(UUID::fromString)
+                .toList();
     }
 
     private List<MailDraftReferenceMessageResult> toResults(List<Message> messages) {

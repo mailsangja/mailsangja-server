@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailsangja.core.common.exception.label.LabelErrorCode;
 import com.mailsangja.core.common.exception.label.LabelException;
+import com.mailsangja.core.config.properties.AiModelProperties;
 import com.mailsangja.core.config.properties.LabelSuggestionProperties;
 import com.mailsangja.core.dto.label.LlmLabelSuggestionResult;
 import com.mailsangja.db.entity.label.Label;
@@ -20,6 +21,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.converter.StructuredOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -128,6 +130,7 @@ public class LabelSuggestionAiService {
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ObjectMapper objectMapper;
     private final LabelSuggestionProperties properties;
+    private final AiModelProperties modelProperties;
     private final SnippetPreprocessor snippetPreprocessor;
 
     public LlmLabelSuggestionResult suggest(UUID userId, List<Label> existingLabels) {
@@ -147,6 +150,8 @@ public class LabelSuggestionAiService {
         try {
             LlmLabelSuggestionResult result = ChatClient.create(chatModel())
                     .prompt(createPrompt(messages, existingLabels, converter))
+                    .options(OpenAiChatOptions.builder()
+                            .model(modelProperties.labelSuggestionModel()))
                     .tools(new SnippetTool(snippetMap))
                     .call()
                     .entity(converter);

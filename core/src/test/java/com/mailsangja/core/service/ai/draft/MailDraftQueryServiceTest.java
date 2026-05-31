@@ -287,6 +287,94 @@ class MailDraftQueryServiceTest {
     }
 
     @Test
+    void general은vector와lexical후보를Rrf로병합해계정관련메일을조회한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommandWithRestoreToken();
+        UUID vectorOnlyId = UUID.randomUUID();
+        UUID duplicatedId = UUID.randomUUID();
+        UUID lexicalOnlyId = UUID.randomUUID();
+        List<MailDraftReferenceMessageResult> rankedMessages = List.of(
+                reference(vectorOnlyId, command.mailAccountId(), Direction.OUTBOUND),
+                reference(duplicatedId, command.mailAccountId(), Direction.OUTBOUND),
+                reference(lexicalOnlyId, command.mailAccountId(), Direction.OUTBOUND)
+        );
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class)))
+                .thenReturn(documents(List.of(rankedMessages.get(0), rankedMessages.get(1))), List.of());
+        when(fixture.referenceQueryPort().findAccountLexicalRelevantMessageIds(
+                eq(command.userId()), eq(command.mailAccountId()), any(), eq(40)
+        )).thenReturn(List.of(duplicatedId, lexicalOnlyId));
+        when(fixture.referenceQueryPort().findMessagesByIds(any())).thenReturn(rankedMessages);
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        var idsCaptor = forClass(List.class);
+        verify(fixture.referenceQueryPort()).findMessagesByIds(idsCaptor.capture());
+        assertEquals(List.of(duplicatedId, vectorOnlyId, lexicalOnlyId), idsCaptor.getValue());
+        assertEquals(3, result.relevantMessages().size());
+    }
+
+    @Test
+    void general은lexical검색만성공해도관련메일을사용한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommand(null);
+        UUID lexicalId = UUID.randomUUID();
+        MailDraftReferenceMessageResult lexicalMessage = reference(lexicalId, command.mailAccountId(), Direction.INBOUND);
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class))).thenReturn(List.of(), List.of());
+        when(fixture.referenceQueryPort().findAccountLexicalRelevantMessageIds(
+                eq(command.userId()), eq(command.mailAccountId()), any(), eq(40)
+        )).thenReturn(List.of(lexicalId));
+        when(fixture.referenceQueryPort().findMessagesByIds(any())).thenReturn(List.of(lexicalMessage));
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        assertEquals(1, result.relevantMessages().size());
+        assertEquals("relevant_received", result.relevantMessages().getFirst().source());
+    }
+
+    @Test
+    void general은lexical검색실패시vector결과만사용한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommand(null);
+        MailDraftReferenceMessageResult vectorMessage = reference(UUID.randomUUID(), command.mailAccountId(), Direction.OUTBOUND);
+        when(fixture.vectorStore().similaritySearch(any(SearchRequest.class)))
+                .thenReturn(documents(List.of(vectorMessage)), List.of());
+        when(fixture.referenceQueryPort().findAccountLexicalRelevantMessageIds(any(), any(), any(), eq(40)))
+                .thenThrow(new RuntimeException("lexical failed"));
+        when(fixture.referenceQueryPort().findMessagesByIds(any())).thenReturn(List.of(vectorMessage));
+
+        // when
+        MailDraftRagContextResult result = fixture.service().generalRagContext(command);
+
+        // then
+        assertEquals(1, result.relevantMessages().size());
+        assertEquals("relevant_sent", result.relevantMessages().getFirst().source());
+    }
+
+    @Test
+    void general은복원된Query로lexical검색을수행한다() {
+        // given
+        Fixture fixture = createFixture();
+        MailDraftCommand command = createCommandWithRestoreToken();
+
+        // when
+        fixture.service().generalRagContext(command);
+
+        // then
+        var tsQueryCaptor = forClass(String.class);
+        verify(fixture.referenceQueryPort()).findAccountLexicalRelevantMessageIds(
+                eq(command.userId()), eq(command.mailAccountId()), tsQueryCaptor.capture(), eq(40)
+        );
+        assertTrue(tsQueryCaptor.getValue().contains("김철수"));
+    }
+
+    @Test
     void general은복원토큰원문을힌트로작성메일을추가검색한다() {
         // given
         Fixture fixture = createFixture();
@@ -461,6 +549,7 @@ class MailDraftQueryServiceTest {
     private Fixture createFixture() {
         MailDraftReferenceQueryPort referenceQueryPort = mock(MailDraftReferenceQueryPort.class);
         VectorStore vectorStore = mock(VectorStore.class);
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
         MailDraftQueryService service = createService(referenceQueryPort, vectorStore);
         return new Fixture(service, referenceQueryPort, vectorStore);
     }
@@ -470,7 +559,7 @@ class MailDraftQueryServiceTest {
     }
 
     private MailDraftQueryService createService(MailDraftReferenceQueryPort referenceQueryPort, VectorStore vectorStore) {
-        return new MailDraftQueryService(referenceQueryPort, vectorStore, new PhileasMaskingService());
+        return new MailDraftQueryService(referenceQueryPort, vectorStore, new PhileasMaskingService(), new MailDraftLexicalQueryBuilder());
     }
 
     private MailDraftCommand createCommand(UUID replyMessageId) {

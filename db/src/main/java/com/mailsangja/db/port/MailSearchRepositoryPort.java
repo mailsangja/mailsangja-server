@@ -1,6 +1,7 @@
 package com.mailsangja.db.port;
 
 import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Thread;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -16,6 +17,25 @@ public interface MailSearchRepositoryPort {
     Slice<Thread> searchSentThreads(UUID userId, String query, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable);
 
     Slice<Message> searchTrashMessages(UUID userId, String query, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable);
+
+    List<UUID> findHybridLexicalMessageIds(
+            UUID userId,
+            UUID mailAccountId,
+            Direction direction,
+            String tsQuery,
+            List<UUID> labelIds,
+            Boolean read,
+            int limit
+    );
+
+    List<Message> findHybridMessagesByIds(
+            UUID userId,
+            List<UUID> messageIds,
+            UUID mailAccountId,
+            Direction direction,
+            List<UUID> labelIds,
+            Boolean read
+    );
 
     long countInboxThreads(UUID userId, String query, List<UUID> labelIds, Boolean read);
 

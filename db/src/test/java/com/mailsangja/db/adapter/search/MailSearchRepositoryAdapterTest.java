@@ -262,6 +262,50 @@ class MailSearchRepositoryAdapterTest {
         assertEquals(7L, result);
     }
 
+    @Test
+    void 하이브리드_lexical_검색은_필터를_전달하고_ID를_UUID로_변환한다() {
+        UUID userId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        UUID labelId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        when(messageJpaRepositoryModule.findHybridLexicalMessageIds(
+                userId.toString(),
+                accountId.toString(),
+                Direction.INBOUND.name(),
+                "프로젝트 | 일정",
+                List.of(labelId.toString()),
+                false,
+                Boolean.FALSE,
+                40
+        )).thenReturn(List.of(messageId.toString()));
+
+        List<UUID> result = mailSearchRepositoryAdapter.findHybridLexicalMessageIds(
+                userId, accountId, Direction.INBOUND, "프로젝트 | 일정", List.of(labelId), Boolean.FALSE, 40);
+
+        assertEquals(List.of(messageId), result);
+    }
+
+    @Test
+    void 하이브리드_상세조회는_라벨이_없으면_센티널을_전달한다() {
+        UUID userId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        Message message = message();
+        when(messageJpaRepositoryModule.findHybridMessagesByIdIn(
+                userId,
+                List.of(messageId),
+                null,
+                null,
+                List.of(UUID.fromString(SENTINEL_LABEL_ID)),
+                true,
+                null
+        )).thenReturn(List.of(message));
+
+        List<Message> result = mailSearchRepositoryAdapter.findHybridMessagesByIds(
+                userId, List.of(messageId), null, null, null, null);
+
+        assertEquals(List.of(message), result);
+    }
+
     private Thread thread() {
         return Thread.builder()
                 .id(UUID.randomUUID())

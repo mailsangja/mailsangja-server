@@ -5,6 +5,7 @@ import com.mailsangja.db.port.MessageRepositoryPort;
 import com.mailsangja.db.port.ReplyDraftSuggestionRepositoryPort;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
+import com.mailsangja.worker.config.properties.AiModelProperties;
 import com.mailsangja.worker.dto.mail.reply.ReplyDraftSuggestionLlmResult;
 import com.mailsangja.worker.dto.mail.reply.ReplyDraftSuggestionOptionResult;
 import com.mailsangja.worker.dto.mail.reply.ReplyDraftSuggestionPromptResult;
@@ -18,6 +19,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.converter.StructuredOutputConverter;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -38,6 +40,7 @@ public class ReplyDraftSuggestionCommandService {
     private final ReplyDraftSuggestionRepositoryPort replyDraftSuggestionRepositoryPort;
     private final ReplyDraftSuggestionQueryService replyDraftSuggestionQueryService;
     private final TransactionTemplate transactionTemplate;
+    private final AiModelProperties modelProperties;
 
     public void generate(UUID messageId) {
         com.mailsangja.db.entity.mail.Message message = findActiveMessage(messageId);
@@ -76,6 +79,8 @@ public class ReplyDraftSuggestionCommandService {
         try {
             return Optional.ofNullable(ChatClient.create(chatModel)
                     .prompt(createPrompt(prompt))
+                    .options(OpenAiChatOptions.builder()
+                            .model(modelProperties.replyDraftSuggestionModel()))
                     .call()
                     .entity(converter));
         } catch (RuntimeException e) {

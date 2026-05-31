@@ -1,6 +1,7 @@
 package com.mailsangja.db.adapter.search;
 
 import com.mailsangja.db.entity.mail.Message;
+import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.Thread;
 import com.mailsangja.db.module.mail.MessageJpaRepositoryModule;
 import com.mailsangja.db.module.search.MailSearchJpaRepositoryModule;
@@ -134,6 +135,61 @@ public class MailSearchRepositoryAdapter implements MailSearchRepositoryPort {
     }
 
     @Override
+    public List<UUID> findHybridLexicalMessageIds(
+            UUID userId,
+            UUID mailAccountId,
+            Direction direction,
+            String tsQuery,
+            List<UUID> labelIds,
+            Boolean read,
+            int limit
+    ) {
+        if (userId == null || tsQuery == null || tsQuery.isBlank() || limit <= 0) {
+            return List.of();
+        }
+        List<String> effectiveLabelIds = toEffectiveLabelIds(labelIds);
+        boolean labelsEmpty = labelIds == null || labelIds.isEmpty();
+        return messageJpaRepositoryModule.findHybridLexicalMessageIds(
+                        userId.toString(),
+                        mailAccountId == null ? null : mailAccountId.toString(),
+                        direction == null ? null : direction.name(),
+                        tsQuery,
+                        effectiveLabelIds,
+                        labelsEmpty,
+                        read,
+                        limit
+                )
+                .stream()
+                .map(UUID::fromString)
+                .toList();
+    }
+
+    @Override
+    public List<Message> findHybridMessagesByIds(
+            UUID userId,
+            List<UUID> messageIds,
+            UUID mailAccountId,
+            Direction direction,
+            List<UUID> labelIds,
+            Boolean read
+    ) {
+        if (userId == null || messageIds == null || messageIds.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> effectiveLabelIds = toEffectiveUuidLabelIds(labelIds);
+        boolean labelsEmpty = labelIds == null || labelIds.isEmpty();
+        return messageJpaRepositoryModule.findHybridMessagesByIdIn(
+                userId,
+                messageIds,
+                mailAccountId,
+                direction,
+                effectiveLabelIds,
+                labelsEmpty,
+                read
+        );
+    }
+
+    @Override
     public long countInboxThreads(UUID userId, String query, List<UUID> labelIds, Boolean read) {
         List<String> effectiveLabelIds = toEffectiveLabelIds(labelIds);
         boolean labelsEmpty = labelIds == null || labelIds.isEmpty();
@@ -195,5 +251,12 @@ public class MailSearchRepositoryAdapter implements MailSearchRepositoryPort {
             return List.of("00000000-0000-0000-0000-000000000000");
         }
         return labelIds.stream().map(UUID::toString).toList();
+    }
+
+    private List<UUID> toEffectiveUuidLabelIds(List<UUID> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return List.of(UUID.fromString("00000000-0000-0000-0000-000000000000"));
+        }
+        return labelIds;
     }
 }
