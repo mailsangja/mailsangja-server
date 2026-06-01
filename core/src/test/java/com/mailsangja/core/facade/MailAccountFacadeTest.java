@@ -372,6 +372,63 @@ class MailAccountFacadeTest {
     }
 
     @Test
+    void deleteMailAccount_Gmail계정이면watch를중단하고삭제한다() {
+        // given
+        User user = createUser();
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(user);
+        MailAccountCommandService mailAccountCommandService = mock(MailAccountCommandService.class);
+        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
+        GoogleMailWatchQueryService googleMailWatchQueryService = mock(GoogleMailWatchQueryService.class);
+        MailAccountFacade facade = createFacade(
+                mailAccountCommandService,
+                mailAccountQueryService,
+                mock(GoogleOAuthQueryService.class),
+                googleMailWatchQueryService,
+                mock(InitialMailSyncMessageCommandService.class),
+                mock(GooglePeopleContactQueryService.class),
+                mock(ContactCommandService.class)
+        );
+        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+
+        // when
+        facade.deleteMailAccount(user, mailAccountId);
+
+        // then
+        InOrder inOrder = inOrder(googleMailWatchQueryService, mailAccountCommandService);
+        inOrder.verify(googleMailWatchQueryService).stop("access-token");
+        inOrder.verify(mailAccountCommandService).deleteMailAccount(user, mailAccountId);
+    }
+
+    @Test
+    void deleteMailAccount_watch중단이실패해도계정삭제는진행한다() {
+        // given
+        User user = createUser();
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(user);
+        MailAccountCommandService mailAccountCommandService = mock(MailAccountCommandService.class);
+        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
+        GoogleMailWatchQueryService googleMailWatchQueryService = mock(GoogleMailWatchQueryService.class);
+        MailAccountFacade facade = createFacade(
+                mailAccountCommandService,
+                mailAccountQueryService,
+                mock(GoogleOAuthQueryService.class),
+                googleMailWatchQueryService,
+                mock(InitialMailSyncMessageCommandService.class),
+                mock(GooglePeopleContactQueryService.class),
+                mock(ContactCommandService.class)
+        );
+        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        doThrow(new RuntimeException("Gmail API failed")).when(googleMailWatchQueryService).stop("access-token");
+
+        // when
+        facade.deleteMailAccount(user, mailAccountId);
+
+        // then
+        verify(mailAccountCommandService).deleteMailAccount(user, mailAccountId);
+    }
+
+    @Test
     void deactivateMailAccount_서비스에위임한다() {
         // given
         User user = createUser();
