@@ -42,6 +42,19 @@ public class MailSearchQueryService {
         return buildThreadListResult(userId, threads);
     }
 
+    public ThreadListResult searchStarredThreadsResult(UUID userId, String query, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable) {
+        Slice<Thread> threads = mailSearchRepositoryPort.searchStarredThreads(userId, query, labelIds, read, markerId, pageable);
+        return buildThreadListResult(userId, threads);
+    }
+
+    public long countStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read) {
+        return mailSearchRepositoryPort.countStarredThreads(userId, query, labelIds, read);
+    }
+
+    public long countUnreadStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read) {
+        return mailSearchRepositoryPort.countUnreadStarredThreads(userId, query, labelIds, read);
+    }
+
     public Slice<Message> searchTrashMessages(UUID userId, String query, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable) {
         return mailSearchRepositoryPort.searchTrashMessages(userId, query, labelIds, read, markerId, pageable);
     }
