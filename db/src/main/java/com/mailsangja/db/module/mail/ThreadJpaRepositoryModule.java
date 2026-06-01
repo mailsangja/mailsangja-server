@@ -391,6 +391,160 @@ public interface ThreadJpaRepositoryModule extends JpaRepository<Thread, UUID> {
             """)
     long countUnreadStarredByUserId(@Param("userId") UUID userId);
 
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT t FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND (
+                :markerId IS NULL
+                OR t.lastMessageAt < (
+                  SELECT m.lastMessageAt FROM Thread m
+                  WHERE m.id = :markerId
+                    AND m.mailAccount.id IN (
+                      SELECT ma.id FROM MailAccount ma
+                      WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+                    )
+                    AND m.star = true
+                )
+                OR (
+                  t.lastMessageAt = (
+                    SELECT m.lastMessageAt FROM Thread m
+                    WHERE m.id = :markerId
+                      AND m.mailAccount.id IN (
+                        SELECT ma.id FROM MailAccount ma
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+                      )
+                      AND m.star = true
+                  )
+                  AND t.id < :markerId
+                )
+              )
+            ORDER BY t.lastMessageAt DESC, t.id DESC
+            """)
+    Slice<Thread> findStarredByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"mailAccount"})
+    @Query("""
+            SELECT DISTINCT t FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND EXISTS (
+                SELECT 1 FROM MessageLabel ml
+                WHERE ml.message.thread = t
+                  AND ml.deletedAt IS NULL
+                  AND ml.label.id IN :labelIds
+                  AND ml.label.deletedAt IS NULL
+              )
+              AND (
+                :markerId IS NULL
+                OR t.lastMessageAt < (
+                    SELECT m.lastMessageAt FROM Thread m
+                    WHERE m.id = :markerId
+                      AND m.mailAccount.id IN (
+                        SELECT ma.id FROM MailAccount ma
+                        WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+                      )
+                      AND m.star = true
+                )
+                OR (
+                    t.lastMessageAt = (
+                        SELECT m.lastMessageAt FROM Thread m
+                        WHERE m.id = :markerId
+                          AND m.mailAccount.id IN (
+                            SELECT ma.id FROM MailAccount ma
+                            WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+                          )
+                          AND m.star = true
+                    )
+                    AND t.id < :markerId
+                )
+              )
+            ORDER BY t.lastMessageAt DESC, t.id DESC
+            """)
+    Slice<Thread> findStarredByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("markerId") UUID markerId,
+            @Param("read") Boolean read,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT COUNT(t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+            """)
+    long countStarredByUserIdAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("read") Boolean read
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.read = false
+              AND t.deletedAt IS NULL
+              AND EXISTS (
+                SELECT 1 FROM MessageLabel ml
+                WHERE ml.message.thread = t
+                  AND ml.deletedAt IS NULL
+                  AND ml.label.id IN :labelIds
+                  AND ml.label.deletedAt IS NULL
+              )
+            """)
+    long countUnreadStarredByUserIdAndLabelIds(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT t) FROM Thread t
+            WHERE t.mailAccount.id IN (
+                SELECT ma.id FROM MailAccount ma
+                WHERE ma.user.id = :userId AND ma.active = true AND ma.deletedAt IS NULL
+            )
+              AND t.star = true
+              AND t.deletedAt IS NULL
+              AND (:read IS NULL OR t.read = :read)
+              AND EXISTS (
+                SELECT 1 FROM MessageLabel ml
+                WHERE ml.message.thread = t
+                  AND ml.deletedAt IS NULL
+                  AND ml.label.id IN :labelIds
+                  AND ml.label.deletedAt IS NULL
+              )
+            """)
+    long countStarredByUserIdAndLabelIdsAndReadFilter(
+            @Param("userId") UUID userId,
+            @Param("labelIds") List<UUID> labelIds,
+            @Param("read") Boolean read
+    );
+
     @Query("SELECT t FROM Thread t WHERE t.mailAccount.id = :mailAccountId AND t.gmailThreadId = :gmailThreadId")
     List<Thread> findAllByMailAccountIdAndGmailThreadId(
             @Param("mailAccountId") UUID mailAccountId,

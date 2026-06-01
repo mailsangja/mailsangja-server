@@ -45,6 +45,12 @@ public interface MailSearchRepositoryPort {
 
     long countUnreadSentThreads(UUID userId, String query, List<UUID> labelIds, Boolean read);
 
+    Slice<Thread> searchStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable);
+
+    long countStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read);
+
+    long countUnreadStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read);
+
     long countTrashMessages(UUID userId, String query, List<UUID> labelIds, Boolean read);
 
     long countUnreadTrashMessages(UUID userId, String query, List<UUID> labelIds, Boolean read);

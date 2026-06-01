@@ -181,6 +181,23 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     }
 
     @Override
+    public Slice<Thread> findStarredByUserIdAndFilters(
+            UUID userId,
+            List<UUID> labelIds,
+            Boolean read,
+            UUID markerId,
+            Pageable pageable
+    ) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            if (read == null) {
+                return threadJpaRepositoryModule.findStarredByUserId(userId, markerId, pageable);
+            }
+            return threadJpaRepositoryModule.findStarredByUserIdAndReadFilter(userId, markerId, read, pageable);
+        }
+        return threadJpaRepositoryModule.findStarredByUserIdAndLabelIdsAndReadFilter(userId, labelIds, markerId, read, pageable);
+    }
+
+    @Override
     public long countStarredByUserId(UUID userId) {
         return threadJpaRepositoryModule.countStarredByUserId(userId);
     }
@@ -188,5 +205,24 @@ public class ThreadRepositoryAdapter implements ThreadRepositoryPort {
     @Override
     public long countUnreadStarredByUserId(UUID userId) {
         return threadJpaRepositoryModule.countUnreadStarredByUserId(userId);
+    }
+
+    @Override
+    public long countStarredByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countStarredByUserIdAndReadFilter(userId, read);
+        }
+        return threadJpaRepositoryModule.countStarredByUserIdAndLabelIdsAndReadFilter(userId, labelIds, read);
+    }
+
+    @Override
+    public long countUnreadStarredByUserIdAndFilters(UUID userId, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        if (labelIds == null || labelIds.isEmpty()) {
+            return threadJpaRepositoryModule.countUnreadStarredByUserId(userId);
+        }
+        return threadJpaRepositoryModule.countUnreadStarredByUserIdAndLabelIds(userId, labelIds);
     }
 }
