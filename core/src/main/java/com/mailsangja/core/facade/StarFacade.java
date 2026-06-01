@@ -8,6 +8,7 @@ import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
 import com.mailsangja.core.service.inbox.InboxCommandService;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.core.service.search.MailSearchQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.Message;
 import com.mailsangja.db.entity.mail.Thread;
@@ -28,13 +29,36 @@ public class StarFacade {
     private final InboxCommandService inboxCommandService;
     private final InboxQueryService inboxQueryService;
     private final MailAccountQueryService mailAccountQueryService;
+    private final MailSearchQueryService mailSearchQueryService;
 
-    public MarkerSliceResponse<ThreadSummaryResponse> getStarred(User user, UUID marker, int size) {
+    public MarkerSliceResponse<ThreadSummaryResponse> getStarred(
+            User user,
+            UUID marker,
+            int size,
+            List<UUID> labelIds,
+            Boolean read,
+            String q
+    ) {
+        if (q != null && !q.isBlank()) {
+            String trimmed = q.trim();
+            ThreadListResult result = mailSearchQueryService.searchStarredThreadsResult(
+                    user.getId(), trimmed, labelIds, read, marker, PageRequest.of(0, size));
+            long unreadCount = mailSearchQueryService.countUnreadStarredThreads(user.getId(), trimmed, labelIds, read);
+            long totalCount = mailSearchQueryService.countStarredThreads(user.getId(), trimmed, labelIds, read);
+            return toMarkerSlice(result, unreadCount, totalCount);
+        }
         ThreadListResult result = inboxQueryService.findStarredThreadsResult(
-                user.getId(), marker, PageRequest.of(0, size));
-        long totalCount = inboxQueryService.countStarred(user.getId());
+                user.getId(), marker, labelIds, read, PageRequest.of(0, size));
+        long unreadCount = inboxQueryService.countUnreadStarred(user.getId(), labelIds, read);
+        long totalCount = inboxQueryService.countStarred(user.getId(), labelIds, read);
+        return toMarkerSlice(result, unreadCount, totalCount);
+    }
 
-        long unreadCount = inboxQueryService.countUnreadStarred(user.getId());
+    private MarkerSliceResponse<ThreadSummaryResponse> toMarkerSlice(
+            ThreadListResult result,
+            long unreadCount,
+            long totalCount
+    ) {
         List<ThreadSummaryResponse> content = result.threads().getContent().stream()
                 .map(thread -> ThreadSummaryResponse.from(
                         thread,
