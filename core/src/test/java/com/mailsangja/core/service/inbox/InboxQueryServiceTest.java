@@ -152,7 +152,7 @@ class InboxQueryServiceTest {
         Attachment attachment = attachment(message);
         message.replaceAttachments(List.of(attachment));
         ThreadMessageLabelView label = new ThreadMessageLabelView(thread.getId(), UUID.randomUUID(), "중요", "#FF0000", false);
-        when(threadRepositoryPort.findStarredByUserIdAndDeletedAtIsNull(user.getId(), null, PageRequest.of(0, 20)))
+        when(threadRepositoryPort.findStarredByUserIdAndFilters(user.getId(), List.of(), null, null, PageRequest.of(0, 20)))
                 .thenReturn(new SliceImpl<>(List.of(thread), PageRequest.of(0, 20), false));
         when(messageRepositoryPort.findAllByThreadIdInAndDeletedAtIsNull(List.of(thread.getId())))
                 .thenReturn(List.of(message));
@@ -163,7 +163,7 @@ class InboxQueryServiceTest {
 
         // when
         ThreadListResult result =
-                inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 20));
+                inboxQueryService.findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 20));
 
         // then
         assertEquals(1, result.threads().getContent().size());
@@ -175,12 +175,12 @@ class InboxQueryServiceTest {
     void 별표_스레드_목록이_비어있으면_라벨과_첨부와_연락처를_조회하지_않는다() {
         // given
         User user = user();
-        when(threadRepositoryPort.findStarredByUserIdAndDeletedAtIsNull(user.getId(), null, PageRequest.of(0, 10)))
+        when(threadRepositoryPort.findStarredByUserIdAndFilters(user.getId(), List.of(), null, null, PageRequest.of(0, 10)))
                 .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, 10), false));
 
         // when
         ThreadListResult result =
-                inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 10));
+                inboxQueryService.findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 10));
 
         // then
         assertEquals(0, result.threads().getContent().size());
@@ -190,17 +190,49 @@ class InboxQueryServiceTest {
     }
 
     @Test
-    void 별표_스레드_카운트는_port에_userId를_전달한다() {
+    void 별표_스레드_목록_조회는_라벨_ID에서_null과_중복을_제거하고_read_필터를_전달한다() {
         // given
-        UUID userId = UUID.randomUUID();
-        when(threadRepositoryPort.countStarredByUserId(userId)).thenReturn(5L);
+        User user = user();
+        UUID labelId = UUID.randomUUID();
+        List<UUID> labelIds = Arrays.asList(labelId, null, labelId);
+        when(threadRepositoryPort.findStarredByUserIdAndFilters(user.getId(), List.of(labelId), false, null, PageRequest.of(0, 10)))
+                .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, 10), false));
 
         // when
-        long result = inboxQueryService.countStarred(userId);
+        ThreadListResult result =
+                inboxQueryService.findStarredThreadsResult(user.getId(), null, labelIds, false, PageRequest.of(0, 10));
+
+        // then
+        verify(threadRepositoryPort).findStarredByUserIdAndFilters(user.getId(), List.of(labelId), false, null, PageRequest.of(0, 10));
+    }
+
+    @Test
+    void 별표_스레드_카운트는_port에_필터를_전달한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        when(threadRepositoryPort.countStarredByUserIdAndFilters(userId, List.of(), null)).thenReturn(5L);
+
+        // when
+        long result = inboxQueryService.countStarred(userId, null, null);
 
         // then
         assertEquals(5L, result);
-        verify(threadRepositoryPort).countStarredByUserId(userId);
+        verify(threadRepositoryPort).countStarredByUserIdAndFilters(userId, List.of(), null);
+    }
+
+    @Test
+    void 읽지_않은_별표_카운트는_read_필터와_정규화된_라벨_ID를_전달한다() {
+        // given
+        UUID userId = UUID.randomUUID();
+        UUID labelId = UUID.randomUUID();
+        when(threadRepositoryPort.countUnreadStarredByUserIdAndFilters(userId, List.of(labelId), null)).thenReturn(3L);
+
+        // when
+        long result = inboxQueryService.countUnreadStarred(userId, Arrays.asList(labelId, null, labelId), null);
+
+        // then
+        assertEquals(3L, result);
+        verify(threadRepositoryPort).countUnreadStarredByUserIdAndFilters(userId, List.of(labelId), null);
     }
 
     @Test

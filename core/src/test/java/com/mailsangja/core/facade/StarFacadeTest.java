@@ -7,6 +7,7 @@ import com.mailsangja.core.dto.inbox.ThreadSummaryResponse;
 import com.mailsangja.core.service.inbox.InboxCommandService;
 import com.mailsangja.core.service.inbox.InboxQueryService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
+import com.mailsangja.core.service.search.MailSearchQueryService;
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
@@ -27,11 +28,12 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,57 +44,169 @@ class StarFacadeTest {
     @Mock private InboxCommandService inboxCommandService;
     @Mock private InboxQueryService inboxQueryService;
     @Mock private MailAccountQueryService mailAccountQueryService;
+    @Mock private MailSearchQueryService mailSearchQueryService;
 
     @InjectMocks
     private StarFacade starFacade;
 
     @Test
-    void 별표_목록_조회는_QueryService를_호출하고_MarkerSlice를_조립한다() {
+    void 검색어가_null이면_기본_starred_조회_서비스를_사용한다() {
         User user = user();
         Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
-        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 20)))
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 20)))
                 .thenReturn(threadListResult(List.of(thread), false));
-        when(inboxQueryService.countStarred(user.getId())).thenReturn(3L);
-        when(inboxQueryService.countUnreadStarred(user.getId())).thenReturn(2L);
+        when(inboxQueryService.countStarred(user.getId(), null, null)).thenReturn(3L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), null, null)).thenReturn(2L);
 
-        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 20);
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 20, null, null, null);
 
         assertEquals(1, result.content().size());
         assertEquals(3L, result.totalCount());
         assertEquals(2L, result.unreadCount());
         assertNull(result.nextMarker());
+        verify(mailSearchQueryService, never()).searchStarredThreadsResult(any(), any(), anyList(), any(), any(), any());
+    }
+
+    @Test
+    void 검색어가_공백이면_기본_starred_조회_서비스를_사용한다() {
+        User user = user();
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 10)))
+                .thenReturn(threadListResult(List.of(), false));
+        when(inboxQueryService.countStarred(user.getId(), null, null)).thenReturn(0L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), null, null)).thenReturn(0L);
+
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 10, null, null, "   ");
+
+        assertEquals(0, result.content().size());
+        verify(inboxQueryService).findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 10));
+        verify(mailSearchQueryService, never()).searchStarredThreadsResult(any(), any(), anyList(), any(), any(), any());
     }
 
     @Test
     void 별표_목록이_비어있으면_nextMarker가_null이다() {
         User user = user();
-        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 10)))
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 10)))
                 .thenReturn(threadListResult(List.of(), false));
-        when(inboxQueryService.countStarred(user.getId())).thenReturn(0L);
-        when(inboxQueryService.countUnreadStarred(user.getId())).thenReturn(0L);
+        when(inboxQueryService.countStarred(user.getId(), null, null)).thenReturn(0L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), null, null)).thenReturn(0L);
 
-        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 10);
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 10, null, null, null);
 
-        assertEquals(0, result.content().size());
         assertNull(result.nextMarker());
+        assertFalse(result.hasNext());
         assertEquals(0L, result.totalCount());
-        assertEquals(0L, result.unreadCount());
     }
 
     @Test
     void 별표_목록에_다음_페이지가_있으면_마지막_스레드_ID가_nextMarker가_된다() {
         User user = user();
         Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
-        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, PageRequest.of(0, 5)))
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, null, null, PageRequest.of(0, 5)))
                 .thenReturn(threadListResult(List.of(thread), true));
-        when(inboxQueryService.countStarred(user.getId())).thenReturn(10L);
-        when(inboxQueryService.countUnreadStarred(user.getId())).thenReturn(4L);
+        when(inboxQueryService.countStarred(user.getId(), null, null)).thenReturn(10L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), null, null)).thenReturn(4L);
 
-        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 5);
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 5, null, null, null);
 
         assertEquals(thread.getId(), result.nextMarker());
         assertTrue(result.hasNext());
     }
+
+    @Test
+    void label_필터가_있으면_기본_조회_서비스에_label_필터를_전달한다() {
+        User user = user();
+        List<UUID> labelIds = List.of(UUID.randomUUID());
+        Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, labelIds, null, PageRequest.of(0, 50)))
+                .thenReturn(threadListResult(List.of(thread), false));
+        when(inboxQueryService.countStarred(user.getId(), labelIds, null)).thenReturn(1L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), labelIds, null)).thenReturn(0L);
+
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 50, labelIds, null, null);
+
+        assertEquals(1, result.content().size());
+        verify(inboxQueryService).findStarredThreadsResult(user.getId(), null, labelIds, null, PageRequest.of(0, 50));
+        verify(mailSearchQueryService, never()).searchStarredThreadsResult(any(), any(), anyList(), any(), any(), any());
+    }
+
+    @Test
+    void read_false_필터가_있으면_기본_조회_서비스에_read_필터를_전달한다() {
+        User user = user();
+        Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), null, null, false, PageRequest.of(0, 50)))
+                .thenReturn(threadListResult(List.of(thread), false));
+        when(inboxQueryService.countStarred(user.getId(), null, false)).thenReturn(1L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), null, false)).thenReturn(1L);
+
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 50, null, false, null);
+
+        assertEquals(1, result.content().size());
+        verify(inboxQueryService).findStarredThreadsResult(user.getId(), null, null, false, PageRequest.of(0, 50));
+    }
+
+    @Test
+    void label과_read_필터를_동시에_전달하면_기본_조회_서비스에_모두_전달된다() {
+        User user = user();
+        List<UUID> labelIds = List.of(UUID.randomUUID());
+        UUID marker = UUID.randomUUID();
+        Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
+        when(inboxQueryService.findStarredThreadsResult(user.getId(), marker, labelIds, true, PageRequest.of(0, 30)))
+                .thenReturn(threadListResult(List.of(thread), false));
+        when(inboxQueryService.countStarred(user.getId(), labelIds, true)).thenReturn(1L);
+        when(inboxQueryService.countUnreadStarred(user.getId(), labelIds, true)).thenReturn(0L);
+
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, marker, 30, labelIds, true, null);
+
+        assertEquals(1, result.content().size());
+        assertEquals(1L, result.totalCount());
+        assertEquals(0L, result.unreadCount());
+    }
+
+    // -------------------------------------------------------------------------
+    // getStarred — q 있음(검색 분기)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void 검색어가_있으면_starred_검색_서비스에_trim된_검색어와_필터를_전달한다() {
+        User user = user();
+        UUID marker = UUID.randomUUID();
+        List<UUID> labelIds = List.of(UUID.randomUUID());
+        Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
+        when(mailSearchQueryService.searchStarredThreadsResult(
+                user.getId(), "프로젝트", labelIds, false, marker, PageRequest.of(0, 30)))
+                .thenReturn(threadListResult(List.of(thread), true));
+        when(mailSearchQueryService.countUnreadStarredThreads(user.getId(), "프로젝트", labelIds, false)).thenReturn(1L);
+        when(mailSearchQueryService.countStarredThreads(user.getId(), "프로젝트", labelIds, false)).thenReturn(2L);
+
+        MarkerSliceResponse<ThreadSummaryResponse> result =
+                starFacade.getStarred(user, marker, 30, labelIds, false, "  프로젝트  ");
+
+        assertEquals(thread.getId(), result.nextMarker());
+        assertEquals(1L, result.unreadCount());
+        assertEquals(2L, result.totalCount());
+        verify(inboxQueryService, never()).findStarredThreadsResult(any(), any(), anyList(), any(), any());
+    }
+
+    @Test
+    void 검색어만_있고_필터_없으면_검색_서비스에_null_필터로_전달한다() {
+        User user = user();
+        Thread thread = thread(mailAccount(user, MailProvider.GMAIL), Direction.INBOUND);
+        when(mailSearchQueryService.searchStarredThreadsResult(
+                user.getId(), "회의", null, null, null, PageRequest.of(0, 50)))
+                .thenReturn(threadListResult(List.of(thread), false));
+        when(mailSearchQueryService.countUnreadStarredThreads(user.getId(), "회의", null, null)).thenReturn(0L);
+        when(mailSearchQueryService.countStarredThreads(user.getId(), "회의", null, null)).thenReturn(1L);
+
+        MarkerSliceResponse<ThreadSummaryResponse> result = starFacade.getStarred(user, null, 50, null, null, "회의");
+
+        assertEquals(1, result.content().size());
+        assertNull(result.nextMarker());
+        verify(inboxQueryService, never()).findStarredThreadsResult(any(), any(), anyList(), any(), any());
+    }
+
+    // -------------------------------------------------------------------------
+    // toggleThreadStar
+    // -------------------------------------------------------------------------
 
     @Test
     void 스레드_별표_토글은_소유_계정_스레드면_CommandService를_호출한다() {
@@ -121,6 +235,10 @@ class StarFacadeTest {
         assertThrows(InboxException.class, () -> starFacade.toggleThreadStar(user, thread.getId()));
         verify(inboxCommandService, never()).toggleStar(any());
     }
+
+    // -------------------------------------------------------------------------
+    // toggleMessageStar
+    // -------------------------------------------------------------------------
 
     @Test
     void 메시지_별표_토글은_소유_계정_메시지면_CommandService를_호출한다() {
@@ -151,6 +269,10 @@ class StarFacadeTest {
         assertThrows(InboxException.class, () -> starFacade.toggleMessageStar(user, message.getId()));
         verify(inboxCommandService, never()).toggleMessageStar(any());
     }
+
+    // -------------------------------------------------------------------------
+    // helpers
+    // -------------------------------------------------------------------------
 
     private ThreadListResult threadListResult(List<Thread> threads, boolean hasNext) {
         return new ThreadListResult(new SliceImpl<>(threads, PageRequest.of(0, 50), hasNext), Map.of(), Map.of(), Map.of());
