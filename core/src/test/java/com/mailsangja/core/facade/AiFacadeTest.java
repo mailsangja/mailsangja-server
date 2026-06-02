@@ -8,6 +8,9 @@ import com.mailsangja.core.dto.ai.AiPlaygroundChatRequest;
 import com.mailsangja.core.dto.ai.AiPlaygroundChatResponse;
 import com.mailsangja.core.dto.ai.AiPlaygroundChatResult;
 import com.mailsangja.core.dto.ai.AiPlaygroundUsageResult;
+import com.mailsangja.core.dto.ai.AiUsageItemResponse;
+import com.mailsangja.core.dto.ai.AiUsageListResponse;
+import com.mailsangja.core.dto.ai.AiUsageType;
 import com.mailsangja.core.service.ai.AiPlaygroundCommandService;
 import com.mailsangja.core.service.ai.AiQueryService;
 import com.mailsangja.core.service.ai.AiUsageQueryService;
@@ -131,6 +134,90 @@ class AiFacadeTest {
         assertEquals(AiPlaygroundErrorCode.FORBIDDEN_USER, exception.getErrorCode());
         verify(mailAccountQueryService, never()).findAllActiveByUserId(user.getId());
         verify(playgroundCommandService, never()).chat(any(), any());
+    }
+
+    @Test
+    void getUsages_types가null이면전체타입을조회하고_사용자플랜을서비스에전달한다() {
+        // given
+        User user = createUser();
+        AiUsageQueryService usageQueryService = mock(AiUsageQueryService.class);
+        AiFacade facade = new AiFacade(
+                mock(AiPlaygroundCommandService.class),
+                mock(AiQueryService.class),
+                usageQueryService,
+                mock(MailAccountQueryService.class)
+        );
+        when(usageQueryService.getMailDraftUsage(user.getId(), Plan.FREE))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.MAIL_DRAFT, 3, 10));
+        when(usageQueryService.getMailReviewUsage(user.getId(), Plan.FREE))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.MAIL_REVIEW, 1, 10));
+        when(usageQueryService.getLabelSuggestionUsage(user.getId(), Plan.FREE))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.LABEL_SUGGESTION, 0, 2));
+
+        // when
+        AiUsageListResponse response = facade.getUsages(user, null);
+
+        // then
+        assertEquals(3, response.usages().size());
+        verify(usageQueryService).getMailDraftUsage(user.getId(), Plan.FREE);
+        verify(usageQueryService).getMailReviewUsage(user.getId(), Plan.FREE);
+        verify(usageQueryService).getLabelSuggestionUsage(user.getId(), Plan.FREE);
+    }
+
+    @Test
+    void getUsages_PRO사용자는PRO플랜이서비스에전달된다() {
+        // given
+        User user = createAdminUser();
+        AiUsageQueryService usageQueryService = mock(AiUsageQueryService.class);
+        AiFacade facade = new AiFacade(
+                mock(AiPlaygroundCommandService.class),
+                mock(AiQueryService.class),
+                usageQueryService,
+                mock(MailAccountQueryService.class)
+        );
+        when(usageQueryService.getMailDraftUsage(user.getId(), Plan.PRO))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.MAIL_DRAFT, 5, 30));
+        when(usageQueryService.getMailReviewUsage(user.getId(), Plan.PRO))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.MAIL_REVIEW, 2, 30));
+        when(usageQueryService.getLabelSuggestionUsage(user.getId(), Plan.PRO))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.LABEL_SUGGESTION, 7, 15));
+
+        // when
+        AiUsageListResponse response = facade.getUsages(user, null);
+
+        // then
+        assertEquals(3, response.usages().size());
+        assertEquals(30, response.usages().get(0).limit());
+        assertEquals(30, response.usages().get(1).limit());
+        assertEquals(15, response.usages().get(2).limit());
+        verify(usageQueryService).getMailDraftUsage(user.getId(), Plan.PRO);
+        verify(usageQueryService).getMailReviewUsage(user.getId(), Plan.PRO);
+        verify(usageQueryService).getLabelSuggestionUsage(user.getId(), Plan.PRO);
+    }
+
+    @Test
+    void getUsages_특정타입만요청하면해당타입만조회한다() {
+        // given
+        User user = createUser();
+        AiUsageQueryService usageQueryService = mock(AiUsageQueryService.class);
+        AiFacade facade = new AiFacade(
+                mock(AiPlaygroundCommandService.class),
+                mock(AiQueryService.class),
+                usageQueryService,
+                mock(MailAccountQueryService.class)
+        );
+        when(usageQueryService.getMailDraftUsage(user.getId(), Plan.FREE))
+                .thenReturn(new AiUsageItemResponse(AiUsageType.MAIL_DRAFT, 2, 10));
+
+        // when
+        AiUsageListResponse response = facade.getUsages(user, List.of(AiUsageType.MAIL_DRAFT));
+
+        // then
+        assertEquals(1, response.usages().size());
+        assertEquals(AiUsageType.MAIL_DRAFT, response.usages().getFirst().type());
+        verify(usageQueryService).getMailDraftUsage(user.getId(), Plan.FREE);
+        verify(usageQueryService, never()).getMailReviewUsage(any(), any());
+        verify(usageQueryService, never()).getLabelSuggestionUsage(any(), any());
     }
 
     private AiPlaygroundChatRequest createChatRequest() {

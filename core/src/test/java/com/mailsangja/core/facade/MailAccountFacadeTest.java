@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -390,6 +391,8 @@ class MailAccountFacadeTest {
                 mock(ContactCommandService.class)
         );
         when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        when(mailAccountQueryService.existsOtherActiveGmailAccountByEmailAddress(user.getId(), "gmail@example.com"))
+                .thenReturn(false);
 
         // when
         facade.deleteMailAccount(user, mailAccountId);
@@ -398,6 +401,36 @@ class MailAccountFacadeTest {
         InOrder inOrder = inOrder(googleMailWatchQueryService, mailAccountCommandService);
         inOrder.verify(googleMailWatchQueryService).stop("access-token");
         inOrder.verify(mailAccountCommandService).deleteMailAccount(user, mailAccountId);
+    }
+
+    @Test
+    void deleteMailAccount_다른사용자가동일Gmail을사용중이면watch중단을건너뛴다() {
+        // given
+        User user = createUser();
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(user);
+        MailAccountCommandService mailAccountCommandService = mock(MailAccountCommandService.class);
+        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
+        GoogleMailWatchQueryService googleMailWatchQueryService = mock(GoogleMailWatchQueryService.class);
+        MailAccountFacade facade = createFacade(
+                mailAccountCommandService,
+                mailAccountQueryService,
+                mock(GoogleOAuthQueryService.class),
+                googleMailWatchQueryService,
+                mock(InitialMailSyncMessageCommandService.class),
+                mock(GooglePeopleContactQueryService.class),
+                mock(ContactCommandService.class)
+        );
+        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        when(mailAccountQueryService.existsOtherActiveGmailAccountByEmailAddress(user.getId(), "gmail@example.com"))
+                .thenReturn(true);
+
+        // when
+        facade.deleteMailAccount(user, mailAccountId);
+
+        // then
+        verify(googleMailWatchQueryService, never()).stop(any());
+        verify(mailAccountCommandService).deleteMailAccount(user, mailAccountId);
     }
 
     @Test
@@ -419,6 +452,8 @@ class MailAccountFacadeTest {
                 mock(ContactCommandService.class)
         );
         when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        when(mailAccountQueryService.existsOtherActiveGmailAccountByEmailAddress(user.getId(), "gmail@example.com"))
+                .thenReturn(false);
         doThrow(new RuntimeException("Gmail API failed")).when(googleMailWatchQueryService).stop("access-token");
 
         // when

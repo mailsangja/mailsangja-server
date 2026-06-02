@@ -67,7 +67,7 @@ class PaymentFacadeTest {
         // given
         UUID orderId = UUID.randomUUID();
         PortOneWebhookRequest request = createRequest("webhook-123", "Transaction.Paid", "payment-123");
-        PortOnePaymentResult result = new PortOnePaymentResult("payment-123", orderId.toString(), "PAID", 9900, "pro");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "pro");
 
         when(paymentProcessingService.isWebhookAlreadyProcessed(request.webhookId())).thenReturn(false);
         when(portOneApiService.fetchPayment(request.data().paymentId())).thenReturn(result);
@@ -87,7 +87,7 @@ class PaymentFacadeTest {
         // given
         UUID orderId = UUID.randomUUID();
         PortOneWebhookRequest request = createRequest("webhook-123", "Transaction.Paid", "payment-123");
-        PortOnePaymentResult result = new PortOnePaymentResult("payment-123", orderId.toString(), "PAID", 9900, " ");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, " ");
 
         when(paymentProcessingService.isWebhookAlreadyProcessed(request.webhookId())).thenReturn(false);
         when(portOneApiService.fetchPayment(request.data().paymentId())).thenReturn(result);
@@ -107,7 +107,7 @@ class PaymentFacadeTest {
         // given
         UUID orderId = UUID.randomUUID();
         PortOneWebhookRequest request = createRequest("webhook-123", "Transaction.Paid", "payment-123");
-        PortOnePaymentResult result = new PortOnePaymentResult("payment-123", orderId.toString(), "PAID", 9900, "ENTERPRISE");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "ENTERPRISE");
 
         when(paymentProcessingService.isWebhookAlreadyProcessed(request.webhookId())).thenReturn(false);
         when(portOneApiService.fetchPayment(request.data().paymentId())).thenReturn(result);

@@ -53,6 +53,12 @@ public class MailAccountQueryService {
         return mailAccountRepositoryPort.findAllByUserIdAndActiveAndDeletedAtIsNull(userId, true);
     }
 
+    public boolean existsOtherActiveGmailAccountByEmailAddress(UUID excludeUserId, String emailAddress) {
+        return mailAccountRepositoryPort.existsByProviderAndEmailAddressAndUserIdNotAndDeletedAtIsNull(
+                MailProvider.GMAIL, emailAddress, excludeUserId
+        );
+    }
+
     public LocalDateTime getKstNow() {
         return LocalDateTime.now(KST_ZONE_ID);
     }

@@ -209,6 +209,40 @@ class MailAccountQueryServiceTest {
     }
 
     @Test
+    void existsOtherActiveGmailAccountByEmailAddress_다른활성Gmail계정이있으면true를반환한다() {
+        // given
+        UUID excludeUserId = UUID.randomUUID();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountQueryService service = new MailAccountQueryService(mailAccountRepositoryPort);
+        when(mailAccountRepositoryPort.existsByProviderAndEmailAddressAndUserIdNotAndDeletedAtIsNull(
+                MailProvider.GMAIL, "user@example.com", excludeUserId
+        )).thenReturn(true);
+
+        // when
+        boolean result = service.existsOtherActiveGmailAccountByEmailAddress(excludeUserId, "user@example.com");
+
+        // then
+        assertTrue(result);
+    }
+
+    @Test
+    void existsOtherActiveGmailAccountByEmailAddress_다른활성Gmail계정이없으면false를반환한다() {
+        // given
+        UUID excludeUserId = UUID.randomUUID();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountQueryService service = new MailAccountQueryService(mailAccountRepositoryPort);
+        when(mailAccountRepositoryPort.existsByProviderAndEmailAddressAndUserIdNotAndDeletedAtIsNull(
+                MailProvider.GMAIL, "user@example.com", excludeUserId
+        )).thenReturn(false);
+
+        // when
+        boolean result = service.existsOtherActiveGmailAccountByEmailAddress(excludeUserId, "user@example.com");
+
+        // then
+        assertFalse(result);
+    }
+
+    @Test
     void getKstNow_KST현재시각을반환한다() {
         // given
         MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);

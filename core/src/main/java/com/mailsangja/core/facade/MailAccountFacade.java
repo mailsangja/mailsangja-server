@@ -113,7 +113,12 @@ public class MailAccountFacade {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ACCESS_DENIED);
         }
         if (mailAccount.getProvider() == MailProvider.GMAIL) {
-            stopGmailWatch(mailAccount);
+            boolean otherUserExists = mailAccountQueryService.existsOtherActiveGmailAccountByEmailAddress(
+                    user.getId(), mailAccount.getEmailAddress()
+            );
+            if (!otherUserExists) {
+                stopGmailWatch(mailAccount);
+            }
         }
         mailAccountCommandService.deleteMailAccount(user, mailAccountId);
     }
