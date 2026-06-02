@@ -6,6 +6,7 @@ import com.mailsangja.core.dto.payment.CreateOrderRequest;
 import com.mailsangja.core.dto.payment.CreateOrderResponse;
 import com.mailsangja.db.entity.user.User;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -24,8 +25,8 @@ public interface PaymentControllerDocs {
 
                     클라이언트는 plan(PRO)을 전달합니다.
                     서버는 PENDING Order를 생성하고 PK(UUID), 플랜, 금액, 주문 상태를 반환합니다.
-                    클라이언트는 이 merchantUid를 포트원 결제 요청의 merchant_uid 필드에 그대로 사용합니다.
-                    """
+                    클라이언트는 응답의 paymentId를 포트원 결제 SDK의 paymentId 필드에 그대로 사용합니다.
+"""
     )
     @ApiResponses({
             @ApiResponse(
@@ -45,7 +46,7 @@ public interface PaymentControllerDocs {
             )
     })
     ResponseEntity<CreateOrderResponse> createOrder(
-            @AuthUser User user,
+            @Parameter(hidden = true) @AuthUser User user,
             @RequestBody(
                     description = "Pre-Order 생성 요청 (plan)",
                     required = true,
@@ -87,7 +88,7 @@ public interface PaymentControllerDocs {
             )
     })
     ResponseEntity<Void> completePayment(
-            @AuthUser User user,
+            @Parameter(hidden = true) @AuthUser User user,
             @RequestBody(
                     description = "결제 완료 요청 (paymentId)",
                     required = true,
