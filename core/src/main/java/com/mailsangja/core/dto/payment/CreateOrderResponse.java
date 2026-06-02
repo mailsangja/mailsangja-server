@@ -11,8 +11,8 @@ import java.util.UUID;
 @Schema(description = "Pre-Order 생성 응답")
 public record CreateOrderResponse(
 
-        @Schema(description = "생성된 Order PK — 포트원 결제 요청 시 merchant_uid로 사용", example = "550e8400-e29b-41d4-a716-446655440000")
-        UUID merchantUid,
+        @Schema(description = "생성된 Order PK — 포트원 결제 요청 시 paymentId로 사용", example = "550e8400-e29b-41d4-a716-446655440000")
+        UUID paymentId,
 
         @Schema(description = "주문 플랜", example = "PRO")
         Plan plan,
@@ -28,7 +28,7 @@ public record CreateOrderResponse(
 ) {
     public static CreateOrderResponse from(Order order) {
         return new CreateOrderResponse(
-                order.getId(),
+                order.getId(),    // Order UUID = PortOne SDK에 paymentId로 전달할 값
                 order.getPlan(),
                 order.getAmount(),
                 order.getStatus(),
