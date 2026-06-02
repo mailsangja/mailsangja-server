@@ -18,7 +18,7 @@ import java.util.Map;
  * 결제 Pre-Order 생성 서비스.
  *
  * 결제 시작 전 PENDING 상태의 Order를 DB에 생성하고 반환합니다.
- * 생성된 Order의 PK가 포트원 결제 요청의 merchant_uid로 사용됩니다.
+ * 생성된 Order의 PK가 포트원 결제 SDK의 paymentId로 사용됩니다.
  */
 @Slf4j
 @Service

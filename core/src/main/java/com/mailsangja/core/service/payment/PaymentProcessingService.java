@@ -26,19 +26,19 @@ public class PaymentProcessingService {
 
     @Transactional
     public void process(String idempotencyKey, PortOnePaymentResult result, Plan plan) {
-        UUID merchantUid = parseMerchantUid(result.merchantUid());
+        UUID orderId = parseOrderId(result.paymentId());
 
-        Order order = orderRepositoryPort.findByIdWithLock(merchantUid)
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND, "merchantUid=" + merchantUid));
+        Order order = orderRepositoryPort.findByIdWithLock(orderId)
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND, "orderId=" + orderId));
 
         if (OrderStatus.COMPLETED.equals(order.getStatus())) {
-            log.info("Order already completed, skipping. merchantUid={}", merchantUid);
+            log.info("Order already completed, skipping. orderId={}", orderId);
             return;
         }
 
         if (result.amount() != order.getAmount()) {
-            log.warn("Amount mismatch. paymentId={} merchantUid={} expected={} actual={}",
-                    result.paymentId(), result.merchantUid(), order.getAmount(), result.amount());
+            log.warn("Amount mismatch. paymentId={} expected={} actual={}",
+                    result.paymentId(), order.getAmount(), result.amount());
             throw new PaymentException(PaymentErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
@@ -52,18 +52,18 @@ public class PaymentProcessingService {
         order.complete(idempotencyKey, result.paymentId());
         orderRepositoryPort.save(order);
 
-        log.info("Payment processing completed. merchantUid={} userId={} plan={}", merchantUid, userId, plan);
+        log.info("Payment processing completed. orderId={} userId={} plan={}", orderId, userId, plan);
     }
 
-    private UUID parseMerchantUid(String merchantUid) {
-        if (merchantUid == null || merchantUid.isBlank()) {
-            throw new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND, "merchantUid is blank");
+    private UUID parseOrderId(String paymentId) {
+        if (paymentId == null || paymentId.isBlank()) {
+            throw new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND, "paymentId is blank");
         }
         try {
-            return UUID.fromString(merchantUid);
+            return UUID.fromString(paymentId);
         } catch (IllegalArgumentException e) {
             throw new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND,
-                    "merchantUid is not a valid UUID: " + merchantUid);
+                    "paymentId is not a valid UUID: " + paymentId);
         }
     }
 }
