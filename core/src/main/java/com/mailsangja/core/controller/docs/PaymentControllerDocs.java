@@ -26,7 +26,7 @@ public interface PaymentControllerDocs {
                     클라이언트는 plan(PRO)을 전달합니다.
                     서버는 PENDING Order를 생성하고 PK(UUID), 플랜, 금액, 주문 상태를 반환합니다.
                     클라이언트는 응답의 paymentId를 포트원 결제 SDK의 paymentId 필드에 그대로 사용합니다.
-"""
+                    """
     )
     @ApiResponses({
             @ApiResponse(
