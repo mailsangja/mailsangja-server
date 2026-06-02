@@ -27,7 +27,7 @@ class CreateOrderResponseTest {
         CreateOrderResponse response = CreateOrderResponse.from(order);
 
         // then
-        assertEquals(orderId, response.merchantUid());
+        assertEquals(orderId, response.paymentId());
         assertEquals(Plan.PRO, response.plan());
         assertEquals(9900, response.amount());
         assertEquals(OrderStatus.PENDING, response.status());
