@@ -19,6 +19,7 @@ public class GoogleMailProperties {
 
     private String topicName;
     private String watchUri;
+    private String stopUri;
     private String threadModifyUri;
     private String messageModifyUri;
     private String sendUri;

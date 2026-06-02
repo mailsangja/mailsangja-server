@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Star", description = "별표 API")
@@ -39,7 +40,13 @@ public interface StarControllerDocs {
             @Parameter(description = "이전 응답의 nextMarker (첫 요청 시 생략)", example = "550e8400-e29b-41d4-a716-446655440000")
             @RequestParam(required = false) UUID marker,
             @Parameter(description = "한 번에 조회할 스레드 수", example = "50")
-            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size
+            @RequestParam(defaultValue = "${mailsangja.inbox.page-size:50}") int size,
+            @Parameter(description = "라벨 ID 필터 (복수 지정 가능)")
+            @RequestParam(required = false, name = "labelId") List<UUID> labelIds,
+            @Parameter(description = "읽음 여부 필터 (true: 읽음만, false: 안읽음만, 생략: 전체)")
+            @RequestParam(required = false) Boolean read,
+            @Parameter(description = "검색어 (제목·본문·첨부파일명 대상 전문 검색)")
+            @RequestParam(required = false) String q
     );
 
     @Operation(

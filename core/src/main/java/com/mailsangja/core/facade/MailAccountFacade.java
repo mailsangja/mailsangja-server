@@ -108,7 +108,27 @@ public class MailAccountFacade {
     }
 
     public void deleteMailAccount(User user, UUID mailAccountId) {
+        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        if (!mailAccount.getUser().getId().equals(user.getId())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ACCESS_DENIED);
+        }
+        if (mailAccount.getProvider() == MailProvider.GMAIL) {
+            stopGmailWatch(mailAccount);
+        }
         mailAccountCommandService.deleteMailAccount(user, mailAccountId);
+    }
+
+    private void stopGmailWatch(MailAccount mailAccount) {
+        try {
+            googleMailWatchQueryService.stop(mailAccount.getAccessToken());
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to stop Gmail watch on account deletion. mailAccountId={} emailAddress={}",
+                    mailAccount.getId(),
+                    mailAccount.getEmailAddress(),
+                    e
+            );
+        }
     }
 
     private void validateMailAccountCount(User user) {

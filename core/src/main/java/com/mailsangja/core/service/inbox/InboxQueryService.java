@@ -112,17 +112,29 @@ public class InboxQueryService {
         return threadRepositoryPort.countSentByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
-    public ThreadListResult findStarredThreadsResult(UUID userId, UUID markerId, Pageable pageable) {
-        Slice<Thread> threads = threadRepositoryPort.findStarredByUserIdAndDeletedAtIsNull(userId, markerId, pageable);
+    public ThreadListResult findStarredThreadsResult(
+            UUID userId,
+            UUID markerId,
+            List<UUID> labelIds,
+            Boolean read,
+            Pageable pageable
+    ) {
+        Slice<Thread> threads = threadRepositoryPort.findStarredByUserIdAndFilters(
+                userId,
+                normalizeLabelIds(labelIds),
+                read,
+                markerId,
+                pageable
+        );
         return buildThreadListResult(userId, threads);
     }
 
-    public long countStarred(UUID userId) {
-        return threadRepositoryPort.countStarredByUserId(userId);
+    public long countStarred(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countStarredByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
-    public long countUnreadStarred(UUID userId) {
-        return threadRepositoryPort.countUnreadStarredByUserId(userId);
+    public long countUnreadStarred(UUID userId, List<UUID> labelIds, Boolean read) {
+        return threadRepositoryPort.countUnreadStarredByUserIdAndFilters(userId, normalizeLabelIds(labelIds), read);
     }
 
     private List<UUID> normalizeLabelIds(List<UUID> labelIds) {

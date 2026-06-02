@@ -190,6 +190,48 @@ public class MailSearchRepositoryAdapter implements MailSearchRepositoryPort {
     }
 
     @Override
+    public Slice<Thread> searchStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read, UUID markerId, Pageable pageable) {
+        int limit = pageable.getPageSize() + 1;
+        String userIdStr = userId.toString();
+        List<String> effectiveLabelIds = toEffectiveLabelIds(labelIds);
+        boolean labelsEmpty = labelIds == null || labelIds.isEmpty();
+
+        List<String> rawIds = (markerId == null)
+                ? mailSearchJpaRepositoryModule.searchStarredThreadIdsFirstPage(userIdStr, query, effectiveLabelIds, labelsEmpty, read, limit)
+                : mailSearchJpaRepositoryModule.searchStarredThreadIdsAfterMarker(userIdStr, query, effectiveLabelIds, labelsEmpty, read, markerId.toString(), limit);
+
+        if (rawIds.isEmpty()) return new SliceImpl<>(Collections.emptyList(), pageable, false);
+
+        boolean hasNext = rawIds.size() > pageable.getPageSize();
+        List<UUID> pageIds = (hasNext ? rawIds.subList(0, pageable.getPageSize()) : rawIds)
+                .stream().map(UUID::fromString).toList();
+
+        Map<UUID, Thread> threadById = mailSearchJpaRepositoryModule.findAllByIdInWithMailAccount(pageIds)
+                .stream().collect(Collectors.toMap(Thread::getId, Function.identity()));
+        List<Thread> ordered = pageIds.stream().map(threadById::get).filter(Objects::nonNull).toList();
+        return new SliceImpl<>(ordered, pageable, hasNext);
+    }
+
+    @Override
+    public long countStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read) {
+        List<String> effectiveLabelIds = toEffectiveLabelIds(labelIds);
+        boolean labelsEmpty = labelIds == null || labelIds.isEmpty();
+        Long result = mailSearchJpaRepositoryModule.countStarredThreads(userId.toString(), query, effectiveLabelIds, labelsEmpty, read);
+        return result != null ? result : 0L;
+    }
+
+    @Override
+    public long countUnreadStarredThreads(UUID userId, String query, List<UUID> labelIds, Boolean read) {
+        if (Boolean.TRUE.equals(read)) {
+            return 0L;
+        }
+        List<String> effectiveLabelIds = toEffectiveLabelIds(labelIds);
+        boolean labelsEmpty = labelIds == null || labelIds.isEmpty();
+        Long result = mailSearchJpaRepositoryModule.countUnreadStarredThreads(userId.toString(), query, effectiveLabelIds, labelsEmpty);
+        return result != null ? result : 0L;
+    }
+
+    @Override
     public long countInboxThreads(UUID userId, String query, List<UUID> labelIds, Boolean read) {
         List<String> effectiveLabelIds = toEffectiveLabelIds(labelIds);
         boolean labelsEmpty = labelIds == null || labelIds.isEmpty();

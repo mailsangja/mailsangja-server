@@ -34,6 +34,23 @@ public class GoogleMailWatchQueryService {
         this.googleMailRestClient = googleMailRestClient;
     }
 
+    public void stop(String accessToken) {
+        if (isBlank(accessToken) || isBlank(googleMailProperties.getStopUri())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_FAILED);
+        }
+
+        try {
+            googleMailRestClient
+                    .post()
+                    .uri(googleMailProperties.getStopUri())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_MAIL_WATCH_FAILED);
+        }
+    }
+
     public GoogleMailWatchResult watch(String accessToken) {
         validateWatchInput(accessToken);
 
