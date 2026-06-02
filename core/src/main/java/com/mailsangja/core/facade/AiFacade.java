@@ -52,13 +52,13 @@ public class AiFacade {
         Set<AiUsageType> requestedTypes = resolveRequestedTypes(types);
         List<AiUsageItemResponse> usages = new ArrayList<>();
         if (requestedTypes.contains(AiUsageType.MAIL_DRAFT)) {
-            usages.add(aiUsageQueryService.getMailDraftUsage(user.getId()));
+            usages.add(aiUsageQueryService.getMailDraftUsage(user.getId(), user.getPlan()));
         }
         if (requestedTypes.contains(AiUsageType.MAIL_REVIEW)) {
-            usages.add(aiUsageQueryService.getMailReviewUsage(user.getId()));
+            usages.add(aiUsageQueryService.getMailReviewUsage(user.getId(), user.getPlan()));
         }
         if (requestedTypes.contains(AiUsageType.LABEL_SUGGESTION)) {
-            usages.add(aiUsageQueryService.getLabelSuggestionUsage(user.getId()));
+            usages.add(aiUsageQueryService.getLabelSuggestionUsage(user.getId(), user.getPlan()));
         }
         return AiUsageListResponse.of(usages);
     }
