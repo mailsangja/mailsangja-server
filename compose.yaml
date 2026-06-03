@@ -55,6 +55,71 @@ services:
       timeout: 5s
       retries: 5
 
+  loki:
+    image: grafana/loki:3.5.8
+    container_name: mailsangja-loki
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./docker/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+
+  tempo:
+    image: grafana/tempo:2.9.0
+    container_name: mailsangja-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+    volumes:
+      - ./docker/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+
+  alloy:
+    image: grafana/alloy:v1.11.3
+    container_name: mailsangja-alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "${ALLOY_PORT:-12345}:12345"
+      - "${ALLOY_OTLP_GRPC_PORT:-4317}:4317"
+      - "${ALLOY_OTLP_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ./docker/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - app_logs:/var/log/mailsangja:ro
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    container_name: mailsangja-grafana
+    environment:
+      TZ: Asia/Seoul
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_AUTH_ANONYMOUS_ENABLED:-false}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+
   core:
     build:
       context: .
@@ -65,9 +130,16 @@ services:
     environment:
       TZ: Asia/Seoul
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
+      LOG_FILE: /var/log/mailsangja/core.log
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://alloy:4318/v1/traces
     env_file:
       - .env
+    volumes:
+      - app_logs:/var/log/mailsangja
     depends_on:
+      alloy:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -85,9 +157,16 @@ services:
     environment:
       TZ: Asia/Seoul
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
+      LOG_FILE: /var/log/mailsangja/worker.log
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://alloy:4318/v1/traces
     env_file:
       - .env
+    volumes:
+      - app_logs:/var/log/mailsangja
     depends_on:
+      alloy:
+        condition: service_started
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -97,3 +176,7 @@ volumes:
   postgres_data:
   redis-data:
   rabbitmq_data:
+  app_logs:
+  loki_data:
+  tempo_data:
+  grafana_data:

@@ -1,0 +1,90 @@
+logging {
+  level = "info"
+}
+
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
+
+local.file_match "mailsangja_logs" {
+  path_targets = [
+    {
+      __path__ = "/var/log/mailsangja/core.log",
+      app      = "core",
+      service  = "mailsangja-core",
+    },
+    {
+      __path__ = "/var/log/mailsangja/worker.log",
+      app      = "worker",
+      service  = "mailsangja-worker",
+    },
+  ]
+}
+
+loki.source.file "mailsangja_logs" {
+  targets    = local.file_match.mailsangja_logs.targets
+  forward_to = [loki.process.mailsangja_logs.receiver]
+}
+
+loki.process "mailsangja_logs" {
+  stage.json {
+    expressions = {
+      level                = "level",
+      logger_name          = "logger_name",
+      thread_name          = "thread_name",
+      workId               = "workId",
+      userId               = "userId",
+      mailAccountId        = "mailAccountId",
+      jobId                = "jobId",
+      gmailThreadId        = "gmailThreadId",
+      gmailMessageId       = "gmailMessageId",
+      historyId            = "historyId",
+      eventType            = "eventType",
+      routingKey           = "routingKey",
+      queue                = "queue",
+      traceId              = "traceId",
+      spanId               = "spanId",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level          = "",
+      app            = "",
+      service        = "",
+      workId         = "",
+      userId         = "",
+      mailAccountId  = "",
+      jobId          = "",
+      traceId        = "",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
