@@ -2,6 +2,7 @@ package com.mailsangja.core.config;
 
 import com.mailsangja.core.common.exception.mq.MqErrorCode;
 import com.mailsangja.core.common.exception.mq.MqException;
+import com.mailsangja.core.common.observability.ObservabilitySupport;
 import com.mailsangja.core.config.properties.InitialMailSyncRabbitProperties;
 import com.mailsangja.core.config.properties.MailTaskRabbitProperties;
 import org.springframework.amqp.core.Binding;
@@ -88,10 +89,13 @@ public class RabbitMqConfig {
     public RabbitTemplate rabbitTemplate(
             ConnectionFactory connectionFactory,
             MessageConverter rabbitMessageConverter,
-            MailTaskRabbitProperties properties
+            MailTaskRabbitProperties properties,
+            ObservabilitySupport observabilitySupport
     ) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
+        rabbitTemplate.setBeforePublishPostProcessors(observabilitySupport.rabbitHeaders());
+        rabbitTemplate.setObservationEnabled(true);
         rabbitTemplate.setMandatory(Boolean.TRUE.equals(properties.getPublisherMandatory()));
         rabbitTemplate.setConfirmCallback((correlationData, ack, cause) -> {
             if (ack) {

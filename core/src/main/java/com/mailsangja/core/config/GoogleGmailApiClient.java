@@ -12,12 +12,15 @@ public class GoogleGmailApiClient {
 
     @Bean
     @Qualifier("googleGmailApiRestClient")
-    public RestClient googleGmailApiRestClient(GoogleGmailApiProperties googleGmailApiProperties) {
+    public RestClient googleGmailApiRestClient(
+            GoogleGmailApiProperties googleGmailApiProperties,
+            RestClient.Builder restClientBuilder
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) googleGmailApiProperties.getConnectTimeout().toMillis());
         requestFactory.setReadTimeout((int) googleGmailApiProperties.getReadTimeout().toMillis());
 
-        return RestClient.builder()
+        return restClientBuilder
                 .baseUrl(googleGmailApiProperties.getBaseUri())
                 .requestFactory(requestFactory)
                 .build();

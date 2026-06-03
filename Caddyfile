@@ -13,6 +13,14 @@
 	# @docs path /swagger-ui* /v3/api-docs* /scalar*
 	# respond @docs 404
 
+	@grafanaRoot path /api/admin/dashboard/grafana
+	redir @grafanaRoot /api/admin/dashboard/grafana/ 308
+
+	handle /api/admin/dashboard/grafana/* {
+		encode
+		reverse_proxy grafana:3000
+	}
+
 	@sse path /api/v1/mail/drafts/stream
 	handle @sse {
 		reverse_proxy core:8080 {

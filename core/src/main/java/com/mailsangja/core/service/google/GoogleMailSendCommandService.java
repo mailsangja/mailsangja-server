@@ -20,12 +20,14 @@ import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+@Slf4j
 @Service
 public class GoogleMailSendCommandService {
 
@@ -65,8 +68,28 @@ public class GoogleMailSendCommandService {
                     .retrieve()
                     .body(GoogleMailSendResponse.class);
 
-            return validateResponse(response);
+            GoogleMailSendResult result = validateResponse(response);
+            log.info(
+                    "Google mail send completed. mailAccountId={} gmailMessageId={} gmailThreadId={} reply={} attachmentCount={} inlineImageCount={}",
+                    mailAccount.getId(),
+                    result.gmailMessageId(),
+                    result.gmailThreadId(),
+                    false,
+                    size(command.attachments()),
+                    size(command.inlineImages())
+            );
+            return result;
         } catch (RestClientException e) {
+            log.warn(
+                    "Google mail send failed. mailAccountId={} reply={} attachmentCount={} inlineImageCount={} status={} error={}",
+                    mailAccount.getId(),
+                    false,
+                    size(command.attachments()),
+                    size(command.inlineImages()),
+                    status(e),
+                    e.getMessage(),
+                    e
+            );
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
         }
     }
@@ -95,10 +118,42 @@ public class GoogleMailSendCommandService {
                     .retrieve()
                     .body(GoogleMailSendResponse.class);
 
-            return validateResponse(response);
+            GoogleMailSendResult result = validateResponse(response);
+            log.info(
+                    "Google mail send completed. mailAccountId={} gmailMessageId={} gmailThreadId={} reply={} attachmentCount={} inlineImageCount={}",
+                    mailAccount.getId(),
+                    result.gmailMessageId(),
+                    result.gmailThreadId(),
+                    true,
+                    size(command.attachments()),
+                    size(command.inlineImages())
+            );
+            return result;
         } catch (RestClientException e) {
+            log.warn(
+                    "Google mail send failed. mailAccountId={} gmailThreadId={} reply={} attachmentCount={} inlineImageCount={} status={} error={}",
+                    mailAccount.getId(),
+                    replyContext.gmailThreadId(),
+                    true,
+                    size(command.attachments()),
+                    size(command.inlineImages()),
+                    status(e),
+                    e.getMessage(),
+                    e
+            );
             throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_SEND_FAILED);
         }
+    }
+
+    private int size(List<?> values) {
+        return values == null ? 0 : values.size();
+    }
+
+    private String status(RestClientException exception) {
+        if (exception instanceof RestClientResponseException responseException) {
+            return responseException.getStatusCode().toString();
+        }
+        return "N/A";
     }
 
     private void validateInput(MailAccount mailAccount, MailSendCommand command) {

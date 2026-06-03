@@ -19,6 +19,7 @@ import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -43,7 +44,19 @@ public class InitialMailSyncListener {
     private final MailEmbeddingPublisher mailEmbeddingPublisher;
 
     @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
+    public void handle(InitialMailSyncMessage message, Message rawMessage) {
+        handle(message);
+    }
+
     public void handle(InitialMailSyncMessage message) {
+        log.info(
+                "Initial mail sync started. mailAccountId={} userId={} provider={} emailAddress={}",
+                message.mailAccountId(),
+                message.userId(),
+                message.provider(),
+                message.emailAddress()
+        );
+
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
@@ -77,7 +90,19 @@ public class InitialMailSyncListener {
             queues = "#{@initialMailSyncThreadBatchQueue.name}",
             containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory"
     )
+    public void handleThreadBatch(InitialMailSyncThreadBatchMessage message, Message rawMessage) {
+        handleThreadBatch(message);
+    }
+
     public void handleThreadBatch(InitialMailSyncThreadBatchMessage message) {
+        log.info(
+                "Initial mail sync thread batch started. mailAccountId={} userId={} emailAddress={} threadCount={}",
+                message.mailAccountId(),
+                message.userId(),
+                message.emailAddress(),
+                message.threadIds().size()
+        );
+
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
         );
@@ -93,15 +118,22 @@ public class InitialMailSyncListener {
         publishEmbeddingMessages(saveResult.messageIds());
 
         Set<UUID> activeLabelIds = labelQueryService.findActiveLabelIdsByUserId(message.userId());
+        boolean labelReclassifyPublished = false;
         if (!activeLabelIds.isEmpty() && !saveResult.threadIds().isEmpty()) {
             labelReclassifyPublisher.publish(message.userId(), activeLabelIds, saveResult.threadIds());
+            labelReclassifyPublished = true;
         }
 
         log.info(
-                "Saved initial mail sync thread batch. mailAccountId={} emailAddress={} threadCount={}",
+                "Saved initial mail sync thread batch. mailAccountId={} emailAddress={} requestedThreadCount={} savedThreadCount={} savedMessageCount={} threadMessageCount={} embeddingMessageCount={} labelReclassifyPublished={}",
                 message.mailAccountId(),
                 message.emailAddress(),
-                message.threadIds().size()
+                message.threadIds().size(),
+                saveResult.threadIds().size(),
+                saveResult.messageIds().size(),
+                saveResult.threadMessageCount(),
+                saveResult.messageIds().size(),
+                labelReclassifyPublished
         );
     }
 

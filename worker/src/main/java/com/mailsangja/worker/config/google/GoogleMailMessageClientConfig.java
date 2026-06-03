@@ -10,12 +10,15 @@ import org.springframework.web.client.RestClient;
 public class GoogleMailMessageClientConfig {
 
     @Bean
-    public RestClient googleMailMessageRestClient(GoogleMailInitialSyncProperties properties) {
+    public RestClient googleMailMessageRestClient(
+            GoogleMailInitialSyncProperties properties,
+            RestClient.Builder restClientBuilder
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) properties.getConnectTimeout().toMillis());
         requestFactory.setReadTimeout((int) properties.getReadTimeout().toMillis());
 
-        return RestClient.builder()
+        return restClientBuilder
                 .requestFactory(requestFactory)
                 .build();
     }

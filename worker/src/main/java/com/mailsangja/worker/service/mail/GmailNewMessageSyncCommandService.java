@@ -13,11 +13,13 @@ import com.mailsangja.worker.dto.mail.sync.NewMessageApplyResult;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import com.mailsangja.worker.service.google.GmailMessageApiService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailNewMessageSyncCommandService {
@@ -37,6 +39,13 @@ public class GmailNewMessageSyncCommandService {
         );
 
         if (threadResults.isEmpty()) {
+            log.warn(
+                    "Gmail new message sync failed because thread snapshot is empty. mailAccountId={} gmailThreadId={} gmailMessageId={} eventType={}",
+                    mailAccount.getId(),
+                    event.gmailThreadId(),
+                    event.gmailMessageId(),
+                    event.eventType()
+            );
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
@@ -44,6 +53,13 @@ public class GmailNewMessageSyncCommandService {
         int threadMessageCount = gmailNewMessageApplyCommandService.applyNewMessageSync(mailAccount, event, syncCommand);
 
         if (!isNewMessage) {
+            log.info(
+                    "Gmail new message sync skipped because message already exists. mailAccountId={} gmailThreadId={} gmailMessageId={} eventType={}",
+                    mailAccount.getId(),
+                    event.gmailThreadId(),
+                    event.gmailMessageId(),
+                    event.eventType()
+            );
             return Optional.empty();
         }
 
@@ -53,6 +69,16 @@ public class GmailNewMessageSyncCommandService {
 
         for (InitialMailSyncMessageSaveCommand message : syncCommand.messages()) {
             if (event.gmailMessageId().equals(message.gmailMessageId())) {
+                log.info(
+                        "Gmail new message sync completed. mailAccountId={} gmailThreadId={} gmailMessageId={} eventType={} messageId={} threadId={} threadMessageCount={}",
+                        mailAccount.getId(),
+                        event.gmailThreadId(),
+                        event.gmailMessageId(),
+                        event.eventType(),
+                        applyResult.messageId(),
+                        applyResult.threadId(),
+                        applyResult.threadMessageCount()
+                );
                 return Optional.of(new NewMailPushContext(
                         mailAccount.getId(),
                         mailAccount.getAlias(),
@@ -67,6 +93,13 @@ public class GmailNewMessageSyncCommandService {
             }
         }
 
+        log.warn(
+                "Gmail new message sync skipped because event message is missing from thread snapshot. mailAccountId={} gmailThreadId={} gmailMessageId={} eventType={}",
+                mailAccount.getId(),
+                event.gmailThreadId(),
+                event.gmailMessageId(),
+                event.eventType()
+        );
         return Optional.empty();
     }
 }

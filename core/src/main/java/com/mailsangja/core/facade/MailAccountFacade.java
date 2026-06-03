@@ -20,6 +20,7 @@ import com.mailsangja.core.service.mail.MailAccountCommandService;
 import com.mailsangja.core.service.mail.MailAccountQueryService;
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
+import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -138,7 +139,7 @@ public class MailAccountFacade {
 
     private void validateMailAccountCount(User user) {
         int count = mailAccountQueryService.findAllByUserId(user.getId()).size();
-        if (count >= mailAccountProperties.getMaxCount()) {
+        if (user.getPlan() != Plan.PRO && count >= mailAccountProperties.getMaxCount()) {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_LIMIT_EXCEEDED);
         }
     }
