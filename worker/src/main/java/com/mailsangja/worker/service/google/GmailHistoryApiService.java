@@ -11,16 +11,19 @@ import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryListResult;
 import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryMessageAddedResponse;
 import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryMessageAddedResult;
 import com.mailsangja.worker.dto.gmail.history.GoogleMailHistoryResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 
+@Slf4j
 @Service
 public class GmailHistoryApiService {
 
@@ -49,8 +52,22 @@ public class GmailHistoryApiService {
 
             return validateHistoryResponse(response);
         } catch (RestClientException e) {
+            log.warn(
+                    "Gmail history fetch failed. startHistoryId={} status={} error={}",
+                    startHistoryId,
+                    status(e),
+                    e.getMessage(),
+                    e
+            );
             throw new MailPushException(MailPushErrorCode.GMAIL_HISTORY_FETCH_FAILED);
         }
+    }
+
+    private String status(RestClientException exception) {
+        if (exception instanceof RestClientResponseException responseException) {
+            return responseException.getStatusCode().toString();
+        }
+        return "N/A";
     }
 
     private void validateHistoryInput(String accessToken, String startHistoryId) {

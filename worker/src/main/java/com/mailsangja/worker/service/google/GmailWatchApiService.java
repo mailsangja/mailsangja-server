@@ -6,18 +6,21 @@ import com.mailsangja.worker.config.properties.GoogleMailWatchProperties;
 import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchRequest;
 import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchResponse;
 import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchResult;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
+@Slf4j
 @Service
 public class GmailWatchApiService {
 
@@ -43,6 +46,13 @@ public class GmailWatchApiService {
                 normalizeBlankToNull(googleMailWatchProperties.getLabelFilterBehavior())
         );
 
+        log.info(
+                "Gmail watch request started. topicName={} labelIds={} labelFilterBehavior={}",
+                request.topicName(),
+                request.labelIds(),
+                request.labelFilterBehavior()
+        );
+
         try {
             GoogleMailWatchResponse response = googleMailWatchRestClient
                     .post()
@@ -54,10 +64,32 @@ public class GmailWatchApiService {
                     .retrieve()
                     .body(GoogleMailWatchResponse.class);
 
-            return validateWatchResponse(response);
+            GoogleMailWatchResult result = validateWatchResponse(response);
+            log.info(
+                    "Gmail watch request completed. historyId={} expirationAt={}",
+                    result.historyId(),
+                    result.expirationAt()
+            );
+            return result;
         } catch (RestClientException e) {
+            log.warn(
+                    "Gmail watch request failed. topicName={} labelIds={} labelFilterBehavior={} status={} error={}",
+                    request.topicName(),
+                    request.labelIds(),
+                    request.labelFilterBehavior(),
+                    status(e),
+                    e.getMessage(),
+                    e
+            );
             throw new MailPushException(MailPushErrorCode.GOOGLE_MAIL_WATCH_FAILED);
         }
+    }
+
+    private String status(RestClientException exception) {
+        if (exception instanceof RestClientResponseException responseException) {
+            return responseException.getStatusCode().toString();
+        }
+        return "N/A";
     }
 
     private void validateWatchInput(String accessToken) {

@@ -68,9 +68,13 @@ public class MessageAddedHistoryEventHandler {
 
     private void publishReplyDraftSuggestionIfEligible(MailAccount mailAccount, GmailHistoryEvent event, NewMailPushContext context) {
         if (context.direction() != Direction.INBOUND) {
+            log.debug("Reply draft suggestion skipped because message is outbound. mailAccountId={} messageId={}",
+                    context.mailAccountId(), context.messageId());
             return;
         }
         if (!isSentToConnectedMailAccount(mailAccount, context.toAddresses())) {
+            log.debug("Reply draft suggestion skipped because message was not sent to connected account. mailAccountId={} messageId={}",
+                    context.mailAccountId(), context.messageId());
             return;
         }
         if (!replyDraftSuggestionQueryService.isEligible(
@@ -78,8 +82,17 @@ public class MessageAddedHistoryEventHandler {
                 event.gmailThreadId(),
                 context.threadMessageCount()
         )) {
+            log.debug(
+                    "Reply draft suggestion skipped because message is not eligible. mailAccountId={} gmailThreadId={} messageId={} threadMessageCount={}",
+                    context.mailAccountId(),
+                    event.gmailThreadId(),
+                    context.messageId(),
+                    context.threadMessageCount()
+            );
             return;
         }
+        log.info("Reply draft suggestion publish requested. mailAccountId={} messageId={} gmailThreadId={}",
+                context.mailAccountId(), context.messageId(), event.gmailThreadId());
         replyDraftSuggestionPublisher.publish(new ReplyDraftSuggestionMessage(context.messageId()));
     }
 
@@ -122,8 +135,7 @@ public class MessageAddedHistoryEventHandler {
             return new LabelApplyResult(resolveNotification(matchedLabels), hasSensitiveLabel(matchedLabels));
 
         } catch (Exception e) {
-            log.warn("Label apply failed for messageId={} — falling back to send FCM push. error={}",
-                    context.messageId(), e.getMessage());
+            log.warn("Label apply failed for messageId={} - falling back to send FCM push.", context.messageId(), e);
             return new LabelApplyResult(true, true);
         }
     }
@@ -145,8 +157,11 @@ public class MessageAddedHistoryEventHandler {
     private void sendFcmPush(NewMailPushContext context) {
         try {
             fcmPushCommandService.sendNewMailPush(context);
+            log.info("FCM new mail push sent. mailAccountId={} messageId={} threadId={}",
+                    context.mailAccountId(), context.messageId(), context.threadId());
         } catch (Exception e) {
-            log.warn("FCM push skipped due to unexpected error: mailAccountId={} error={}", context.mailAccountId(), e.getMessage());
+            log.warn("FCM push skipped due to unexpected error. mailAccountId={} messageId={}",
+                    context.mailAccountId(), context.messageId(), e);
         }
     }
 

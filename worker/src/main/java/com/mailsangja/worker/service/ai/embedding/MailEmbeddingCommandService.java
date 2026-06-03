@@ -9,6 +9,7 @@ import com.mailsangja.worker.dto.ai.masking.MaskingCommand;
 import com.mailsangja.worker.dto.ai.masking.MaskingResult;
 import com.mailsangja.worker.service.ai.masking.PhileasMaskingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MailEmbeddingCommandService {
@@ -32,6 +34,7 @@ public class MailEmbeddingCommandService {
                 .orElseThrow(() -> new EmbeddingException(EmbeddingErrorCode.MAIL_EMBEDDING_MESSAGE_NOT_FOUND));
         String embeddableText = mailEmbeddingQueryService.extractEmbeddableText(message);
         if (embeddableText.isBlank()) {
+            log.debug("Mail embedding skipped because embeddable text is blank. messageId={}", messageId);
             return;
         }
 
@@ -40,9 +43,20 @@ public class MailEmbeddingCommandService {
         List<Document> documents = buildChunkDocuments(message, documentId, maskingResult.maskedText());
         List<Document> missingDocuments = findMissingDocuments(documents);
         if (missingDocuments.isEmpty()) {
+            log.debug(
+                    "Mail embedding skipped because all documents already exist. messageId={} documentCount={}",
+                    messageId,
+                    documents.size()
+            );
             return;
         }
         vectorStore.add(missingDocuments);
+        log.info(
+                "Mail embedding completed. messageId={} documentCount={} missingDocumentCount={}",
+                messageId,
+                documents.size(),
+                missingDocuments.size()
+        );
     }
 
     private List<Document> findMissingDocuments(List<Document> documents) {

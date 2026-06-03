@@ -284,7 +284,7 @@ public class MailDraftCommandService {
         if (restored.isEmpty()) {
             return;
         }
-        log.info("Mail draft SSE delta send. phase={} length={}", phase, restored.length());
+        log.debug("Mail draft SSE delta send. phase={} length={}", phase, restored.length());
         MailDraftDeltaEvent event = new MailDraftDeltaEvent(phase, restored);
         send(emitter, event(eventName(phase), event));
     }
