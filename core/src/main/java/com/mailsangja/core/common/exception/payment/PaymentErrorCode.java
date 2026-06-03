@@ -16,7 +16,8 @@ public enum PaymentErrorCode implements ErrorCode {
     PAYMENT_PLAN_UNKNOWN(400, "MS-PAYMENT-PLAN-UNKNOWN", "알 수 없는 플랜입니다."),
     PAYMENT_WEBHOOK_INVALID(400, "MS-PAYMENT-WEBHOOK-INVALID", "유효하지 않은 웹훅 요청입니다."),
     PAYMENT_USER_NOT_FOUND(404, "MS-PAYMENT-USER-NOT-FOUND", "결제 대상 사용자를 찾을 수 없습니다."),
-    ORDER_NOT_FOUND(404, "MS-PAYMENT-ORDER-NOT-FOUND", "주문 정보를 찾을 수 없습니다.");
+    ORDER_NOT_FOUND(404, "MS-PAYMENT-ORDER-NOT-FOUND", "주문 정보를 찾을 수 없습니다."),
+    ORDER_FORBIDDEN(403, "MS-PAYMENT-ORDER-FORBIDDEN", "해당 주문에 대한 권한이 없습니다.");
 
     private final int status;
     private final String code;

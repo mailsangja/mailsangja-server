@@ -43,12 +43,12 @@ class PaymentProcessingServiceTest {
         String paymentId = orderId.toString();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.PENDING);
         User user = createUser(userId, Plan.FREE);
-        PortOnePaymentResult result = new PortOnePaymentResult(paymentId, "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(paymentId, "PAID", 9900);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(userRepositoryPort.findByIdWithLock(userId)).thenReturn(Optional.of(user));
 
-        createService().process(idempotencyKey, result, Plan.PRO);
+        createService().process(idempotencyKey, result);
 
         assertEquals(Plan.PRO, user.getPlan());
         assertEquals(OrderStatus.COMPLETED, order.getStatus());
@@ -64,14 +64,36 @@ class PaymentProcessingServiceTest {
         UUID userId = UUID.randomUUID();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.COMPLETED);
         order.complete("existing-key", orderId.toString());
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
-        createService().process("new-key", result, Plan.PRO);
+        createService().process("new-key", result);
 
         assertEquals("existing-key", order.getWebhookId());
         assertEquals(orderId.toString(), order.getPaymentId());
+        verify(userRepositoryPort, never()).findByIdWithLock(any(UUID.class));
+        verify(userRepositoryPort, never()).save(any(User.class));
+        verify(orderRepositoryPort, never()).save(any(Order.class));
+    }
+
+    @Test
+    void process_requiredUserId가주문소유자와다르면예외를던지고저장하지않는다() {
+        UUID orderId = UUID.randomUUID();
+        UUID orderOwner = UUID.randomUUID();
+        UUID otherUser = UUID.randomUUID();
+        Order order = createOrder(orderId, orderOwner, 9900, OrderStatus.PENDING);
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900);
+
+        when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+
+        PaymentException exception = assertThrows(
+                PaymentException.class,
+                () -> createService().process(null, result, otherUser)
+        );
+
+        assertSame(PaymentErrorCode.ORDER_FORBIDDEN, exception.getErrorCode());
+        assertEquals(OrderStatus.PENDING, order.getStatus());
         verify(userRepositoryPort, never()).findByIdWithLock(any(UUID.class));
         verify(userRepositoryPort, never()).save(any(User.class));
         verify(orderRepositoryPort, never()).save(any(Order.class));
@@ -82,13 +104,13 @@ class PaymentProcessingServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.PENDING);
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 1000, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 1000);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         PaymentException exception = assertThrows(
                 PaymentException.class,
-                () -> createService().process("idempotency-key-123", result, Plan.PRO)
+                () -> createService().process("idempotency-key-123", result)
         );
 
         assertSame(PaymentErrorCode.PAYMENT_AMOUNT_MISMATCH, exception.getErrorCode());
@@ -100,11 +122,11 @@ class PaymentProcessingServiceTest {
 
     @Test
     void process_paymentId가UUID형식이아니면예외를던지고주문을조회하지않는다() {
-        PortOnePaymentResult result = new PortOnePaymentResult("invalid-uuid", "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult("invalid-uuid", "PAID", 9900);
 
         PaymentException exception = assertThrows(
                 PaymentException.class,
-                () -> createService().process("idempotency-key-123", result, Plan.PRO)
+                () -> createService().process("idempotency-key-123", result)
         );
 
         assertSame(PaymentErrorCode.ORDER_NOT_FOUND, exception.getErrorCode());
@@ -118,14 +140,14 @@ class PaymentProcessingServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.PENDING);
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(userRepositoryPort.findByIdWithLock(userId)).thenReturn(Optional.empty());
 
         PaymentException exception = assertThrows(
                 PaymentException.class,
-                () -> createService().process("idempotency-key-123", result, Plan.PRO)
+                () -> createService().process("idempotency-key-123", result)
         );
 
         assertSame(PaymentErrorCode.PAYMENT_USER_NOT_FOUND, exception.getErrorCode());

@@ -45,7 +45,7 @@ class PaymentProcessingServiceTest {
         String paymentId = orderId.toString();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.PENDING);
         User user = createUser(userId, Plan.FREE);
-        PortOnePaymentResult result = new PortOnePaymentResult(paymentId, "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(paymentId, "PAID", 9900);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(userRepositoryPort.findByIdWithLock(userId)).thenReturn(Optional.of(user));
@@ -53,7 +53,7 @@ class PaymentProcessingServiceTest {
         PaymentProcessingService service = createService();
 
         // when
-        service.process(webhookId, result, Plan.PRO);
+        service.process(webhookId, result);
 
         // then
         assertEquals(Plan.PRO, user.getPlan());
@@ -71,14 +71,14 @@ class PaymentProcessingServiceTest {
         UUID userId = UUID.randomUUID();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.COMPLETED);
         order.complete("existing-webhook", orderId.toString());
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
         PaymentProcessingService service = createService();
 
         // when
-        service.process("new-webhook", result, Plan.PRO);
+        service.process("new-webhook", result);
 
         // then
         assertEquals("existing-webhook", order.getWebhookId());
@@ -94,7 +94,7 @@ class PaymentProcessingServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.PENDING);
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 1000, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 1000);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
 
@@ -103,7 +103,7 @@ class PaymentProcessingServiceTest {
         // when
         PaymentException exception = assertThrows(
                 PaymentException.class,
-                () -> service.process("webhook-123", result, Plan.PRO)
+                () -> service.process("webhook-123", result)
         );
 
         // then
@@ -118,13 +118,13 @@ class PaymentProcessingServiceTest {
     @Test
     void process_paymentId가UUID형식이아니면예외를던지고주문을조회하지않는다() {
         // given
-        PortOnePaymentResult result = new PortOnePaymentResult("invalid-uuid", "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult("invalid-uuid", "PAID", 9900);
         PaymentProcessingService service = createService();
 
         // when
         PaymentException exception = assertThrows(
                 PaymentException.class,
-                () -> service.process("webhook-123", result, Plan.PRO)
+                () -> service.process("webhook-123", result)
         );
 
         // then
@@ -140,7 +140,7 @@ class PaymentProcessingServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Order order = createOrder(orderId, userId, 9900, OrderStatus.PENDING);
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "PRO");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900);
 
         when(orderRepositoryPort.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
         when(userRepositoryPort.findByIdWithLock(userId)).thenReturn(Optional.empty());
@@ -150,7 +150,7 @@ class PaymentProcessingServiceTest {
         // when
         PaymentException exception = assertThrows(
                 PaymentException.class,
-                () -> service.process("webhook-123", result, Plan.PRO)
+                () -> service.process("webhook-123", result)
         );
 
         // then

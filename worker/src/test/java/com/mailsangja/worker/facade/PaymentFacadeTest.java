@@ -1,6 +1,5 @@
 package com.mailsangja.worker.facade;
 
-import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.worker.common.exception.payment.PaymentErrorCode;
 import com.mailsangja.worker.common.exception.payment.PaymentException;
 import com.mailsangja.worker.dto.payment.PortOnePaymentResult;
@@ -43,7 +42,7 @@ class PaymentFacadeTest {
         // then
         verify(paymentProcessingService, never()).isWebhookAlreadyProcessed(request.webhookId());
         verify(portOneApiService, never()).fetchPayment(request.data().paymentId());
-        verify(paymentProcessingService, never()).process(eq(request.webhookId()), any(PortOnePaymentResult.class), any(Plan.class));
+        verify(paymentProcessingService, never()).process(eq(request.webhookId()), any(PortOnePaymentResult.class));
     }
 
     @Test
@@ -59,15 +58,15 @@ class PaymentFacadeTest {
         // then
         verify(paymentProcessingService).isWebhookAlreadyProcessed(request.webhookId());
         verify(portOneApiService, never()).fetchPayment(request.data().paymentId());
-        verify(paymentProcessingService, never()).process(eq(request.webhookId()), any(PortOnePaymentResult.class), any(Plan.class));
+        verify(paymentProcessingService, never()).process(eq(request.webhookId()), any(PortOnePaymentResult.class));
     }
 
     @Test
-    void handleWebhook_정상결제웹훅이면결제정보조회후플랜을해석해처리한다() {
+    void handleWebhook_정상결제웹훅이면결제정보조회후처리한다() {
         // given
         UUID orderId = UUID.randomUUID();
         PortOneWebhookRequest request = createRequest("webhook-123", "Transaction.Paid", "payment-123");
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "pro");
+        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900);
 
         when(paymentProcessingService.isWebhookAlreadyProcessed(request.webhookId())).thenReturn(false);
         when(portOneApiService.fetchPayment(request.data().paymentId())).thenReturn(result);
@@ -79,47 +78,7 @@ class PaymentFacadeTest {
 
         // then
         verify(portOneApiService).fetchPayment(request.data().paymentId());
-        verify(paymentProcessingService).process(request.webhookId(), result, Plan.PRO);
-    }
-
-    @Test
-    void handleWebhook_planCode가비어있으면예외를던지고처리하지않는다() {
-        // given
-        UUID orderId = UUID.randomUUID();
-        PortOneWebhookRequest request = createRequest("webhook-123", "Transaction.Paid", "payment-123");
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, " ");
-
-        when(paymentProcessingService.isWebhookAlreadyProcessed(request.webhookId())).thenReturn(false);
-        when(portOneApiService.fetchPayment(request.data().paymentId())).thenReturn(result);
-
-        PaymentFacade facade = createFacade();
-
-        // when
-        PaymentException exception = assertThrows(PaymentException.class, () -> facade.handleWebhook(request));
-
-        // then
-        assertSame(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN, exception.getErrorCode());
-        verify(paymentProcessingService, never()).process(request.webhookId(), result, Plan.PRO);
-    }
-
-    @Test
-    void handleWebhook_알수없는planCode면예외를던지고처리하지않는다() {
-        // given
-        UUID orderId = UUID.randomUUID();
-        PortOneWebhookRequest request = createRequest("webhook-123", "Transaction.Paid", "payment-123");
-        PortOnePaymentResult result = new PortOnePaymentResult(orderId.toString(), "PAID", 9900, "ENTERPRISE");
-
-        when(paymentProcessingService.isWebhookAlreadyProcessed(request.webhookId())).thenReturn(false);
-        when(portOneApiService.fetchPayment(request.data().paymentId())).thenReturn(result);
-
-        PaymentFacade facade = createFacade();
-
-        // when
-        PaymentException exception = assertThrows(PaymentException.class, () -> facade.handleWebhook(request));
-
-        // then
-        assertSame(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN, exception.getErrorCode());
-        verify(paymentProcessingService, never()).process(request.webhookId(), result, Plan.PRO);
+        verify(paymentProcessingService).process(request.webhookId(), result);
     }
 
     @Test

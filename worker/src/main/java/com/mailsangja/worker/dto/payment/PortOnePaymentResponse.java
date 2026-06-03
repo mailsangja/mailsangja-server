@@ -6,20 +6,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record PortOnePaymentResponse(
         String id,
         String status,
-        Amount amount,
-        CustomData customData
+        Amount amount
 ) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Amount(int total) {
     }
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record CustomData(String planCode) {
-    }
-
     public PortOnePaymentResult toResult() {
-        String planCode = customData != null ? customData.planCode() : null;
         int totalAmount = amount != null ? amount.total() : 0;
-        return new PortOnePaymentResult(id, status, totalAmount, planCode);
+        return new PortOnePaymentResult(id, status, totalAmount);
     }
 }

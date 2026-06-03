@@ -2,7 +2,6 @@ package com.mailsangja.worker.service.payment;
 
 import com.mailsangja.db.entity.payment.Order;
 import com.mailsangja.db.entity.payment.OrderStatus;
-import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.OrderRepositoryPort;
 import com.mailsangja.db.port.UserRepositoryPort;
@@ -29,7 +28,7 @@ public class PaymentProcessingService {
     }
 
     @Transactional
-    public void process(String webhookId, PortOnePaymentResult result, Plan plan) {
+    public void process(String webhookId, PortOnePaymentResult result) {
         UUID orderId = parseOrderId(result.paymentId());
 
         Order order = orderRepositoryPort.findByIdWithLock(orderId)
@@ -47,14 +46,14 @@ public class PaymentProcessingService {
         User user = userRepositoryPort.findByIdWithLock(userId)
                 .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_USER_NOT_FOUND, "userId=" + userId));
 
-        user.updatePlan(plan);
+        user.updatePlan(order.getPlan());
         userRepositoryPort.save(user);
 
         order.complete(webhookId, result.paymentId());
         orderRepositoryPort.save(order);
 
         log.info("Payment processing completed. webhookId={} orderId={} userId={} plan={}",
-                webhookId, orderId, userId, plan);
+                webhookId, orderId, userId, order.getPlan());
     }
 
     private void validatePaymentAmount(PortOnePaymentResult result, Order order) {
