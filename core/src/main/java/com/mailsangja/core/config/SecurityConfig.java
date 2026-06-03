@@ -2,6 +2,7 @@ package com.mailsangja.core.config;
 
 import com.mailsangja.core.common.auth.CustomAccessDeniedHandler;
 import com.mailsangja.core.common.auth.CustomAuthenticationEntryPoint;
+import com.mailsangja.core.common.observability.ObservabilitySupport;
 import com.mailsangja.core.config.properties.CorsProperties;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
@@ -103,7 +104,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Set-Cookie"));
+        configuration.setExposedHeaders(List.of("Set-Cookie", ObservabilitySupport.CORRELATION_ID_HEADER));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
