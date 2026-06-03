@@ -69,14 +69,12 @@ loki.process "mailsangja_logs" {
 
   stage.labels {
     values = {
-      level          = "",
-      app            = "",
-      service        = "",
-      workId         = "",
-      userId         = "",
-      mailAccountId  = "",
-      jobId          = "",
-      traceId        = "",
+      level       = "",
+      app         = "",
+      service     = "",
+      queue       = "",
+      routingKey  = "",
+      eventType   = "",
     }
   }
 
