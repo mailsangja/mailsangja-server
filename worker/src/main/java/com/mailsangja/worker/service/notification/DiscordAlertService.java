@@ -119,7 +119,7 @@ public class DiscordAlertService {
 
     private String findFirstAppFrame(Throwable cause) {
         Throwable current = cause;
-        while (current != null) {
+        while (current != null && current.getCause() != current) {
             for (StackTraceElement frame : current.getStackTrace()) {
                 if (frame.getClassName().startsWith("com.mailsangja")) {
                     return frame.toString();
