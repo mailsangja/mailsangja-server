@@ -5,7 +5,6 @@ import com.mailsangja.core.common.exception.payment.PaymentException;
 import com.mailsangja.core.dto.payment.PortOnePaymentResult;
 import com.mailsangja.db.entity.payment.Order;
 import com.mailsangja.db.entity.payment.OrderStatus;
-import com.mailsangja.db.entity.user.Plan;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.OrderRepositoryPort;
 import com.mailsangja.db.port.UserRepositoryPort;
@@ -25,7 +24,7 @@ public class PaymentProcessingService {
     private final OrderRepositoryPort orderRepositoryPort;
 
     @Transactional
-    public void process(String idempotencyKey, PortOnePaymentResult result, Plan plan) {
+    public void process(String idempotencyKey, PortOnePaymentResult result) {
         UUID orderId = parseOrderId(result.paymentId());
 
         Order order = orderRepositoryPort.findByIdWithLock(orderId)
@@ -46,13 +45,13 @@ public class PaymentProcessingService {
         User user = userRepositoryPort.findByIdWithLock(userId)
                 .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_USER_NOT_FOUND, "userId=" + userId));
 
-        user.updatePlan(plan);
+        user.updatePlan(order.getPlan());
         userRepositoryPort.save(user);
 
         order.complete(idempotencyKey, result.paymentId());
         orderRepositoryPort.save(order);
 
-        log.info("Payment processing completed. orderId={} userId={} plan={}", orderId, userId, plan);
+        log.info("Payment processing completed. orderId={} userId={} plan={}", orderId, userId, order.getPlan());
     }
 
     private UUID parseOrderId(String paymentId) {

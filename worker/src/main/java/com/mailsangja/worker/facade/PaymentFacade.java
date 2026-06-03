@@ -1,8 +1,5 @@
 package com.mailsangja.worker.facade;
 
-import com.mailsangja.db.entity.user.Plan;
-import com.mailsangja.worker.common.exception.payment.PaymentErrorCode;
-import com.mailsangja.worker.common.exception.payment.PaymentException;
 import com.mailsangja.worker.dto.payment.PortOnePaymentResult;
 import com.mailsangja.worker.dto.payment.PortOneWebhookRequest;
 import com.mailsangja.worker.service.payment.PaymentProcessingService;
@@ -10,8 +7,6 @@ import com.mailsangja.worker.service.payment.PortOneApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.Locale;
 
 @Slf4j
 @Component
@@ -35,23 +30,9 @@ public class PaymentFacade {
         }
 
         PortOnePaymentResult result = portOneApiService.fetchPayment(request.data().paymentId());
-        Plan plan = resolvePlan(result);
-        paymentProcessingService.process(request.webhookId(), result, plan);
+        paymentProcessingService.process(request.webhookId(), result);
 
-        log.info("Webhook handled. webhookId={} paymentId={} plan={}",
-                request.webhookId(), request.data().paymentId(), plan);
-    }
-
-    private Plan resolvePlan(PortOnePaymentResult result) {
-        String planCode = result.planCode();
-        if (planCode == null || planCode.isBlank()) {
-            throw new PaymentException(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN,
-                    "planCode is missing in customData. paymentId=" + result.paymentId());
-        }
-        try {
-            return Plan.valueOf(planCode.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new PaymentException(PaymentErrorCode.PAYMENT_PLAN_UNKNOWN, "Unknown planCode: " + planCode);
-        }
+        log.info("Webhook handled. webhookId={} paymentId={}",
+                request.webhookId(), request.data().paymentId());
     }
 }
