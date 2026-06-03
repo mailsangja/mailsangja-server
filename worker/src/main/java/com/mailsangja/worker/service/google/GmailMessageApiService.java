@@ -165,7 +165,7 @@ public class GmailMessageApiService {
             return validateThreadResponse(response);
         } catch (RestClientException e) {
             String status = e instanceof RestClientResponseException re ? re.getStatusCode().toString() : "N/A";
-            log.warn("Gmail thread fetch failed. threadId={} accountKey={} status={} error={}", threadId, context.accountKey(), status, e.getMessage());
+            log.warn("Gmail thread fetch failed. threadId={} accountKey={} status={} error={}", threadId, context.accountKey(), status, e.getMessage(), e);
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_FETCH_FAILED);
         }
     }
