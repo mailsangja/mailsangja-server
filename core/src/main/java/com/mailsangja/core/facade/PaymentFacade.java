@@ -29,7 +29,7 @@ public class PaymentFacade {
 
     public void completePayment(User user, CompletePaymentRequest request) {
         PortOnePaymentResult result = portOneApiService.fetchPayment(request.paymentId());
-        paymentProcessingService.process(null, result);
+        paymentProcessingService.process(null, result, user.getId());
 
         log.info("Payment completed by client. userId={} paymentId={}", user.getId(), request.paymentId());
     }

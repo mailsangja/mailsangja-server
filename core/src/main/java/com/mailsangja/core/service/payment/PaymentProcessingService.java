@@ -25,10 +25,25 @@ public class PaymentProcessingService {
 
     @Transactional
     public void process(String idempotencyKey, PortOnePaymentResult result) {
+        processInternal(idempotencyKey, result, null);
+    }
+
+    @Transactional
+    public void process(String idempotencyKey, PortOnePaymentResult result, UUID requiredUserId) {
+        processInternal(idempotencyKey, result, requiredUserId);
+    }
+
+    private void processInternal(String idempotencyKey, PortOnePaymentResult result, UUID requiredUserId) {
         UUID orderId = parseOrderId(result.paymentId());
 
         Order order = orderRepositoryPort.findByIdWithLock(orderId)
                 .orElseThrow(() -> new PaymentException(PaymentErrorCode.ORDER_NOT_FOUND, "orderId=" + orderId));
+
+        if (requiredUserId != null && !requiredUserId.equals(order.getUserId())) {
+            log.warn("Order ownership mismatch. orderId={} requiredUserId={} actualUserId={}",
+                    orderId, requiredUserId, order.getUserId());
+            throw new PaymentException(PaymentErrorCode.ORDER_FORBIDDEN, "orderId=" + orderId);
+        }
 
         if (OrderStatus.COMPLETED.equals(order.getStatus())) {
             log.info("Order already completed, skipping. orderId={}", orderId);
