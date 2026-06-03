@@ -37,16 +37,30 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
 
     private String resolveWorkId(HttpServletRequest request) {
         String correlationId = request.getHeader(ObservabilitySupport.CORRELATION_ID_HEADER);
-        if (!isBlank(correlationId)) {
+        if (isBackendGeneratedCorrelationId(correlationId)) {
             return correlationId.trim();
         }
 
         String currentWorkId = MDC.get(ObservabilitySupport.WORK_ID);
-        if (!isBlank(currentWorkId)) {
+        if (isBackendGeneratedCorrelationId(currentWorkId)) {
             return currentWorkId;
         }
 
         return UUID.randomUUID().toString();
+    }
+
+    private boolean isBackendGeneratedCorrelationId(String value) {
+        if (isBlank(value)) {
+            return false;
+        }
+
+        String trimmed = value.trim();
+        try {
+            UUID uuid = UUID.fromString(trimmed);
+            return uuid.version() == 4 && uuid.toString().equals(trimmed);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private boolean isBlank(String value) {

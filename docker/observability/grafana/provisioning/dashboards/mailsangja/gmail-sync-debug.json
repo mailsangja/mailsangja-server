@@ -158,7 +158,7 @@
     },
     {
       "id": 4,
-      "title": "Search by Gmail Thread/Message/History",
+      "title": "Search by Gmail Thread ID",
       "type": "logs",
       "datasource": {
         "type": "loki",
@@ -183,7 +183,71 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{service=~\"mailsangja-core|mailsangja-worker\"} | json | gmailThreadId=\"$gmailThreadId\" | gmailMessageId=\"$gmailMessageId\" | historyId=\"$historyId\"",
+          "expr": "{service=~\"mailsangja-core|mailsangja-worker\"} | json | gmailThreadId=\"$gmailThreadId\"",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Search by Gmail Message ID",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"mailsangja-core|mailsangja-worker\"} | json | gmailMessageId=\"$gmailMessageId\"",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Search by Gmail History ID",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"mailsangja-core|mailsangja-worker\"} | json | historyId=\"$historyId\"",
           "queryType": "range"
         }
       ]
