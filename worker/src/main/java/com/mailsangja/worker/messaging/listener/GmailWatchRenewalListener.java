@@ -11,6 +11,7 @@ import com.mailsangja.worker.service.mail.MailAccountCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,10 @@ public class GmailWatchRenewalListener {
             queues = "#{@watchRenewalQueue.name}",
             containerFactory = "watchRenewalRabbitListenerContainerFactory"
     )
+    public void handle(WatchRenewalMessage message, Message rawMessage) {
+        handle(message);
+    }
+
     public void handle(WatchRenewalMessage message) {
         MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId());
         GoogleOAuthTokenResult tokenResult = googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken());

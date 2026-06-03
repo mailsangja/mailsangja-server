@@ -9,6 +9,7 @@ import com.mailsangja.worker.handler.mail.MessageAddedHistoryEventHandler;
 import com.mailsangja.worker.service.mail.GoogleAccessTokenEnsureService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,10 @@ public class GmailHistoryEventListener {
             queues = "#{@gmailMessageAddedQueue.name}",
             containerFactory = "gmailMessageAddedContainerFactory"
     )
+    public void handleMessageAdded(GmailHistoryEvent event, Message rawMessage) {
+        handleMessageAdded(event);
+    }
+
     public void handleMessageAdded(GmailHistoryEvent event) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
                 mailAccountQueryService.findSyncableMailAccountById(event.mailAccountId())
@@ -44,6 +49,10 @@ public class GmailHistoryEventListener {
             },
             containerFactory = "gmailHistoryStateContainerFactory"
     )
+    public void handleStateChange(GmailHistoryEvent event, Message rawMessage) {
+        handleStateChange(event);
+    }
+
     public void handleStateChange(GmailHistoryEvent event) {
         stateChangeHandlers.stream()
                 .filter(h -> h.supports() == event.eventType())

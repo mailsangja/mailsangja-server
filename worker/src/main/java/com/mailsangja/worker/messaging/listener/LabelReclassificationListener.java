@@ -47,6 +47,10 @@ public class LabelReclassificationListener {
             queues = "#{@labelReclassifyQueue.name}",
             containerFactory = "labelReclassifyRabbitListenerContainerFactory"
     )
+    public void handle(LabelReclassifyMessage message, org.springframework.amqp.core.Message rawMessage) {
+        handle(message);
+    }
+
     public void handle(LabelReclassifyMessage message) {
         UUID userId = message.userId();
         String messageJobId = message.jobId();

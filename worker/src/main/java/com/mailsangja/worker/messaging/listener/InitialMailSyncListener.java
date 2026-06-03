@@ -19,6 +19,7 @@ import com.mailsangja.worker.service.mail.InitialMailSyncCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +44,10 @@ public class InitialMailSyncListener {
     private final MailEmbeddingPublisher mailEmbeddingPublisher;
 
     @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
+    public void handle(InitialMailSyncMessage message, Message rawMessage) {
+        handle(message);
+    }
+
     public void handle(InitialMailSyncMessage message) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())
@@ -77,6 +82,10 @@ public class InitialMailSyncListener {
             queues = "#{@initialMailSyncThreadBatchQueue.name}",
             containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory"
     )
+    public void handleThreadBatch(InitialMailSyncThreadBatchMessage message, Message rawMessage) {
+        handleThreadBatch(message);
+    }
+
     public void handleThreadBatch(InitialMailSyncThreadBatchMessage message) {
         MailAccount mailAccount = googleAccessTokenEnsureService.ensureValidGoogleAccessToken(
                 mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId())

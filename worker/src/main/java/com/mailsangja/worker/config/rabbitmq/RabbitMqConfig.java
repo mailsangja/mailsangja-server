@@ -3,11 +3,13 @@ package com.mailsangja.worker.config.rabbitmq;
 import com.mailsangja.worker.common.exception.mail.MailAccountNotFoundException;
 import com.mailsangja.worker.common.exception.mq.MqErrorCode;
 import com.mailsangja.worker.common.exception.mq.MqException;
+import com.mailsangja.worker.common.observability.ObservabilitySupport;
 import com.mailsangja.worker.config.properties.MailTaskRabbitProperties;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -17,6 +19,7 @@ import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -67,10 +70,13 @@ public class RabbitMqConfig {
     public RabbitTemplate rabbitTemplate(
             @Qualifier("publisherConnectionFactory") ConnectionFactory publisherConnectionFactory,
             MessageConverter rabbitMessageConverter,
-            MailTaskRabbitProperties properties
+            MailTaskRabbitProperties properties,
+            ObservabilitySupport observabilitySupport
     ) {
         RabbitTemplate rabbitTemplate = new RabbitTemplate(publisherConnectionFactory);
         rabbitTemplate.setMessageConverter(rabbitMessageConverter);
+        rabbitTemplate.setBeforePublishPostProcessors(observabilitySupport.rabbitHeaders());
+        rabbitTemplate.setObservationEnabled(true);
         boolean mandatory = Boolean.TRUE.equals(properties.getPublisherMandatory());
         rabbitTemplate.setMandatory(mandatory);
         if (mandatory) {
@@ -81,6 +87,19 @@ public class RabbitMqConfig {
             );
         }
         return rabbitTemplate;
+    }
+
+    @Bean
+    public BeanPostProcessor rabbitListenerContainerFactoryObservationPostProcessor() {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String beanName) {
+                if (bean instanceof SimpleRabbitListenerContainerFactory factory) {
+                    factory.setObservationEnabled(true);
+                }
+                return bean;
+            }
+        };
     }
 
     static int toQueueTtlMillis(Duration ttl, String propertyName) {
