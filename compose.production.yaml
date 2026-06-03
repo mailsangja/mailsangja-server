@@ -136,7 +136,7 @@ services:
     environment:
       TZ: Asia/Seoul
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
-      LOG_FILE: /var/log/mailsangja/core.log
+      CORE_LOG_FILE: /var/log/mailsangja/core.log
       MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: ${MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED:-true}
       MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:-http://alloy:4318/v1/traces}
     env_file:
@@ -160,7 +160,7 @@ services:
     environment:
       TZ: Asia/Seoul
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
-      LOG_FILE: /var/log/mailsangja/worker.log
+      WORKER_LOG_FILE: /var/log/mailsangja/worker.log
       MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: ${MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED:-true}
       MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:-http://alloy:4318/v1/traces}
     env_file:

@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: mailsangja-observability
+    orgId: 1
+    folder: Mailsangja
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/mailsangja

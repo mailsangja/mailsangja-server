@@ -82,10 +82,9 @@ spring:
 logging:
   structured:
     format:
-      console: ${LOGGING_STRUCTURED_FORMAT_CONSOLE:logstash}
       file: ${LOGGING_STRUCTURED_FORMAT_FILE:logstash}
   file:
-    name: ${LOG_FILE:}
+    name: ${WORKER_LOG_FILE:${LOG_FILE:}}
   level:
     org.hibernate.SQL: ${LOGGING_LEVEL_HIBERNATE_SQL:OFF}
     org.hibernate.orm.jdbc.bind: ${LOGGING_LEVEL_HIBERNATE_BIND:OFF}

@@ -94,7 +94,7 @@ services:
       - "${ALLOY_OTLP_HTTP_PORT:-4318}:4318"
     volumes:
       - ./docker/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - app_logs:/var/log/mailsangja:ro
+      - ./logs:/var/log/mailsangja:ro
     depends_on:
       loki:
         condition: service_started
@@ -130,13 +130,13 @@ services:
     environment:
       TZ: Asia/Seoul
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
-      LOG_FILE: /var/log/mailsangja/core.log
+      CORE_LOG_FILE: /var/log/mailsangja/core.log
       MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
       MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://alloy:4318/v1/traces
     env_file:
       - .env
     volumes:
-      - app_logs:/var/log/mailsangja
+      - ./logs:/var/log/mailsangja
     depends_on:
       alloy:
         condition: service_started
@@ -157,13 +157,13 @@ services:
     environment:
       TZ: Asia/Seoul
       JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
-      LOG_FILE: /var/log/mailsangja/worker.log
+      WORKER_LOG_FILE: /var/log/mailsangja/worker.log
       MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
       MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://alloy:4318/v1/traces
     env_file:
       - .env
     volumes:
-      - app_logs:/var/log/mailsangja
+      - ./logs:/var/log/mailsangja
     depends_on:
       alloy:
         condition: service_started
@@ -176,7 +176,6 @@ volumes:
   postgres_data:
   redis-data:
   rabbitmq_data:
-  app_logs:
   loki_data:
   tempo_data:
   grafana_data:

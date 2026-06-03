@@ -1,0 +1,181 @@
+{
+  "uid": "mailsangja-worker-flow",
+  "title": "Mailsangja Worker Flow",
+  "tags": ["mailsangja", "worker", "rabbitmq"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "queue",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({service=\"mailsangja-worker\"}, queue)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "routingKey",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({service=\"mailsangja-worker\"}, routingKey)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "eventType",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({service=\"mailsangja-worker\"}, eventType)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Queue Volume",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (queue) (count_over_time({service=\"mailsangja-worker\", queue=~\"$queue\"}[5m]))",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Event Type Volume",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (eventType) (count_over_time({service=\"mailsangja-worker\", eventType=~\"$eventType\"}[5m]))",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Worker Warnings and Errors",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"mailsangja-worker\", queue=~\"$queue\", routingKey=~\"$routingKey\", eventType=~\"$eventType\", level=~\"WARN|ERROR\"}",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Worker Logs",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"mailsangja-worker\", queue=~\"$queue\", routingKey=~\"$routingKey\", eventType=~\"$eventType\"}",
+          "queryType": "range"
+        }
+      ]
+    }
+  ]
+}
