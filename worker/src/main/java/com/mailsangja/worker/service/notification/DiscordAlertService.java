@@ -112,7 +112,22 @@ public class DiscordAlertService {
             root = root.getCause();
         }
         String message = root.getMessage() != null ? root.getMessage() : "(no message)";
-        return root.getClass().getSimpleName() + ": " + message;
+        String summary = root.getClass().getSimpleName() + ": " + message;
+        String callSite = findFirstAppFrame(cause);
+        return callSite != null ? summary + "\nat " + callSite : summary;
+    }
+
+    private String findFirstAppFrame(Throwable cause) {
+        Throwable current = cause;
+        while (current != null) {
+            for (StackTraceElement frame : current.getStackTrace()) {
+                if (frame.getClassName().startsWith("com.mailsangja")) {
+                    return frame.toString();
+                }
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private String nullSafe(String value) {
