@@ -5,10 +5,12 @@ import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
 import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.service.google.GoogleOAuthApiService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class GoogleAccessTokenEnsureService {
 
@@ -40,10 +42,24 @@ public class GoogleAccessTokenEnsureService {
             throw new MailPushException(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
 
-        return mailAccountCommandService.refreshGoogleAccessToken(
-                mailAccount.getId(),
-                googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken())
-        );
+        try {
+            return mailAccountCommandService.refreshGoogleAccessToken(
+                    mailAccount.getId(),
+                    googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken())
+            );
+        } catch (MailPushException e) {
+            log.warn(
+                    "Google access token refresh failed. mailAccountId={} userId={} provider={} emailAddress={} accessTokenExpiresAt={} hasRefreshToken={} errorCode={}",
+                    mailAccount.getId(),
+                    mailAccount.getUser().getId(),
+                    mailAccount.getProvider(),
+                    mailAccount.getEmailAddress(),
+                    mailAccount.getAccessTokenExpiresAt(),
+                    !isBlank(mailAccount.getRefreshToken()),
+                    e.getErrorCode().getCode()
+            );
+            throw e;
+        }
     }
 
     private boolean needsRefresh(MailAccount mailAccount) {
