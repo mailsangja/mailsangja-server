@@ -10,12 +10,15 @@ import org.springframework.web.client.RestClient;
 public class PortOneClientConfig {
 
     @Bean
-    public RestClient portOneRestClient(PortOneProperties portOneProperties) {
+    public RestClient portOneRestClient(
+            PortOneProperties portOneProperties,
+            RestClient.Builder restClientBuilder
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Math.toIntExact(portOneProperties.getConnectTimeout().toMillis()));
         requestFactory.setReadTimeout(Math.toIntExact(portOneProperties.getReadTimeout().toMillis()));
 
-        return RestClient.builder()
+        return restClientBuilder
                 .requestFactory(requestFactory)
                 .build();
     }

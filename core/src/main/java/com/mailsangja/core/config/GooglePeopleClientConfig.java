@@ -10,12 +10,15 @@ import org.springframework.web.client.RestClient;
 public class GooglePeopleClientConfig {
 
     @Bean
-    public RestClient googlePeopleRestClient(GooglePeopleProperties properties) {
+    public RestClient googlePeopleRestClient(
+            GooglePeopleProperties properties,
+            RestClient.Builder restClientBuilder
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Math.toIntExact(properties.getConnectTimeout().toMillis()));
         requestFactory.setReadTimeout(Math.toIntExact(properties.getReadTimeout().toMillis()));
 
-        return RestClient.builder()
+        return restClientBuilder
                 .requestFactory(requestFactory)
                 .build();
     }

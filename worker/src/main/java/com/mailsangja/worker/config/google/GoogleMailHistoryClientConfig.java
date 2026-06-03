@@ -10,12 +10,15 @@ import org.springframework.web.client.RestClient;
 public class GoogleMailHistoryClientConfig {
 
     @Bean
-    public RestClient googleMailHistoryRestClient(GoogleMailHistoryProperties googleMailHistoryProperties) {
+    public RestClient googleMailHistoryRestClient(
+            GoogleMailHistoryProperties googleMailHistoryProperties,
+            RestClient.Builder restClientBuilder
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) googleMailHistoryProperties.getConnectTimeout().toMillis());
         requestFactory.setReadTimeout((int) googleMailHistoryProperties.getReadTimeout().toMillis());
 
-        return RestClient.builder()
+        return restClientBuilder
                 .requestFactory(requestFactory)
                 .build();
     }

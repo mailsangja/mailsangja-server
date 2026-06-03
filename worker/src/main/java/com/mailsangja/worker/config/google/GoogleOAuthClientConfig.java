@@ -10,12 +10,15 @@ import org.springframework.web.client.RestClient;
 public class GoogleOAuthClientConfig {
 
     @Bean
-    public RestClient googleOAuthRestClient(GoogleOAuthProperties googleOAuthProperties) {
+    public RestClient googleOAuthRestClient(
+            GoogleOAuthProperties googleOAuthProperties,
+            RestClient.Builder restClientBuilder
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) googleOAuthProperties.getConnectTimeout().toMillis());
         requestFactory.setReadTimeout((int) googleOAuthProperties.getReadTimeout().toMillis());
 
-        return RestClient.builder()
+        return restClientBuilder
                 .requestFactory(requestFactory)
                 .build();
     }
