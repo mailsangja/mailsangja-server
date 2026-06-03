@@ -49,6 +49,16 @@ spring:
     redis:
       configure-action: none
 
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  tracing:
+    export:
+      otlp:
+        enabled: false
+
 mailsangja:
   ai:
     model:
