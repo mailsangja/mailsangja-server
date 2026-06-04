@@ -28,7 +28,8 @@ public class GmailHistoryEventListener {
 
     @RabbitListener(
             queues = "#{@gmailMessageAddedQueue.name}",
-            containerFactory = "gmailMessageAddedContainerFactory"
+            containerFactory = "gmailMessageAddedContainerFactory",
+            errorHandler = "rabbitListenerPolicyErrorHandler"
     )
     public void handleMessageAdded(GmailHistoryEvent event, Message rawMessage) {
         handleMessageAdded(event);
@@ -65,7 +66,8 @@ public class GmailHistoryEventListener {
                 "#{@gmailMessageRestoredQueue.name}",
                 "#{@gmailMessagePermanentlyDeletedQueue.name}"
             },
-            containerFactory = "gmailHistoryStateContainerFactory"
+            containerFactory = "gmailHistoryStateContainerFactory",
+            errorHandler = "rabbitListenerPolicyErrorHandler"
     )
     public void handleStateChange(GmailHistoryEvent event, Message rawMessage) {
         handleStateChange(event);

@@ -143,6 +143,27 @@ class MailAccountQueryServiceTest {
     }
 
     @Test
+    void findSyncableMailAccountById_리프레시토큰이없으면재연동필요예외를던진다() {
+        // given
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(MailProvider.GMAIL, true, "access-token");
+        mailAccount.clearRefreshToken();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountQueryService service = new MailAccountQueryService(mailAccountRepositoryPort);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId))
+                .thenReturn(Optional.of(mailAccount));
+
+        // when
+        MailPushException exception = assertThrows(
+                MailPushException.class,
+                () -> service.findSyncableMailAccountById(mailAccountId)
+        );
+
+        // then
+        assertEquals(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING, exception.getErrorCode());
+    }
+
+    @Test
     void findRenewalTargetGmailAccounts_갱신대상계정을조회한다() {
         // given
         LocalDateTime threshold = LocalDateTime.of(2026, 5, 19, 9, 0);

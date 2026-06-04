@@ -28,7 +28,8 @@ public class GmailWatchRenewalListener {
 
     @RabbitListener(
             queues = "#{@watchRenewalQueue.name}",
-            containerFactory = "watchRenewalRabbitListenerContainerFactory"
+            containerFactory = "watchRenewalRabbitListenerContainerFactory",
+            errorHandler = "rabbitListenerPolicyErrorHandler"
     )
     public void handle(WatchRenewalMessage message, Message rawMessage) {
         handle(message);
