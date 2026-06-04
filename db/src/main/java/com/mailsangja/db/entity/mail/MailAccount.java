@@ -88,6 +88,10 @@ public class MailAccount extends BaseEntity {
         this.refreshToken = refreshToken;
     }
 
+    public void clearRefreshToken() {
+        this.refreshToken = null;
+    }
+
     public void updateAlias(String alias) {
         this.alias = alias;
     }

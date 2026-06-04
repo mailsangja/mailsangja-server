@@ -80,6 +80,15 @@ public class MailAccountCommandService {
         return mailAccountQueryService.findSyncableMailAccountById(mailAccountId);
     }
 
+    @Transactional
+    public void clearRefreshToken(UUID mailAccountId) {
+        if (mailAccountId == null) {
+            throw new MailPushException(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+        }
+
+        mailAccountRepositoryPort.clearRefreshToken(mailAccountId);
+    }
+
     private void validateRenewGoogleWatchCommand(RenewGoogleWatchCommand command) {
         if (command == null
                 || command.mailAccountId() == null

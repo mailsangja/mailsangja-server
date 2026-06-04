@@ -5,6 +5,7 @@ import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
 import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchResult;
 import com.mailsangja.worker.dto.mail.watch.RenewGoogleWatchCommand;
 import com.mailsangja.worker.dto.mail.watch.WatchRenewalMessage;
+import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.service.google.GmailWatchApiService;
 import com.mailsangja.worker.service.google.GoogleOAuthApiService;
 import com.mailsangja.worker.service.mail.MailAccountCommandService;
@@ -35,7 +36,7 @@ public class GmailWatchRenewalListener {
 
     public void handle(WatchRenewalMessage message) {
         MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId());
-        GoogleOAuthTokenResult tokenResult = googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken());
+        GoogleOAuthTokenResult tokenResult = refreshAccessToken(mailAccount);
         GoogleMailWatchResult watchResult = gmailWatchApiService.watch(tokenResult.accessToken());
 
         mailAccountCommandService.renewGoogleWatch(
@@ -50,5 +51,14 @@ public class GmailWatchRenewalListener {
                 watchResult.historyId(),
                 watchResult.expirationAt()
         );
+    }
+
+    private GoogleOAuthTokenResult refreshAccessToken(MailAccount mailAccount) {
+        try {
+            return googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken());
+        } catch (MailPushException e) {
+            mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+            throw e;
+        }
     }
 }

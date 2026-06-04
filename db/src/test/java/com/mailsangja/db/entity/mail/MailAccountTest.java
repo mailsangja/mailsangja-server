@@ -135,6 +135,19 @@ class MailAccountTest {
     }
 
     @Test
+    void clearRefreshToken_리프레시토큰만삭제하고활성상태는유지한다() {
+        // given
+        MailAccount mailAccount = createMailAccount();
+
+        // when
+        mailAccount.clearRefreshToken();
+
+        // then
+        assertEquals(null, mailAccount.getRefreshToken());
+        assertTrue(mailAccount.isActive());
+    }
+
+    @Test
     void resolveStartHistoryId_syncHistoryId가있으면해당값을반환한다() {
         // given
         MailAccount mailAccount = createMailAccount();

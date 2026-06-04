@@ -107,6 +107,11 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
+    public int clearRefreshToken(UUID id) {
+        return mailAccountJpaRepositoryModule.clearRefreshToken(id);
+    }
+
+    @Override
     public List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit) {
         return mailAccountJpaRepositoryModule.findRenewalTargetGmailAccounts(provider, watchExpiresAtThreshold)
                 .stream()

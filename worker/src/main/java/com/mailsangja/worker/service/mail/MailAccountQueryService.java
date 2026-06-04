@@ -63,6 +63,8 @@ public class MailAccountQueryService {
     private boolean isSyncable(MailAccount mailAccount) {
         return !mailAccount.isDeleted()
                 && mailAccount.getProvider() == MailProvider.GMAIL
+                && mailAccount.isActive()
+                && !isBlank(mailAccount.getRefreshToken())
                 && !isBlank(mailAccount.getAccessToken());
     }
 

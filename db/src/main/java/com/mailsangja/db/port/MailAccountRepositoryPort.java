@@ -35,6 +35,7 @@ public interface MailAccountRepositoryPort {
             String newSyncHistoryId,
             LocalDateTime newWatchExpiresAt
     );
+    int clearRefreshToken(UUID id);
     List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit);
     List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active);
     boolean existsByProviderAndEmailAddressAndUserIdNotAndDeletedAtIsNull(MailProvider provider, String emailAddress, UUID userId);

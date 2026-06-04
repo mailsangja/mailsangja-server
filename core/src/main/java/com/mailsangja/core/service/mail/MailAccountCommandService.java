@@ -98,6 +98,15 @@ public class MailAccountCommandService {
         return findActiveById(mailAccountId);
     }
 
+    @Transactional
+    public void clearRefreshToken(UUID mailAccountId) {
+        if (mailAccountId == null) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+        }
+
+        mailAccountRepositoryPort.clearRefreshToken(mailAccountId);
+    }
+
     private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
         if (result == null
                 || isBlank(result.emailAddress())
