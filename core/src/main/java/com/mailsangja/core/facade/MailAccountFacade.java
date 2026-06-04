@@ -53,6 +53,12 @@ public class MailAccountFacade {
         return new MailAccountAuthorizeResponse(authorizationUrl);
     }
 
+    public MailAccountAuthorizeResponse reauthorizeGoogle(User user, UUID mailAccountId, String state) {
+        validateReauthorizationTarget(user, mailAccountId);
+        String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
+        return new MailAccountAuthorizeResponse(authorizationUrl);
+    }
+
     public MailAccountResponse handleGoogleCallback(
             User user,
             String code,
@@ -86,6 +92,25 @@ public class MailAccountFacade {
         }
 
         return MailAccountResponse.from(savedMailAccount);
+    }
+
+    public MailAccountResponse handleGoogleReauthorizationCallback(User user, String code, UUID mailAccountId) {
+        validateAuthorizationCode(code);
+
+        GoogleMailAccountResult result = googleOAuthQueryService.getGoogleMailAccountResult(code);
+        GoogleMailWatchResult watchResult = googleMailWatchQueryService.watch(result.accessToken());
+        MailAccount reauthorizedMailAccount = mailAccountCommandService.reauthorizeGoogleMailAccount(
+                user,
+                mailAccountId,
+                result,
+                watchResult
+        );
+
+        InitialMailSyncMessage initialMailSyncMessage = InitialMailSyncMessage.from(reauthorizedMailAccount);
+        initialMailSyncMessageCommandService.publish(initialMailSyncMessage);
+        saveInitialGoogleContacts(user, result.accessToken(), reauthorizedMailAccount);
+
+        return MailAccountResponse.from(reauthorizedMailAccount);
     }
 
     public List<MailAccountListResponse> getMyMailAccounts(User user) {
@@ -141,6 +166,23 @@ public class MailAccountFacade {
         int count = mailAccountQueryService.findAllByUserId(user.getId()).size();
         if (user.getPlan() != Plan.PRO && count >= mailAccountProperties.getMaxCount()) {
             throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_LIMIT_EXCEEDED);
+        }
+    }
+
+    private void validateReauthorizationTarget(User user, UUID mailAccountId) {
+        if (mailAccountId == null) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+        }
+
+        MailAccount mailAccount = mailAccountQueryService.findById(mailAccountId);
+        if (!mailAccount.getUser().getId().equals(user.getId())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_ACCESS_DENIED);
+        }
+        if (mailAccount.getProvider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+        if (!isBlank(mailAccount.getRefreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_NOT_REQUIRED);
         }
     }
 

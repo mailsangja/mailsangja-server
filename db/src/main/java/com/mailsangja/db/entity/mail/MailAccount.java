@@ -112,6 +112,20 @@ public class MailAccount extends BaseEntity {
         this.watchExpiresAt = watchExpiresAt;
     }
 
+    public void reauthorizeGoogle(
+            String accessToken,
+            LocalDateTime accessTokenExpiresAt,
+            String refreshToken,
+            String syncHistoryId,
+            LocalDateTime watchExpiresAt
+    ) {
+        this.accessToken = accessToken;
+        this.accessTokenExpiresAt = accessTokenExpiresAt;
+        this.refreshToken = refreshToken;
+        this.syncHistoryId = syncHistoryId;
+        this.watchExpiresAt = watchExpiresAt;
+    }
+
     public void activate() {
         this.active = true;
     }

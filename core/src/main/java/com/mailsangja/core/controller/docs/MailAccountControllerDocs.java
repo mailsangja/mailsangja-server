@@ -138,8 +138,30 @@ public interface MailAccountControllerDocs {
     );
 
     @Operation(
+            summary = "Google OAuth 재연동 인가 URL 생성",
+            description = "refresh token이 없어 재연동이 필요한 기존 Gmail 계정에 대해 OAuth 인가 URL을 반환합니다.",
+            security = @SecurityRequirement(name = "cookieAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "재연동 인가 URL 생성 성공",
+                    content = @Content(schema = @Schema(implementation = MailAccountAuthorizeResponse.class))
+            ),
+            @ApiResponse(responseCode = "400", description = "재연동이 필요하지 않거나 지원하지 않는 제공자", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음", content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "메일 계정 없음", content = @Content(schema = @Schema(hidden = true)))
+    })
+    ResponseEntity<MailAccountAuthorizeResponse> reauthorizeGoogle(
+            @Parameter(hidden = true) @AuthUser User user,
+            @Parameter(description = "재연동할 메일 계정 ID", required = true) @PathVariable UUID mailAccountId,
+            @Parameter(hidden = true) HttpSession session
+    );
+
+    @Operation(
             summary = "Google OAuth 콜백 처리",
-            description = "Google에서 전달한 code와 state를 검증한 뒤 토큰 교환, 사용자 정보 조회, MailAccount 저장을 수행하고 callbackRedirectUri로 리다이렉트합니다.",
+            description = "Google에서 전달한 code와 state를 검증한 뒤 신규 연동 또는 기존 Gmail 계정 재연동을 수행하고 callbackRedirectUri로 리다이렉트합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({

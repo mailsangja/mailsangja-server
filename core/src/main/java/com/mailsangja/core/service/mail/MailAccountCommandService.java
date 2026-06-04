@@ -78,6 +78,31 @@ public class MailAccountCommandService {
     }
 
     @Transactional
+    public MailAccount reauthorizeGoogleMailAccount(
+            User user,
+            UUID mailAccountId,
+            GoogleMailAccountResult result,
+            GoogleMailWatchResult watchResult
+    ) {
+        validateGoogleMailAccountResult(result);
+
+        MailAccount mailAccount = findById(mailAccountId);
+        validateOwnership(mailAccount, user);
+        validateReauthorizableGoogleMailAccount(mailAccount, result);
+        validateReauthorizationWatchResult(watchResult);
+
+        mailAccount.reauthorizeGoogle(
+                result.accessToken(),
+                result.accessTokenExpiresAt(),
+                result.refreshToken(),
+                watchResult.historyId(),
+                watchResult.expirationAt()
+        );
+
+        return mailAccount;
+    }
+
+    @Transactional
     public MailAccount refreshGoogleAccessToken(UUID mailAccountId, GoogleOAuthTokenResult tokenResult) {
         validateRefreshGoogleAccessTokenInput(mailAccountId, tokenResult);
 
@@ -158,6 +183,28 @@ public class MailAccountCommandService {
 
         if (isBlank(mailAccount.getRefreshToken())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+        }
+    }
+
+    private void validateReauthorizableGoogleMailAccount(MailAccount mailAccount, GoogleMailAccountResult result) {
+        if (mailAccount.getProvider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (!mailAccount.getEmailAddress().equalsIgnoreCase(result.emailAddress())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_EMAIL_MISMATCH);
+        }
+
+        if (!isBlank(mailAccount.getRefreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_NOT_REQUIRED);
+        }
+    }
+
+    private void validateReauthorizationWatchResult(GoogleMailWatchResult watchResult) {
+        if (watchResult == null
+                || isBlank(watchResult.historyId())
+                || watchResult.expirationAt() == null) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
     }
 

@@ -75,6 +75,68 @@ class MailAccountFacadeTest {
     }
 
     @Test
+    void reauthorizeGoogle_재연동대상이면인가URL을응답으로반환한다() {
+        // given
+        User user = createUser();
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = MailAccount.builder()
+                .id(mailAccountId)
+                .user(user)
+                .provider(MailProvider.GMAIL)
+                .emailAddress("gmail@example.com")
+                .refreshToken(null)
+                .build();
+        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
+        GoogleOAuthQueryService googleOAuthQueryService = mock(GoogleOAuthQueryService.class);
+        MailAccountFacade facade = createFacade(
+                mock(MailAccountCommandService.class),
+                mailAccountQueryService,
+                googleOAuthQueryService,
+                mock(GoogleMailWatchQueryService.class),
+                mock(InitialMailSyncMessageCommandService.class),
+                mock(GooglePeopleContactQueryService.class),
+                mock(ContactCommandService.class)
+        );
+        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+        when(googleOAuthQueryService.buildAuthorizationUrl("state-123"))
+                .thenReturn("https://accounts.google.com/o/oauth2/v2/auth");
+
+        // when
+        MailAccountAuthorizeResponse response = facade.reauthorizeGoogle(user, mailAccountId, "state-123");
+
+        // then
+        assertEquals("https://accounts.google.com/o/oauth2/v2/auth", response.authorizationUrl());
+    }
+
+    @Test
+    void reauthorizeGoogle_재연동이필요하지않으면예외를던진다() {
+        // given
+        User user = createUser();
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(user);
+        MailAccountQueryService mailAccountQueryService = mock(MailAccountQueryService.class);
+        MailAccountFacade facade = createFacade(
+                mock(MailAccountCommandService.class),
+                mailAccountQueryService,
+                mock(GoogleOAuthQueryService.class),
+                mock(GoogleMailWatchQueryService.class),
+                mock(InitialMailSyncMessageCommandService.class),
+                mock(GooglePeopleContactQueryService.class),
+                mock(ContactCommandService.class)
+        );
+        when(mailAccountQueryService.findById(mailAccountId)).thenReturn(mailAccount);
+
+        // when
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> facade.reauthorizeGoogle(user, mailAccountId, "state-123")
+        );
+
+        // then
+        assertEquals(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_NOT_REQUIRED, exception.getErrorCode());
+    }
+
+    @Test
     void handleGoogleCallback_메일계정저장후MQ를먼저발행하고그다음주소록을가져와저장한다() {
         // given
         User user = createUser();
@@ -223,6 +285,45 @@ class MailAccountFacadeTest {
         assertEquals(savedMailAccount.getId(), response.id());
         verify(initialMailSyncMessageCommandService).publish(InitialMailSyncMessage.from(savedMailAccount));
         verify(contactCommandService).saveMissingContacts(user, contacts);
+    }
+
+    @Test
+    void handleGoogleReauthorizationCallback_토큰과watch를갱신하고초기동기화를발행한다() {
+        // given
+        User user = createUser();
+        UUID mailAccountId = UUID.randomUUID();
+        GoogleMailAccountResult accountResult = createAccountResult();
+        GoogleMailWatchResult watchResult = createWatchResult();
+        MailAccount reauthorizedMailAccount = createMailAccount(user);
+        MailAccountCommandService mailAccountCommandService = mock(MailAccountCommandService.class);
+        GoogleOAuthQueryService googleOAuthQueryService = mock(GoogleOAuthQueryService.class);
+        GoogleMailWatchQueryService googleMailWatchQueryService = mock(GoogleMailWatchQueryService.class);
+        InitialMailSyncMessageCommandService initialMailSyncMessageCommandService = mock(InitialMailSyncMessageCommandService.class);
+        GooglePeopleContactQueryService googlePeopleContactQueryService = mock(GooglePeopleContactQueryService.class);
+        ContactCommandService contactCommandService = mock(ContactCommandService.class);
+        MailAccountFacade facade = createFacade(
+                mailAccountCommandService,
+                mock(MailAccountQueryService.class),
+                googleOAuthQueryService,
+                googleMailWatchQueryService,
+                initialMailSyncMessageCommandService,
+                googlePeopleContactQueryService,
+                contactCommandService
+        );
+        when(googleOAuthQueryService.getGoogleMailAccountResult("code")).thenReturn(accountResult);
+        when(googleMailWatchQueryService.watch("access-token")).thenReturn(watchResult);
+        when(mailAccountCommandService.reauthorizeGoogleMailAccount(user, mailAccountId, accountResult, watchResult))
+                .thenReturn(reauthorizedMailAccount);
+        when(googlePeopleContactQueryService.getContacts("access-token")).thenReturn(List.of());
+
+        // when
+        MailAccountResponse response = facade.handleGoogleReauthorizationCallback(user, "code", mailAccountId);
+
+        // then
+        assertEquals(reauthorizedMailAccount.getId(), response.id());
+        verify(initialMailSyncMessageCommandService).publish(InitialMailSyncMessage.from(reauthorizedMailAccount));
+        verify(googlePeopleContactQueryService).getContacts("access-token");
+        verify(contactCommandService).saveMissingContacts(user, List.of());
     }
 
     @Test

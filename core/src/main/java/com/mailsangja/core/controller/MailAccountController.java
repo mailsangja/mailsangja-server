@@ -40,6 +40,7 @@ public class MailAccountController implements MailAccountControllerDocs {
     private static final String GOOGLE_OAUTH_ALIAS = "google_oauth_alias";
     private static final String GOOGLE_OAUTH_ICON = "google_oauth_icon";
     private static final String GOOGLE_OAUTH_COLOR = "google_oauth_color";
+    private static final String GOOGLE_OAUTH_REAUTHORIZE_MAIL_ACCOUNT_ID = "google_oauth_reauthorize_mail_account_id";
 
     private final MailAccountFacade mailAccountFacade;
     private final GoogleOAuthProperties googleOAuthProperties;
@@ -104,8 +105,29 @@ public class MailAccountController implements MailAccountControllerDocs {
         session.setAttribute(GOOGLE_OAUTH_ALIAS, request.alias());
         session.setAttribute(GOOGLE_OAUTH_ICON, request.icon());
         session.setAttribute(GOOGLE_OAUTH_COLOR, request.color());
+        session.removeAttribute(GOOGLE_OAUTH_REAUTHORIZE_MAIL_ACCOUNT_ID);
 
         return ResponseEntity.ok(mailAccountFacade.authorizeGoogle(state));
+    }
+
+    @Override
+    @GetMapping("/api/v1/mail-accounts/{mailAccountId}/google/reauthorize")
+    public ResponseEntity<MailAccountAuthorizeResponse> reauthorizeGoogle(
+            @AuthUser User user,
+            @PathVariable UUID mailAccountId,
+            HttpSession session
+    ) {
+        String state = UUID.randomUUID().toString();
+        MailAccountAuthorizeResponse response = mailAccountFacade.reauthorizeGoogle(user, mailAccountId, state);
+
+        session.setAttribute(GOOGLE_OAUTH_STATE, state);
+        session.setAttribute(GOOGLE_OAUTH_USER_ID, user.getId().toString());
+        session.removeAttribute(GOOGLE_OAUTH_ALIAS);
+        session.removeAttribute(GOOGLE_OAUTH_ICON);
+        session.removeAttribute(GOOGLE_OAUTH_COLOR);
+        session.setAttribute(GOOGLE_OAUTH_REAUTHORIZE_MAIL_ACCOUNT_ID, mailAccountId.toString());
+
+        return ResponseEntity.ok(response);
     }
 
     @Override
@@ -121,10 +143,16 @@ public class MailAccountController implements MailAccountControllerDocs {
         String savedAlias = (String) session.getAttribute(GOOGLE_OAUTH_ALIAS);
         String savedIcon = (String) session.getAttribute(GOOGLE_OAUTH_ICON);
         String savedColor = (String) session.getAttribute(GOOGLE_OAUTH_COLOR);
+        String savedReauthorizeMailAccountId = (String) session.getAttribute(GOOGLE_OAUTH_REAUTHORIZE_MAIL_ACCOUNT_ID);
 
         try {
             validateGoogleOAuthSession(user, state, savedState, savedUserId);
-            mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
+            UUID reauthorizeMailAccountId = parseReauthorizeMailAccountId(savedReauthorizeMailAccountId);
+            if (reauthorizeMailAccountId == null) {
+                mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
+            } else {
+                mailAccountFacade.handleGoogleReauthorizationCallback(user, code, reauthorizeMailAccountId);
+            }
             return ResponseEntity.status(302)
                     .location(buildCallbackRedirectUri())
                     .build();
@@ -161,6 +189,18 @@ public class MailAccountController implements MailAccountControllerDocs {
         session.removeAttribute(GOOGLE_OAUTH_ALIAS);
         session.removeAttribute(GOOGLE_OAUTH_ICON);
         session.removeAttribute(GOOGLE_OAUTH_COLOR);
+        session.removeAttribute(GOOGLE_OAUTH_REAUTHORIZE_MAIL_ACCOUNT_ID);
+    }
+
+    private UUID parseReauthorizeMailAccountId(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_STATE);
+        }
     }
 
     private URI buildCallbackRedirectUri() {

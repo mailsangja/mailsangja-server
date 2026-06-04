@@ -322,6 +322,82 @@ class MailAccountCommandServiceTest {
     }
 
     @Test
+    void reauthorizeGoogleMailAccount_리프레시토큰이없는기존계정의토큰과watch정보를갱신한다() {
+        // given
+        UUID mailAccountId = UUID.randomUUID();
+        User user = createUser("user@example.com");
+        MailAccount mailAccount = createMailAccount(user, MailProvider.GMAIL, false, "old-access-token", null);
+        GoogleMailAccountResult result = createGoogleMailAccountResult();
+        GoogleMailWatchResult watchResult = createGoogleMailWatchResult();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
+
+        // when
+        MailAccount reauthorized = service.reauthorizeGoogleMailAccount(user, mailAccountId, result, watchResult);
+
+        // then
+        assertEquals(mailAccount, reauthorized);
+        assertEquals(result.accessToken(), mailAccount.getAccessToken());
+        assertEquals(result.accessTokenExpiresAt(), mailAccount.getAccessTokenExpiresAt());
+        assertEquals(result.refreshToken(), mailAccount.getRefreshToken());
+        assertEquals(watchResult.historyId(), mailAccount.getSyncHistoryId());
+        assertEquals(watchResult.expirationAt(), mailAccount.getWatchExpiresAt());
+        assertFalse(mailAccount.isActive());
+    }
+
+    @Test
+    void reauthorizeGoogleMailAccount_이미리프레시토큰이있으면예외를던진다() {
+        // given
+        UUID mailAccountId = UUID.randomUUID();
+        User user = createUser("user@example.com");
+        MailAccount mailAccount = createMailAccount(user, MailProvider.GMAIL, true, "access-token", "refresh-token");
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
+
+        // when
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.reauthorizeGoogleMailAccount(
+                        user,
+                        mailAccountId,
+                        createGoogleMailAccountResult(),
+                        createGoogleMailWatchResult()
+                )
+        );
+
+        // then
+        assertEquals(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_NOT_REQUIRED, exception.getErrorCode());
+    }
+
+    @Test
+    void reauthorizeGoogleMailAccount_OAuth계정이기존메일주소와다르면예외를던진다() {
+        // given
+        UUID mailAccountId = UUID.randomUUID();
+        User user = createUser("user@example.com");
+        MailAccount mailAccount = createMailAccount(user, MailProvider.GMAIL, true, "access-token", null);
+        GoogleMailAccountResult result = new GoogleMailAccountResult(
+                "other@example.com",
+                "access-token",
+                LocalDateTime.of(2026, 5, 19, 10, 0),
+                "refresh-token"
+        );
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId)).thenReturn(Optional.of(mailAccount));
+
+        // when
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.reauthorizeGoogleMailAccount(user, mailAccountId, result, createGoogleMailWatchResult())
+        );
+
+        // then
+        assertEquals(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_EMAIL_MISMATCH, exception.getErrorCode());
+    }
+
+    @Test
     void updateMailAccountAppearance_소유자이면blank이아닌값만갱신한다() {
         // given
         UUID mailAccountId = UUID.randomUUID();
