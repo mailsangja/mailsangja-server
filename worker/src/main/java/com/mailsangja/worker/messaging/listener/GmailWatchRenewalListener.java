@@ -10,6 +10,7 @@ import com.mailsangja.worker.service.google.GmailWatchApiService;
 import com.mailsangja.worker.service.google.GoogleOAuthApiService;
 import com.mailsangja.worker.service.mail.MailAccountCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
+import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
@@ -25,6 +26,7 @@ public class GmailWatchRenewalListener {
     private final MailAccountCommandService mailAccountCommandService;
     private final GoogleOAuthApiService googleOAuthApiService;
     private final GmailWatchApiService gmailWatchApiService;
+    private final FcmPushCommandService fcmPushCommandService;
 
     @RabbitListener(
             queues = "#{@watchRenewalQueue.name}",
@@ -43,6 +45,7 @@ public class GmailWatchRenewalListener {
         mailAccountCommandService.renewGoogleWatch(
                 RenewGoogleWatchCommand.of(mailAccount.getId(), tokenResult, watchResult)
         );
+        fcmPushCommandService.sendGmailReauthorizationRequestPush(mailAccount);
 
         log.info(
                 "Completed Gmail watch renewal for mailAccountId={} userId={} emailAddress={} historyId={} watchExpiresAt={}",
