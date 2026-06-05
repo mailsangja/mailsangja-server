@@ -84,6 +84,7 @@ public class MailAccountFacade {
                 appearance.color(),
                 watchResult
         );
+        mailAccountCommandService.propagateGoogleAuthorizationToConnectedAccounts(result);
 
         if (savedMailAccount.getProvider() == MailProvider.GMAIL) {
             InitialMailSyncMessage initialMailSyncMessage = InitialMailSyncMessage.from(savedMailAccount);
@@ -105,6 +106,7 @@ public class MailAccountFacade {
                 result,
                 watchResult
         );
+        mailAccountCommandService.propagateGoogleAuthorizationToConnectedAccounts(result);
 
         InitialMailSyncMessage initialMailSyncMessage = InitialMailSyncMessage.from(reauthorizedMailAccount);
         initialMailSyncMessageCommandService.publish(initialMailSyncMessage);

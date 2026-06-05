@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -319,6 +320,75 @@ class MailAccountCommandServiceTest {
 
         // then
         assertEquals(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER, exception.getErrorCode());
+    }
+
+    @Test
+    void propagateGoogleAuthorizationToConnectedAccounts_같은이메일의연결된계정들에토큰만전파한다() {
+        // given
+        User user = createUser("user@example.com");
+        MailAccount activeMailAccount = createMailAccount(
+                user,
+                MailProvider.GMAIL,
+                true,
+                "old-access-token-1",
+                "old-refresh-token-1"
+        );
+        MailAccount inactiveMailAccount = createMailAccount(
+                user,
+                MailProvider.GMAIL,
+                false,
+                "old-access-token-2",
+                "old-refresh-token-2"
+        );
+        GoogleMailAccountResult result = createGoogleMailAccountResult();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        when(mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
+                MailProvider.GMAIL,
+                result.emailAddress()
+        )).thenReturn(List.of(activeMailAccount, inactiveMailAccount));
+
+        // when
+        service.propagateGoogleAuthorizationToConnectedAccounts(result);
+
+        // then
+        assertEquals(result.accessToken(), activeMailAccount.getAccessToken());
+        assertEquals(result.accessTokenExpiresAt(), activeMailAccount.getAccessTokenExpiresAt());
+        assertEquals(result.refreshToken(), activeMailAccount.getRefreshToken());
+        assertEquals("history-id", activeMailAccount.getSyncHistoryId());
+        assertEquals(LocalDateTime.of(2026, 5, 20, 9, 0), activeMailAccount.getWatchExpiresAt());
+        assertTrue(activeMailAccount.isActive());
+
+        assertEquals(result.accessToken(), inactiveMailAccount.getAccessToken());
+        assertEquals(result.accessTokenExpiresAt(), inactiveMailAccount.getAccessTokenExpiresAt());
+        assertEquals(result.refreshToken(), inactiveMailAccount.getRefreshToken());
+        assertEquals("history-id", inactiveMailAccount.getSyncHistoryId());
+        assertEquals(LocalDateTime.of(2026, 5, 20, 9, 0), inactiveMailAccount.getWatchExpiresAt());
+        assertFalse(inactiveMailAccount.isActive());
+    }
+
+    @Test
+    void propagateGoogleAuthorizationToConnectedAccounts_리프레시토큰이없으면조회하지않고예외를던진다() {
+        // given
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountCommandService service = new MailAccountCommandService(mailAccountRepositoryPort, KST_FIXED_CLOCK);
+        GoogleMailAccountResult result = new GoogleMailAccountResult(
+                "gmail@example.com",
+                "access-token",
+                LocalDateTime.of(2026, 5, 19, 10, 0),
+                " "
+        );
+
+        // when
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.propagateGoogleAuthorizationToConnectedAccounts(result)
+        );
+
+        // then
+        assertEquals(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING, exception.getErrorCode());
+        verify(mailAccountRepositoryPort, never())
+                .findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(any(), any());
     }
 
     @Test

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -121,6 +122,23 @@ public class MailAccountCommandService {
         );
 
         return findActiveById(mailAccountId);
+    }
+
+    @Transactional
+    public void propagateGoogleAuthorizationToConnectedAccounts(GoogleMailAccountResult result) {
+        validateGoogleMailAccountResult(result);
+
+        List<MailAccount> connectedMailAccounts =
+                mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
+                        MailProvider.GMAIL,
+                        result.emailAddress()
+                );
+
+        connectedMailAccounts.forEach(mailAccount -> mailAccount.updateGoogleAuthorizationTokens(
+                result.accessToken(),
+                result.accessTokenExpiresAt(),
+                result.refreshToken()
+        ));
     }
 
     @Transactional

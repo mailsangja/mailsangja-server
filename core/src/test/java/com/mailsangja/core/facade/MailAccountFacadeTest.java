@@ -179,6 +179,7 @@ class MailAccountFacadeTest {
 
         // then
         assertEquals(savedMailAccount.getId(), response.id());
+        verify(mailAccountCommandService).propagateGoogleAuthorizationToConnectedAccounts(accountResult);
         InOrder inOrder = inOrder(
                 initialMailSyncMessageCommandService,
                 googlePeopleContactQueryService,
@@ -321,6 +322,7 @@ class MailAccountFacadeTest {
 
         // then
         assertEquals(reauthorizedMailAccount.getId(), response.id());
+        verify(mailAccountCommandService).propagateGoogleAuthorizationToConnectedAccounts(accountResult);
         verify(initialMailSyncMessageCommandService).publish(InitialMailSyncMessage.from(reauthorizedMailAccount));
         verify(googlePeopleContactQueryService).getContacts("access-token");
         verify(contactCommandService).saveMissingContacts(user, List.of());

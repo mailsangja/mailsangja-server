@@ -49,6 +49,30 @@ class MailAccountTest {
     }
 
     @Test
+    void updateGoogleAuthorizationTokens_토큰필드만갱신한다() {
+        // given
+        MailAccount mailAccount = createMailAccount();
+        LocalDateTime originalWatchExpiresAt = mailAccount.getWatchExpiresAt();
+        String originalSyncHistoryId = mailAccount.getSyncHistoryId();
+        LocalDateTime newAccessTokenExpiresAt = LocalDateTime.of(2026, 5, 19, 11, 0);
+
+        // when
+        mailAccount.updateGoogleAuthorizationTokens(
+                "new-access-token",
+                newAccessTokenExpiresAt,
+                "new-refresh-token"
+        );
+
+        // then
+        assertEquals("new-access-token", mailAccount.getAccessToken());
+        assertEquals(newAccessTokenExpiresAt, mailAccount.getAccessTokenExpiresAt());
+        assertEquals("new-refresh-token", mailAccount.getRefreshToken());
+        assertEquals(originalSyncHistoryId, mailAccount.getSyncHistoryId());
+        assertEquals(originalWatchExpiresAt, mailAccount.getWatchExpiresAt());
+        assertTrue(mailAccount.isActive());
+    }
+
+    @Test
     void updateAlias_별칭을갱신한다() {
         // given
         MailAccount mailAccount = createMailAccount();
