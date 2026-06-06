@@ -42,7 +42,9 @@ public class GoogleAccessTokenEnsureService {
                     googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken())
             );
         } catch (MailAccountException e) {
-            mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+            if (e.getErrorCode() == MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED) {
+                mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+            }
             throw e;
         }
     }

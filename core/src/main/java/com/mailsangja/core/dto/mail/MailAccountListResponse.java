@@ -13,7 +13,7 @@ public record MailAccountListResponse(
         @Schema(description = "메일 계정 활성 여부", example = "true")
         boolean isActive,
         @Schema(description = "메일 계정 재연동 필요 여부", example = "false")
-        boolean reauthRequired,
+        boolean reauthorizationRequired,
         @Schema(description = "메일 제공자", example = "GMAIL")
         MailProvider provider,
         @Schema(description = "연결된 메일 주소", example = "user@gmail.com")
@@ -29,13 +29,18 @@ public record MailAccountListResponse(
         return new MailAccountListResponse(
                 mailAccount.getId(),
                 mailAccount.isActive(),
-                isBlank(mailAccount.getRefreshToken()),
+                isReauthorizationRequired(mailAccount),
                 mailAccount.getProvider(),
                 mailAccount.getEmailAddress(),
                 mailAccount.getAlias(),
                 mailAccount.getColor(),
                 mailAccount.getIcon()
         );
+    }
+
+    private static boolean isReauthorizationRequired(MailAccount mailAccount) {
+        return mailAccount.getProvider() == MailProvider.GMAIL
+                && isBlank(mailAccount.getRefreshToken());
     }
 
     private static boolean isBlank(String value) {

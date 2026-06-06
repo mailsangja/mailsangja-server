@@ -118,6 +118,27 @@ class GoogleAccessTokenEnsureServiceTest {
     }
 
     @Test
+    void ensureValidGoogleAccessToken_토큰재발급실패가아닌예외면리프레시토큰을삭제하지않는다() {
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
+                "old-token",
+                "refresh-token"
+        );
+        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
+        googleOAuthQueryService.failRefresh = true;
+        googleOAuthQueryService.refreshFailureErrorCode = MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND;
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
+
+        MailAccountException exception = assertThrows(
+                MailAccountException.class,
+                () -> service.ensureValidGoogleAccessToken(mailAccount)
+        );
+
+        assertEquals(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND, exception.getErrorCode());
+        verify(mailAccountRepositoryPort, never()).clearRefreshToken(mailAccount.getId());
+    }
+
+    @Test
     void ensureValidGoogleAccessToken_리프레시토큰이없으면토큰재발급을시도하지않는다() {
         MailAccount mailAccount = createMailAccount(
                 LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
@@ -189,6 +210,7 @@ class GoogleAccessTokenEnsureServiceTest {
     private static final class FakeGoogleOAuthQueryService extends GoogleOAuthQueryService {
         private int refreshCallCount;
         private boolean failRefresh;
+        private MailAccountErrorCode refreshFailureErrorCode = MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED;
 
         private FakeGoogleOAuthQueryService() {
             super(new GoogleOAuthProperties(), RestClient.builder().build());
@@ -198,7 +220,7 @@ class GoogleAccessTokenEnsureServiceTest {
         public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
             refreshCallCount++;
             if (failRefresh) {
-                throw new MailAccountException(MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED);
+                throw new MailAccountException(refreshFailureErrorCode);
             }
             return new GoogleOAuthTokenResult("refreshed-token", "new-refresh-token", 3600L, null, "Bearer");
         }

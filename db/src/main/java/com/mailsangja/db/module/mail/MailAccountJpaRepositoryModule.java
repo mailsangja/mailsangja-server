@@ -38,7 +38,7 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
               AND ma.emailAddress = :emailAddress
               AND ma.deletedAt IS NULL
               AND ma.refreshToken IS NOT NULL
-              AND ma.refreshToken <> ''
+              AND TRIM(ma.refreshToken) <> ''
             """)
     List<MailAccount> findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
             @Param("provider") MailProvider provider,

@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,6 +85,47 @@ class GmailWatchRenewalListenerTest {
         assertEquals(watchResult, commandCaptor.getValue().watchResult());
         verify(googleOAuthApiService).refreshAccessToken("refresh-token");
         verify(gmailWatchApiService).watch("new-access-token");
+    }
+
+    @Test
+    void handle_재연동요청푸시가실패해도watch갱신성공은유지한다() {
+        UUID userId = UUID.randomUUID();
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(userId, mailAccountId);
+        WatchRenewalMessage message = WatchRenewalMessage.from(mailAccount);
+        GoogleOAuthTokenResult tokenResult = new GoogleOAuthTokenResult(
+                "new-access-token",
+                null,
+                3600L,
+                null,
+                "Bearer"
+        );
+        GoogleMailWatchResult watchResult = new GoogleMailWatchResult(
+                "history-2",
+                LocalDateTime.of(2026, 6, 12, 9, 0)
+        );
+        GmailWatchRenewalListener listener = new GmailWatchRenewalListener(
+                mailAccountQueryService,
+                mailAccountCommandService,
+                googleOAuthApiService,
+                gmailWatchApiService,
+                fcmPushCommandService
+        );
+        when(mailAccountQueryService.findSyncableMailAccountById(mailAccountId)).thenReturn(mailAccount);
+        when(googleOAuthApiService.refreshAccessToken("refresh-token")).thenReturn(tokenResult);
+        when(gmailWatchApiService.watch("new-access-token")).thenReturn(watchResult);
+        doThrow(new RuntimeException("FCM failed"))
+                .when(fcmPushCommandService)
+                .sendGmailReauthorizationRequestPush(mailAccount);
+
+        listener.handle(message);
+
+        ArgumentCaptor<RenewGoogleWatchCommand> commandCaptor = ArgumentCaptor.forClass(RenewGoogleWatchCommand.class);
+        verify(mailAccountCommandService).renewGoogleWatch(commandCaptor.capture());
+        verify(fcmPushCommandService).sendGmailReauthorizationRequestPush(mailAccount);
+        assertEquals(mailAccountId, commandCaptor.getValue().mailAccountId());
+        assertEquals(tokenResult, commandCaptor.getValue().tokenResult());
+        assertEquals(watchResult, commandCaptor.getValue().watchResult());
     }
 
     private MailAccount createMailAccount(UUID userId, UUID mailAccountId) {

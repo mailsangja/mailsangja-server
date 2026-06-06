@@ -45,7 +45,7 @@ public class GmailWatchRenewalListener {
         mailAccountCommandService.renewGoogleWatch(
                 RenewGoogleWatchCommand.of(mailAccount.getId(), tokenResult, watchResult)
         );
-        fcmPushCommandService.sendGmailReauthorizationRequestPush(mailAccount);
+        sendReauthorizationRequestPush(mailAccount);
 
         log.info(
                 "Completed Gmail watch renewal for mailAccountId={} userId={} emailAddress={} historyId={} watchExpiresAt={}",
@@ -63,6 +63,20 @@ public class GmailWatchRenewalListener {
         } catch (MailPushException e) {
             mailAccountCommandService.clearRefreshToken(mailAccount.getId());
             throw e;
+        }
+    }
+
+    private void sendReauthorizationRequestPush(MailAccount mailAccount) {
+        try {
+            fcmPushCommandService.sendGmailReauthorizationRequestPush(mailAccount);
+        } catch (Exception e) {
+            log.warn(
+                    "Gmail reauthorization request push skipped after watch renewal. mailAccountId={} userId={} emailAddress={}",
+                    mailAccount.getId(),
+                    mailAccount.getUser().getId(),
+                    mailAccount.getEmailAddress(),
+                    e
+            );
         }
     }
 }

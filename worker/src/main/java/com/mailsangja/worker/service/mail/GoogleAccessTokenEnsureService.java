@@ -44,17 +44,19 @@ public class GoogleAccessTokenEnsureService {
                     googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken())
             );
         } catch (MailPushException e) {
-            mailAccountCommandService.clearRefreshToken(mailAccount.getId());
-            log.warn(
-                    "Google access token refresh failed. mailAccountId={} userId={} provider={} emailAddress={} accessTokenExpiresAt={} hasRefreshToken={} errorCode={}",
-                    mailAccount.getId(),
-                    mailAccount.getUser().getId(),
-                    mailAccount.getProvider(),
-                    mailAccount.getEmailAddress(),
-                    mailAccount.getAccessTokenExpiresAt(),
-                    !isBlank(mailAccount.getRefreshToken()),
-                    e.getErrorCode().getCode()
-            );
+            if (e.getErrorCode() == MailPushErrorCode.GOOGLE_TOKEN_REFRESH_FAILED) {
+                mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+                log.warn(
+                        "Google access token refresh failed. mailAccountId={} userId={} provider={} emailAddress={} accessTokenExpiresAt={} hasRefreshToken={} errorCode={}",
+                        mailAccount.getId(),
+                        mailAccount.getUser().getId(),
+                        mailAccount.getProvider(),
+                        mailAccount.getEmailAddress(),
+                        mailAccount.getAccessTokenExpiresAt(),
+                        !isBlank(mailAccount.getRefreshToken()),
+                        e.getErrorCode().getCode()
+                );
+            }
             throw e;
         }
     }
