@@ -11,6 +11,7 @@ import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailAccountCommandService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
@@ -99,6 +101,13 @@ public class MailAccountCommandService {
                 watchResult.historyId(),
                 watchResult.expirationAt()
         );
+        log.info(
+                "Gmail account reauthorized. userId={} mailAccountId={} emailAddress={} watchExpiresAt={}",
+                user.getId(),
+                mailAccount.getId(),
+                mailAccount.getEmailAddress(),
+                watchResult.expirationAt()
+        );
 
         return mailAccount;
     }
@@ -139,6 +148,11 @@ public class MailAccountCommandService {
                 result.accessTokenExpiresAt(),
                 result.refreshToken()
         ));
+        log.info(
+                "Google authorization tokens propagated. emailAddress={} targetCount={}",
+                result.emailAddress(),
+                connectedMailAccounts.size()
+        );
     }
 
     @Transactional

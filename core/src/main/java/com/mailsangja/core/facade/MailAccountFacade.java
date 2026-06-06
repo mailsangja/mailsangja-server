@@ -55,6 +55,7 @@ public class MailAccountFacade {
 
     public MailAccountAuthorizeResponse reauthorizeGoogle(User user, UUID mailAccountId, String state) {
         validateReauthorizationTarget(user, mailAccountId);
+        log.info("Gmail reauthorization authorize requested. userId={} mailAccountId={}", user.getId(), mailAccountId);
         String authorizationUrl = googleOAuthQueryService.buildAuthorizationUrl(state);
         return new MailAccountAuthorizeResponse(authorizationUrl);
     }

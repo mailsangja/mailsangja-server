@@ -15,6 +15,7 @@ import com.mailsangja.core.facade.MailAccountFacade;
 import com.mailsangja.db.entity.user.User;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +34,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class MailAccountController implements MailAccountControllerDocs {
 
     private static final String GOOGLE_OAUTH_STATE = "google_oauth_state";
@@ -144,10 +146,18 @@ public class MailAccountController implements MailAccountControllerDocs {
         String savedIcon = (String) session.getAttribute(GOOGLE_OAUTH_ICON);
         String savedColor = (String) session.getAttribute(GOOGLE_OAUTH_COLOR);
         String savedReauthorizeMailAccountId = (String) session.getAttribute(GOOGLE_OAUTH_REAUTHORIZE_MAIL_ACCOUNT_ID);
+        UUID reauthorizeMailAccountId = null;
+        boolean reauthorization = savedReauthorizeMailAccountId != null && !savedReauthorizeMailAccountId.isBlank();
 
         try {
             validateGoogleOAuthSession(user, state, savedState, savedUserId);
-            UUID reauthorizeMailAccountId = parseReauthorizeMailAccountId(savedReauthorizeMailAccountId);
+            reauthorizeMailAccountId = parseReauthorizeMailAccountId(savedReauthorizeMailAccountId);
+            log.info(
+                    "Google OAuth callback received. userId={} reauthorization={} mailAccountId={}",
+                    user.getId(),
+                    reauthorization,
+                    reauthorizeMailAccountId
+            );
             if (reauthorizeMailAccountId == null) {
                 mailAccountFacade.handleGoogleCallback(user, code, savedAlias, savedIcon, savedColor);
             } else {
@@ -157,10 +167,24 @@ public class MailAccountController implements MailAccountControllerDocs {
                     .location(buildCallbackRedirectUri())
                     .build();
         } catch (MailAccountException e) {
+            log.warn(
+                    "Google OAuth callback failed. userId={} reauthorization={} mailAccountId={} errorCode={}",
+                    user.getId(),
+                    reauthorization,
+                    reauthorizeMailAccountId,
+                    e.getErrorCode().getCode()
+            );
             return ResponseEntity.status(302)
                     .location(buildCallbackRedirectUri(e.getErrorCode()))
                     .build();
         } catch (Exception e) {
+            log.error(
+                    "Google OAuth callback failed unexpectedly. userId={} reauthorization={} mailAccountId={}",
+                    user.getId(),
+                    reauthorization,
+                    reauthorizeMailAccountId,
+                    e
+            );
             return ResponseEntity.status(302)
                     .location(buildCallbackRedirectUri(CommonErrorCode.INTERNAL_FAILURE))
                     .build();
