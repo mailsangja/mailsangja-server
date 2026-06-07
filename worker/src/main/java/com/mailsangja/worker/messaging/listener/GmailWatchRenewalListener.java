@@ -5,10 +5,12 @@ import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
 import com.mailsangja.worker.dto.gmail.watch.GoogleMailWatchResult;
 import com.mailsangja.worker.dto.mail.watch.RenewGoogleWatchCommand;
 import com.mailsangja.worker.dto.mail.watch.WatchRenewalMessage;
+import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.service.google.GmailWatchApiService;
 import com.mailsangja.worker.service.google.GoogleOAuthApiService;
 import com.mailsangja.worker.service.mail.MailAccountCommandService;
 import com.mailsangja.worker.service.mail.MailAccountQueryService;
+import com.mailsangja.worker.service.notification.FcmPushCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
@@ -24,10 +26,12 @@ public class GmailWatchRenewalListener {
     private final MailAccountCommandService mailAccountCommandService;
     private final GoogleOAuthApiService googleOAuthApiService;
     private final GmailWatchApiService gmailWatchApiService;
+    private final FcmPushCommandService fcmPushCommandService;
 
     @RabbitListener(
             queues = "#{@watchRenewalQueue.name}",
-            containerFactory = "watchRenewalRabbitListenerContainerFactory"
+            containerFactory = "watchRenewalRabbitListenerContainerFactory",
+            errorHandler = "rabbitListenerPolicyErrorHandler"
     )
     public void handle(WatchRenewalMessage message, Message rawMessage) {
         handle(message);
@@ -35,12 +39,13 @@ public class GmailWatchRenewalListener {
 
     public void handle(WatchRenewalMessage message) {
         MailAccount mailAccount = mailAccountQueryService.findSyncableMailAccountById(message.mailAccountId());
-        GoogleOAuthTokenResult tokenResult = googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken());
+        GoogleOAuthTokenResult tokenResult = refreshAccessToken(mailAccount);
         GoogleMailWatchResult watchResult = gmailWatchApiService.watch(tokenResult.accessToken());
 
         mailAccountCommandService.renewGoogleWatch(
                 RenewGoogleWatchCommand.of(mailAccount.getId(), tokenResult, watchResult)
         );
+        sendReauthorizationRequestPush(mailAccount);
 
         log.info(
                 "Completed Gmail watch renewal for mailAccountId={} userId={} emailAddress={} historyId={} watchExpiresAt={}",
@@ -50,5 +55,28 @@ public class GmailWatchRenewalListener {
                 watchResult.historyId(),
                 watchResult.expirationAt()
         );
+    }
+
+    private GoogleOAuthTokenResult refreshAccessToken(MailAccount mailAccount) {
+        try {
+            return googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken());
+        } catch (MailPushException e) {
+            mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+            throw e;
+        }
+    }
+
+    private void sendReauthorizationRequestPush(MailAccount mailAccount) {
+        try {
+            fcmPushCommandService.sendGmailReauthorizationRequestPush(mailAccount);
+        } catch (Exception e) {
+            log.warn(
+                    "Gmail reauthorization request push skipped after watch renewal. mailAccountId={} userId={} emailAddress={}",
+                    mailAccount.getId(),
+                    mailAccount.getUser().getId(),
+                    mailAccount.getEmailAddress(),
+                    e
+            );
+        }
     }
 }

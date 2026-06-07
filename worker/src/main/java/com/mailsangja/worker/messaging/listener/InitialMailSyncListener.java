@@ -43,7 +43,10 @@ public class InitialMailSyncListener {
     private final LabelReclassifyPublisher labelReclassifyPublisher;
     private final MailEmbeddingPublisher mailEmbeddingPublisher;
 
-    @RabbitListener(queues = "#{@initialMailSyncQueue.name}")
+    @RabbitListener(
+            queues = "#{@initialMailSyncQueue.name}",
+            errorHandler = "rabbitListenerPolicyErrorHandler"
+    )
     public void handle(InitialMailSyncMessage message, Message rawMessage) {
         handle(message);
     }
@@ -88,7 +91,8 @@ public class InitialMailSyncListener {
 
     @RabbitListener(
             queues = "#{@initialMailSyncThreadBatchQueue.name}",
-            containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory"
+            containerFactory = "initialMailSyncThreadBatchRabbitListenerContainerFactory",
+            errorHandler = "rabbitListenerPolicyErrorHandler"
     )
     public void handleThreadBatch(InitialMailSyncThreadBatchMessage message, Message rawMessage) {
         handleThreadBatch(message);

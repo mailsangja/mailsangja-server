@@ -55,14 +55,23 @@ public class MailAccountQueryService {
     }
 
     private void validateSyncableMailAccount(MailAccount mailAccount) {
-        if (!isSyncable(mailAccount)) {
+        if (mailAccount.isDeleted()
+                || mailAccount.getProvider() != MailProvider.GMAIL
+                || !mailAccount.isActive()
+                || isBlank(mailAccount.getAccessToken())) {
             throw new MailPushException(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE);
+        }
+
+        if (isBlank(mailAccount.getRefreshToken())) {
+            throw new MailPushException(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
     }
 
     private boolean isSyncable(MailAccount mailAccount) {
         return !mailAccount.isDeleted()
                 && mailAccount.getProvider() == MailProvider.GMAIL
+                && mailAccount.isActive()
+                && !isBlank(mailAccount.getRefreshToken())
                 && !isBlank(mailAccount.getAccessToken());
     }
 

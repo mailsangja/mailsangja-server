@@ -25,6 +25,8 @@ public record MailAccountResponse(
         String color,
         @Schema(description = "메일 계정 활성 여부", example = "true")
         boolean active,
+        @Schema(description = "메일 계정 재연동 필요 여부", example = "false")
+        boolean reauthorizationRequired,
         @Schema(description = "메일 동기화 히스토리 ID", nullable = true)
         String syncHistoryId,
         @Schema(description = "Gmail watch 만료 시각", nullable = true)
@@ -40,8 +42,18 @@ public record MailAccountResponse(
                 mailAccount.getIcon(),
                 mailAccount.getColor(),
                 mailAccount.isActive(),
+                isReauthorizationRequired(mailAccount),
                 mailAccount.getSyncHistoryId(),
                 mailAccount.getWatchExpiresAt()
         );
+    }
+
+    private static boolean isReauthorizationRequired(MailAccount mailAccount) {
+        return mailAccount.getProvider() == MailProvider.GMAIL
+                && isBlank(mailAccount.getRefreshToken());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

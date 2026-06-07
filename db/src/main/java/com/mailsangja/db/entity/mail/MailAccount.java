@@ -88,6 +88,10 @@ public class MailAccount extends BaseEntity {
         this.refreshToken = refreshToken;
     }
 
+    public void clearRefreshToken() {
+        this.refreshToken = null;
+    }
+
     public void updateAlias(String alias) {
         this.alias = alias;
     }
@@ -106,6 +110,30 @@ public class MailAccount extends BaseEntity {
 
     public void updateWatchExpiresAt(LocalDateTime watchExpiresAt) {
         this.watchExpiresAt = watchExpiresAt;
+    }
+
+    public void reauthorizeGoogle(
+            String accessToken,
+            LocalDateTime accessTokenExpiresAt,
+            String refreshToken,
+            String syncHistoryId,
+            LocalDateTime watchExpiresAt
+    ) {
+        this.accessToken = accessToken;
+        this.accessTokenExpiresAt = accessTokenExpiresAt;
+        this.refreshToken = refreshToken;
+        this.syncHistoryId = syncHistoryId;
+        this.watchExpiresAt = watchExpiresAt;
+    }
+
+    public void updateGoogleAuthorizationTokens(
+            String accessToken,
+            LocalDateTime accessTokenExpiresAt,
+            String refreshToken
+    ) {
+        this.accessToken = accessToken;
+        this.accessTokenExpiresAt = accessTokenExpiresAt;
+        this.refreshToken = refreshToken;
     }
 
     public void activate() {

@@ -31,6 +31,21 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
     List<MailAccount> findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
 
     @EntityGraph(attributePaths = {"user"})
+    @Query("""
+            SELECT ma
+            FROM MailAccount ma
+            WHERE ma.provider = :provider
+              AND ma.emailAddress = :emailAddress
+              AND ma.deletedAt IS NULL
+              AND ma.refreshToken IS NOT NULL
+              AND TRIM(ma.refreshToken) <> ''
+            """)
+    List<MailAccount> findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
+            @Param("provider") MailProvider provider,
+            @Param("emailAddress") String emailAddress
+    );
+
+    @EntityGraph(attributePaths = {"user"})
     @Query("SELECT ma FROM MailAccount ma WHERE ma.id = :id AND ma.deletedAt IS NULL")
     Optional<MailAccount> findByIdAndDeletedAtIsNull(@Param("id") UUID id);
 
@@ -48,6 +63,7 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
                 ma.refreshToken = :newRefreshToken
             WHERE ma.id = :id
               AND ma.deletedAt IS NULL
+              AND ma.active = true
               AND ma.accessToken = :expectedAccessToken
             """)
     int updateGoogleTokenIfAccessTokenMatches(
@@ -68,6 +84,7 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
                 ma.watchExpiresAt = :newWatchExpiresAt
             WHERE ma.id = :id
               AND ma.deletedAt IS NULL
+              AND ma.active = true
               AND ma.accessToken = :expectedAccessToken
             """)
     int renewGoogleWatchIfAccessTokenMatches(
@@ -80,6 +97,14 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
             @Param("newWatchExpiresAt") LocalDateTime newWatchExpiresAt
     );
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE MailAccount ma
+            SET ma.refreshToken = NULL
+            WHERE ma.id = :id
+            """)
+    int clearRefreshToken(@Param("id") UUID id);
+
     @EntityGraph(attributePaths = {"user"})
     List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active);
 
@@ -91,6 +116,8 @@ public interface MailAccountJpaRepositoryModule extends JpaRepository<MailAccoun
             FROM MailAccount ma
             WHERE ma.provider = :provider
               AND ma.deletedAt IS NULL
+              AND ma.active = true
+              AND ma.refreshToken IS NOT NULL
               AND ma.watchExpiresAt IS NOT NULL
               AND ma.watchExpiresAt <= :watchExpiresAtThreshold
             ORDER BY ma.watchExpiresAt ASC

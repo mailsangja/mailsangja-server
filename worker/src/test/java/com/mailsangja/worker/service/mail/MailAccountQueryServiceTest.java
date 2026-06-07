@@ -90,6 +90,23 @@ class MailAccountQueryServiceTest {
     }
 
     @Test
+    void findSyncableGoogleMailAccountsByEmailAddress_리프레시토큰없는계정은필터링한다() {
+        // given
+        MailAccount refreshTokenMissingAccount = createMailAccount(MailProvider.GMAIL, true, "access-token");
+        refreshTokenMissingAccount.clearRefreshToken();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountQueryService service = new MailAccountQueryService(mailAccountRepositoryPort);
+        when(mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider.GMAIL, "user@example.com"))
+                .thenReturn(List.of(refreshTokenMissingAccount));
+
+        // when
+        List<MailAccount> found = service.findSyncableGoogleMailAccountsByEmailAddress("user@example.com");
+
+        // then
+        assertTrue(found.isEmpty());
+    }
+
+    @Test
     void findSyncableMailAccountById_동기화가능한메일계정을반환한다() {
         // given
         UUID mailAccountId = UUID.randomUUID();
@@ -123,6 +140,27 @@ class MailAccountQueryServiceTest {
 
         // then
         assertEquals(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void findSyncableMailAccountById_리프레시토큰이없으면재연동필요예외를던진다() {
+        // given
+        UUID mailAccountId = UUID.randomUUID();
+        MailAccount mailAccount = createMailAccount(MailProvider.GMAIL, true, "access-token");
+        mailAccount.clearRefreshToken();
+        MailAccountRepositoryPort mailAccountRepositoryPort = mock(MailAccountRepositoryPort.class);
+        MailAccountQueryService service = new MailAccountQueryService(mailAccountRepositoryPort);
+        when(mailAccountRepositoryPort.findByIdAndDeletedAtIsNull(mailAccountId))
+                .thenReturn(Optional.of(mailAccount));
+
+        // when
+        MailPushException exception = assertThrows(
+                MailPushException.class,
+                () -> service.findSyncableMailAccountById(mailAccountId)
+        );
+
+        // then
+        assertEquals(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING, exception.getErrorCode());
     }
 
     @Test
@@ -181,6 +219,7 @@ class MailAccountQueryServiceTest {
                 .icon("good")
                 .color("#123456")
                 .accessToken(accessToken)
+                .refreshToken("refresh-token")
                 .active(active)
                 .build();
     }

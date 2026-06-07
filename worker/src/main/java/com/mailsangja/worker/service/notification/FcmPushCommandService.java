@@ -7,6 +7,7 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.SendResponse;
+import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.worker.config.properties.FcmProperties;
 import com.mailsangja.worker.dto.notification.NewMailPushContext;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,9 @@ import java.util.List;
 public class FcmPushCommandService {
 
     private static final String DEFAULT_NOTIFICATION_TITLE = "새 메일이 도착했습니다";
+    private static final String REAUTHORIZATION_REQUEST_TITLE = "Gmail 계정을 재연동해주세요";
+    private static final String REAUTHORIZATION_REQUEST_BODY = "테스트 기간 동안 Google 권한이 주기적으로 만료될 수 있어요. 메일 동기화를 유지하려면 계정을 다시 연결해주세요.";
+    private static final String REAUTHORIZATION_REQUEST_TYPE = "MAIL_ACCOUNT_REAUTHORIZATION_REQUESTED";
 
     private final UserDeviceQueryService userDeviceQueryService;
     private final UserDeviceCommandService userDeviceCommandService;
@@ -67,6 +71,48 @@ public class FcmPushCommandService {
             );
         } catch (FirebaseMessagingException e) {
             log.warn("FCM push failed: mailAccountId={} error={}", context.mailAccountId(), e.getMessage());
+        }
+    }
+
+    public void sendGmailReauthorizationRequestPush(MailAccount mailAccount) {
+        if (mailAccount == null || mailAccount.getId() == null || !StringUtils.hasText(mailAccount.getRefreshToken())) {
+            return;
+        }
+
+        List<String> tokens = userDeviceQueryService.findFcmTokensByMailAccountId(mailAccount.getId());
+        if (tokens.isEmpty()) {
+            return;
+        }
+
+        MulticastMessage.Builder messageBuilder = MulticastMessage.builder()
+                .putData("type", REAUTHORIZATION_REQUEST_TYPE)
+                .putData("title", REAUTHORIZATION_REQUEST_TITLE)
+                .putData("body", REAUTHORIZATION_REQUEST_BODY)
+                .putData("mailAccountId", mailAccount.getId().toString())
+                .putData("emailAddress", mailAccount.getEmailAddress() != null ? mailAccount.getEmailAddress() : "")
+                .putData("alias", mailAccount.getAlias() != null ? mailAccount.getAlias() : "")
+                .addAllTokens(tokens);
+        if (StringUtils.hasText(fcmProperties.getLogoImageUrl())) {
+            messageBuilder.putData("image", fcmProperties.getLogoImageUrl());
+        }
+
+        MulticastMessage message = messageBuilder.build();
+
+        try {
+            BatchResponse response = FirebaseMessaging.getInstance(firebaseApp).sendEachForMulticast(message);
+
+            if (response.getFailureCount() > 0) {
+                expireUnregisteredTokens(tokens, response);
+            }
+
+            log.info(
+                    "Gmail reauthorization request push sent: mailAccountId={} successCount={} failureCount={}",
+                    mailAccount.getId(),
+                    response.getSuccessCount(),
+                    response.getFailureCount()
+            );
+        } catch (FirebaseMessagingException e) {
+            log.warn("Gmail reauthorization request push failed: mailAccountId={} error={}", mailAccount.getId(), e.getMessage());
         }
     }
 

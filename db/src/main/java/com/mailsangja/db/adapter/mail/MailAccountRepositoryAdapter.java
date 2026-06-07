@@ -64,6 +64,17 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
     }
 
     @Override
+    public List<MailAccount> findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
+            MailProvider provider,
+            String emailAddress
+    ) {
+        return mailAccountJpaRepositoryModule.findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
+                provider,
+                emailAddress
+        );
+    }
+
+    @Override
     public List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId) {
         return mailAccountJpaRepositoryModule.findAllByUserIdAndDeletedAtIsNull(userId);
     }
@@ -104,6 +115,11 @@ public class MailAccountRepositoryAdapter implements MailAccountRepositoryPort {
                 newSyncHistoryId,
                 newWatchExpiresAt
         );
+    }
+
+    @Override
+    public int clearRefreshToken(UUID id) {
+        return mailAccountJpaRepositoryModule.clearRefreshToken(id);
     }
 
     @Override

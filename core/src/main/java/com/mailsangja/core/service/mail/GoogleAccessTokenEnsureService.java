@@ -36,14 +36,17 @@ public class GoogleAccessTokenEnsureService {
             return mailAccount;
         }
 
-        if (isBlank(mailAccount.getRefreshToken())) {
-            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+        try {
+            return mailAccountCommandService.refreshGoogleAccessToken(
+                    mailAccount.getId(),
+                    googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken())
+            );
+        } catch (MailAccountException e) {
+            if (e.getErrorCode() == MailAccountErrorCode.GOOGLE_TOKEN_REFRESH_FAILED) {
+                mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+            }
+            throw e;
         }
-
-        return mailAccountCommandService.refreshGoogleAccessToken(
-                mailAccount.getId(),
-                googleOAuthQueryService.refreshAccessToken(mailAccount.getRefreshToken())
-        );
     }
 
     private boolean needsRefresh(MailAccount mailAccount) {
@@ -60,6 +63,14 @@ public class GoogleAccessTokenEnsureService {
     private void validateGoogleMailAccount(MailAccount mailAccount) {
         if (mailAccount.getProvider() != MailProvider.GMAIL) {
             throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (!mailAccount.isActive()) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_INACTIVE);
+        }
+
+        if (isBlank(mailAccount.getRefreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
 
         if (mailAccount.getAccessTokenExpiresAt() == null) {

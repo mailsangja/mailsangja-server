@@ -38,26 +38,25 @@ public class GoogleAccessTokenEnsureService {
             return mailAccount;
         }
 
-        if (isBlank(mailAccount.getRefreshToken())) {
-            throw new MailPushException(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
-        }
-
         try {
             return mailAccountCommandService.refreshGoogleAccessToken(
                     mailAccount.getId(),
                     googleOAuthApiService.refreshAccessToken(mailAccount.getRefreshToken())
             );
         } catch (MailPushException e) {
-            log.warn(
-                    "Google access token refresh failed. mailAccountId={} userId={} provider={} emailAddress={} accessTokenExpiresAt={} hasRefreshToken={} errorCode={}",
-                    mailAccount.getId(),
-                    mailAccount.getUser().getId(),
-                    mailAccount.getProvider(),
-                    mailAccount.getEmailAddress(),
-                    mailAccount.getAccessTokenExpiresAt(),
-                    !isBlank(mailAccount.getRefreshToken()),
-                    e.getErrorCode().getCode()
-            );
+            if (e.getErrorCode() == MailPushErrorCode.GOOGLE_TOKEN_REFRESH_FAILED) {
+                mailAccountCommandService.clearRefreshToken(mailAccount.getId());
+                log.warn(
+                        "Google access token refresh failed. mailAccountId={} userId={} provider={} emailAddress={} accessTokenExpiresAt={} hasRefreshToken={} errorCode={}",
+                        mailAccount.getId(),
+                        mailAccount.getUser().getId(),
+                        mailAccount.getProvider(),
+                        mailAccount.getEmailAddress(),
+                        mailAccount.getAccessTokenExpiresAt(),
+                        !isBlank(mailAccount.getRefreshToken()),
+                        e.getErrorCode().getCode()
+                );
+            }
             throw e;
         }
     }
@@ -76,6 +75,14 @@ public class GoogleAccessTokenEnsureService {
     private void validateGoogleMailAccount(MailAccount mailAccount) {
         if (mailAccount.getProvider() != MailProvider.GMAIL) {
             throw new MailPushException(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE);
+        }
+
+        if (!mailAccount.isActive()) {
+            throw new MailPushException(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE);
+        }
+
+        if (isBlank(mailAccount.getRefreshToken())) {
+            throw new MailPushException(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
         }
 
         if (mailAccount.getAccessTokenExpiresAt() == null || isBlank(mailAccount.getAccessToken())) {

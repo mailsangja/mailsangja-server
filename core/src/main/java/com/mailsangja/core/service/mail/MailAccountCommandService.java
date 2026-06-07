@@ -11,16 +11,19 @@ import com.mailsangja.db.entity.mail.MailProvider;
 import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MailAccountCommandService {
 
     private final MailAccountRepositoryPort mailAccountRepositoryPort;
@@ -78,6 +81,38 @@ public class MailAccountCommandService {
     }
 
     @Transactional
+    public MailAccount reauthorizeGoogleMailAccount(
+            User user,
+            UUID mailAccountId,
+            GoogleMailAccountResult result,
+            GoogleMailWatchResult watchResult
+    ) {
+        validateGoogleMailAccountResult(result);
+
+        MailAccount mailAccount = findById(mailAccountId);
+        validateOwnership(mailAccount, user);
+        validateReauthorizableGoogleMailAccount(mailAccount, result);
+        validateReauthorizationWatchResult(watchResult);
+
+        mailAccount.reauthorizeGoogle(
+                result.accessToken(),
+                result.accessTokenExpiresAt(),
+                result.refreshToken(),
+                watchResult.historyId(),
+                watchResult.expirationAt()
+        );
+        log.info(
+                "Gmail account reauthorized. userId={} mailAccountId={} emailAddress={} watchExpiresAt={}",
+                user.getId(),
+                mailAccount.getId(),
+                mailAccount.getEmailAddress(),
+                watchResult.expirationAt()
+        );
+
+        return mailAccount;
+    }
+
+    @Transactional
     public MailAccount refreshGoogleAccessToken(UUID mailAccountId, GoogleOAuthTokenResult tokenResult) {
         validateRefreshGoogleAccessTokenInput(mailAccountId, tokenResult);
 
@@ -96,6 +131,37 @@ public class MailAccountCommandService {
         );
 
         return findActiveById(mailAccountId);
+    }
+
+    @Transactional
+    public void propagateGoogleAuthorizationToConnectedAccounts(GoogleMailAccountResult result) {
+        validateGoogleMailAccountResult(result);
+
+        List<MailAccount> connectedMailAccounts =
+                mailAccountRepositoryPort.findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(
+                        MailProvider.GMAIL,
+                        result.emailAddress()
+                );
+
+        connectedMailAccounts.forEach(mailAccount -> mailAccount.updateGoogleAuthorizationTokens(
+                result.accessToken(),
+                result.accessTokenExpiresAt(),
+                result.refreshToken()
+        ));
+        log.info(
+                "Google authorization tokens propagated. emailAddress={} targetCount={}",
+                result.emailAddress(),
+                connectedMailAccounts.size()
+        );
+    }
+
+    @Transactional
+    public void clearRefreshToken(UUID mailAccountId) {
+        if (mailAccountId == null) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_NOT_FOUND);
+        }
+
+        mailAccountRepositoryPort.clearRefreshToken(mailAccountId);
     }
 
     private void validateGoogleMailAccountResult(GoogleMailAccountResult result) {
@@ -149,6 +215,28 @@ public class MailAccountCommandService {
 
         if (isBlank(mailAccount.getRefreshToken())) {
             throw new MailAccountException(MailAccountErrorCode.GOOGLE_REFRESH_TOKEN_MISSING);
+        }
+    }
+
+    private void validateReauthorizableGoogleMailAccount(MailAccount mailAccount, GoogleMailAccountResult result) {
+        if (mailAccount.getProvider() != MailProvider.GMAIL) {
+            throw new MailAccountException(MailAccountErrorCode.UNSUPPORTED_MAIL_PROVIDER);
+        }
+
+        if (!mailAccount.getEmailAddress().equalsIgnoreCase(result.emailAddress())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_EMAIL_MISMATCH);
+        }
+
+        if (!isBlank(mailAccount.getRefreshToken())) {
+            throw new MailAccountException(MailAccountErrorCode.MAIL_ACCOUNT_REAUTHORIZATION_NOT_REQUIRED);
+        }
+    }
+
+    private void validateReauthorizationWatchResult(GoogleMailWatchResult watchResult) {
+        if (watchResult == null
+                || isBlank(watchResult.historyId())
+                || watchResult.expirationAt() == null) {
+            throw new MailAccountException(MailAccountErrorCode.INVALID_OAUTH_RESULT);
         }
     }
 

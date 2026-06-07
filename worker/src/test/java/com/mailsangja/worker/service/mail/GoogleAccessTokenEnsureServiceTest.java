@@ -2,7 +2,10 @@ package com.mailsangja.worker.service.mail;
 
 import com.mailsangja.db.entity.mail.MailAccount;
 import com.mailsangja.db.entity.mail.MailProvider;
+import com.mailsangja.db.entity.user.User;
 import com.mailsangja.db.port.MailAccountRepositoryPort;
+import com.mailsangja.worker.common.exception.mail.MailPushErrorCode;
+import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleOAuthProperties;
 import com.mailsangja.worker.dto.gmail.oauth.GoogleOAuthTokenResult;
 import com.mailsangja.worker.service.google.GoogleOAuthApiService;
@@ -20,6 +23,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -93,6 +97,88 @@ class GoogleAccessTokenEnsureServiceTest {
         assertSame(mailAccount, ensuredMailAccount);
     }
 
+    @Test
+    void ensureValidGoogleAccessToken_토큰재발급에실패하면재연동필요로표시한다() {
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
+                "old-token",
+                "refresh-token"
+        );
+        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
+        googleOAuthQueryService.failRefresh = true;
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
+
+        MailPushException exception = assertThrows(
+                MailPushException.class,
+                () -> service.ensureValidGoogleAccessToken(mailAccount)
+        );
+
+        assertEquals(MailPushErrorCode.GOOGLE_TOKEN_REFRESH_FAILED, exception.getErrorCode());
+        verify(mailAccountRepositoryPort).clearRefreshToken(mailAccount.getId());
+    }
+
+    @Test
+    void ensureValidGoogleAccessToken_토큰재발급실패가아닌예외면리프레시토큰을삭제하지않는다() {
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
+                "old-token",
+                "refresh-token"
+        );
+        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
+        googleOAuthQueryService.failRefresh = true;
+        googleOAuthQueryService.refreshFailureErrorCode = MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND;
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
+
+        MailPushException exception = assertThrows(
+                MailPushException.class,
+                () -> service.ensureValidGoogleAccessToken(mailAccount)
+        );
+
+        assertEquals(MailPushErrorCode.MAIL_ACCOUNT_NOT_FOUND, exception.getErrorCode());
+        verify(mailAccountRepositoryPort, never()).clearRefreshToken(mailAccount.getId());
+    }
+
+    @Test
+    void ensureValidGoogleAccessToken_리프레시토큰이없으면토큰재발급을시도하지않는다() {
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
+                "old-token",
+                null
+        );
+        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
+
+        MailPushException exception = assertThrows(
+                MailPushException.class,
+                () -> service.ensureValidGoogleAccessToken(mailAccount)
+        );
+
+        assertEquals(MailPushErrorCode.GOOGLE_REFRESH_TOKEN_MISSING, exception.getErrorCode());
+        assertEquals(0, googleOAuthQueryService.refreshCallCount);
+        verify(mailAccountRepositoryPort, never()).updateGoogleTokenIfAccessTokenMatches(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void ensureValidGoogleAccessToken_비활성계정이면계정상태예외를던진다() {
+        MailAccount mailAccount = createMailAccount(
+                LocalDateTime.now(KST_ZONE_ID).plusMinutes(5),
+                "old-token",
+                "refresh-token"
+        );
+        mailAccount.deactivate();
+        FakeGoogleOAuthQueryService googleOAuthQueryService = new FakeGoogleOAuthQueryService();
+        GoogleAccessTokenEnsureService service = createService(googleOAuthQueryService);
+
+        MailPushException exception = assertThrows(
+                MailPushException.class,
+                () -> service.ensureValidGoogleAccessToken(mailAccount)
+        );
+
+        assertEquals(MailPushErrorCode.INVALID_MAIL_ACCOUNT_STATE, exception.getErrorCode());
+        assertEquals(0, googleOAuthQueryService.refreshCallCount);
+        verify(mailAccountRepositoryPort, never()).updateGoogleTokenIfAccessTokenMatches(any(), any(), any(), any(), any());
+    }
+
     private GoogleAccessTokenEnsureService createService(FakeGoogleOAuthQueryService googleOAuthQueryService) {
         MailAccountQueryService mailAccountQueryService = new MailAccountQueryService(mailAccountRepositoryPort);
         MailAccountCommandService mailAccountCommandService = new MailAccountCommandService(
@@ -109,6 +195,7 @@ class GoogleAccessTokenEnsureServiceTest {
     private MailAccount createMailAccount(LocalDateTime expiresAt, String accessToken, String refreshToken) {
         return MailAccount.builder()
                 .id(UUID.randomUUID())
+                .user(User.builder().id(UUID.randomUUID()).build())
                 .provider(MailProvider.GMAIL)
                 .emailAddress("user@example.com")
                 .alias("alias")
@@ -123,6 +210,8 @@ class GoogleAccessTokenEnsureServiceTest {
 
     private static final class FakeGoogleOAuthQueryService extends GoogleOAuthApiService {
         private int refreshCallCount;
+        private boolean failRefresh;
+        private MailPushErrorCode refreshFailureErrorCode = MailPushErrorCode.GOOGLE_TOKEN_REFRESH_FAILED;
 
         private FakeGoogleOAuthQueryService() {
             super(new GoogleOAuthProperties(), RestClient.builder().build());
@@ -131,6 +220,9 @@ class GoogleAccessTokenEnsureServiceTest {
         @Override
         public GoogleOAuthTokenResult refreshAccessToken(String refreshToken) {
             refreshCallCount++;
+            if (failRefresh) {
+                throw new MailPushException(refreshFailureErrorCode);
+            }
             return new GoogleOAuthTokenResult("refreshed-token", "new-refresh-token", 3600L, null, "Bearer");
         }
     }

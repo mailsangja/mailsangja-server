@@ -18,6 +18,7 @@ public interface MailAccountRepositoryPort {
     Optional<MailAccount> findByUserIdAndEmailAddressAndActiveAndDeletedAtIsNull(UUID userId, String emailAddress, boolean active);
     Optional<MailAccount> findByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByProviderAndEmailAddressAndDeletedAtIsNull(MailProvider provider, String emailAddress);
+    List<MailAccount> findAllByProviderAndEmailAddressAndRefreshTokenIsNotBlankAndDeletedAtIsNull(MailProvider provider, String emailAddress);
     List<MailAccount> findAllByUserIdAndDeletedAtIsNull(UUID userId);
     int updateGoogleTokenIfAccessTokenMatches(
             UUID id,
@@ -35,6 +36,7 @@ public interface MailAccountRepositoryPort {
             String newSyncHistoryId,
             LocalDateTime newWatchExpiresAt
     );
+    int clearRefreshToken(UUID id);
     List<MailAccount> findRenewalTargetGmailAccounts(MailProvider provider, LocalDateTime watchExpiresAtThreshold, int limit);
     List<MailAccount> findAllByUserIdAndActiveAndDeletedAtIsNull(UUID userId, boolean active);
     boolean existsByProviderAndEmailAddressAndUserIdNotAndDeletedAtIsNull(MailProvider provider, String emailAddress, UUID userId);
