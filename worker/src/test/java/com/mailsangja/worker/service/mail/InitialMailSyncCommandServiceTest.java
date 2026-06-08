@@ -64,6 +64,10 @@ class InitialMailSyncCommandServiceTest {
             storedMessage.set(message);
             return message;
         });
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenAnswer(invocation -> storedMessage.get() != null ? List.of(storedMessage.get()) : List.of());
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenReturn(List.of(thread));
 
         service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
@@ -132,6 +136,7 @@ class InitialMailSyncCommandServiceTest {
         MailAccount mailAccount = createMailAccount();
         Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
         AtomicReference<Message> firstMessage = new AtomicReference<>();
+        List<Message> activeMessages = new ArrayList<>();
 
         when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
                 mailAccount.getId(), "thread-1", Direction.INBOUND
@@ -145,8 +150,13 @@ class InitialMailSyncCommandServiceTest {
             if ("message-1".equals(message.getGmailMessageId())) {
                 firstMessage.set(message);
             }
+            activeMessages.add(message);
             return message;
         });
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenAnswer(invocation -> List.copyOf(activeMessages));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenReturn(List.of(thread));
 
         service.saveThreadBatch(mailAccount, java.util.List.of(new InitialMailSyncThreadSaveCommand(
                 "thread-1",
