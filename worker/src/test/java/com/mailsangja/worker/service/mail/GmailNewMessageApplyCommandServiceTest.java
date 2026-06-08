@@ -19,9 +19,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -95,7 +97,16 @@ class GmailNewMessageApplyCommandServiceTest {
                 .thenReturn(Optional.of(oldMessage));
         when(messageRepositoryPort.findByThreadIdAndGmailMessageId(deletedThread.getId(), "message-new"))
                 .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        AtomicReference<Message> savedNewMessage = new AtomicReference<>();
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message m = invocation.getArgument(0);
+            savedNewMessage.set(m);
+            return m;
+        });
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenAnswer(invocation -> savedNewMessage.get() != null ? List.of(savedNewMessage.get()) : List.of());
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenReturn(List.of(deletedThread));
 
         GmailHistoryEvent event = new GmailHistoryEvent(
                 GmailHistoryEventType.MESSAGE_ADDED,
@@ -115,7 +126,7 @@ class GmailNewMessageApplyCommandServiceTest {
         assertFalse(deletedThread.isDeleted());
         assertTrue(oldMessage.isDeleted());
         assertEquals("message-new", messageCaptor.getValue().getGmailMessageId());
-        assertEquals(2, deletedThread.getMessageCount());
+        assertEquals(1, deletedThread.getMessageCount());
         assertEquals("new subject", deletedThread.getLatestSubject());
         assertEquals("new snippet", deletedThread.getLatestSnippet());
         assertEquals(LocalDateTime.of(2026, 4, 14, 10, 0), deletedThread.getLastMessageAt());
@@ -150,7 +161,20 @@ class GmailNewMessageApplyCommandServiceTest {
                 .thenReturn(Optional.of(existingMessage));
         when(messageRepositoryPort.findByThreadIdAndGmailMessageId(activeThread.getId(), "message-new"))
                 .thenReturn(Optional.empty());
-        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        AtomicReference<Message> savedNewMessage = new AtomicReference<>();
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> {
+            Message m = invocation.getArgument(0);
+            savedNewMessage.set(m);
+            return m;
+        });
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-2"))
+                .thenAnswer(invocation -> {
+                    List<Message> msgs = new ArrayList<>(List.of(existingMessage));
+                    if (savedNewMessage.get() != null) msgs.add(savedNewMessage.get());
+                    return msgs;
+                });
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-2"))
+                .thenReturn(List.of(activeThread));
 
         GmailHistoryEvent event = new GmailHistoryEvent(
                 GmailHistoryEventType.MESSAGE_ADDED,

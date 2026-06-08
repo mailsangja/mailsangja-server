@@ -33,10 +33,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    defaults:
-      run:
-        working-directory: core
-
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
@@ -62,4 +58,11 @@ jobs:
           gradle-version: "9.4.1"
 
       - name: Run tests
-        run: gradle clean test -x :db:test --no-daemon
+        run: gradle :core:clean :worker:clean :core:test :worker:test --no-daemon
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: core/build/reports/jacoco/test/jacocoTestReport.xml,worker/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: false
