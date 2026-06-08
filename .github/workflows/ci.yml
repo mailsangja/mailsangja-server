@@ -58,10 +58,10 @@ jobs:
           gradle-version: "9.4.1"
 
       - name: Run tests
-        run: gradle clean :core:test :worker:test --no-daemon
+        run: gradle :core:clean :worker:clean :core:test :worker:test --no-daemon
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@b5f6c0e474ea37f31a25da3857e97926b8c43336 # v5.1.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: core/build/reports/jacoco/test/jacocoTestReport.xml,worker/build/reports/jacoco/test/jacocoTestReport.xml
