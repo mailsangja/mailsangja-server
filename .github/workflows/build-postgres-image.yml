@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - docker/postgres/**
+      - docker/postgres/Dockerfile
       - .github/workflows/build-postgres-image.yml
   workflow_dispatch:
 

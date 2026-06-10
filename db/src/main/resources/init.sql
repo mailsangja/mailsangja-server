@@ -226,7 +226,7 @@ CREATE INDEX IF NOT EXISTS idx_threads_last_message_at ON threads(last_message_a
 -- WHERE filename_vector IS NULL;
 
 -- ── Full-Text Search (English, pg_trgm) ──────────────────────────────────────
--- pg_trgm 확장은 extensions.sql(docker-entrypoint-initdb.d)에서 superuser로 설치됨
+-- pg_trgm 확장은 docker/postgres/init/00-extensions.sql(docker-entrypoint-initdb.d)에서 superuser로 설치됨
 
 -- messages.search_text: 영어 부분/대소문자 무시 검색을 위한 소문자 정규화 텍스트
 -- body_text는 인덱스 크기 제한을 위해 앞 5000자만 포함
