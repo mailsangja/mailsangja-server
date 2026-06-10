@@ -83,6 +83,7 @@ jobs:
         with:
           repository: mailsangja/mailsangja-infra
           token: ${{ secrets.GITOPS_PR_TOKEN }}
+          persist-credentials: false
           ref: main
           path: gitops
 
