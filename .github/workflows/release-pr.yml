@@ -1,0 +1,143 @@
+name: Create Release PR
+
+on:
+  workflow_run:
+    workflows:
+      - Build Docker Image
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to write, for example sha-<commit>
+        required: true
+        type: string
+      source_sha:
+        description: Source app commit SHA for the release PR body
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  create-release-pr:
+    name: Create release PR
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: mailsangja-release-pr
+      cancel-in-progress: false
+    steps:
+      - name: Resolve image metadata
+        id: meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_IMAGE_TAG: ${{ inputs.image_tag }}
+          DISPATCH_SOURCE_SHA: ${{ inputs.source_sha }}
+          WORKFLOW_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+
+          should_update=true
+          source_sha="$DISPATCH_SOURCE_SHA"
+          image_tag="$DISPATCH_IMAGE_TAG"
+          workflow_run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
+            if [ "$WORKFLOW_RUN_BRANCH" != "main" ]; then
+              should_update=false
+              echo "Skip GitOps PR because the source workflow ran on ${WORKFLOW_RUN_BRANCH}, not main."
+            fi
+
+            source_sha="$WORKFLOW_RUN_SHA"
+            image_tag="sha-${WORKFLOW_RUN_SHA}"
+            workflow_run_url="$WORKFLOW_RUN_URL"
+
+            latest_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
+            if [ "$latest_sha" != "$source_sha" ]; then
+              should_update=false
+              echo "Skip GitOps PR because ${source_sha} is no longer main HEAD (${latest_sha})."
+            fi
+          fi
+
+          source_commit_url=""
+          if [ -n "$source_sha" ]; then
+            source_commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${source_sha}"
+          fi
+
+          {
+            echo "should_update=${should_update}"
+            echo "image_tag=${image_tag}"
+            echo "source_sha=${source_sha}"
+            echo "source_commit_url=${source_commit_url}"
+            echo "workflow_run_url=${workflow_run_url}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout GitOps repository
+        if: steps.meta.outputs.should_update == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: mailsangja/mailsangja-infra
+          token: ${{ secrets.GITOPS_PR_TOKEN }}
+          ref: main
+          path: gitops
+
+      - name: Update core and worker image tags
+        if: steps.meta.outputs.should_update == 'true'
+        shell: bash
+        working-directory: gitops
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          core_image="ghcr.io/mailsangja/mailsangja-core:${IMAGE_TAG}"
+          worker_image="ghcr.io/mailsangja/mailsangja-worker:${IMAGE_TAG}"
+
+          sed -i -E "s#image: ghcr.io/mailsangja/mailsangja-core:sha-[0-9a-f]{7,40}#image: ${core_image}#" apps/mailsangja/core.yaml
+          sed -i -E "s#image: ghcr.io/mailsangja/mailsangja-worker:sha-[0-9a-f]{7,40}#image: ${worker_image}#" apps/mailsangja/worker.yaml
+
+          grep -F "image: ${core_image}" apps/mailsangja/core.yaml >/dev/null
+          grep -F "image: ${worker_image}" apps/mailsangja/worker.yaml >/dev/null
+
+          git diff -- apps/mailsangja/core.yaml apps/mailsangja/worker.yaml
+
+      - name: Create or update GitOps pull request
+        if: steps.meta.outputs.should_update == 'true'
+        id: create-pull-request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          path: gitops
+          token: ${{ secrets.GITOPS_PR_TOKEN }}
+          branch: automation/mailsangja
+          base: main
+          delete-branch: true
+          commit-message: "release: 메일상자 이미지 업데이트 (${{ steps.meta.outputs.image_tag }})"
+          title: "release: 메일상자 이미지 업데이트 (${{ steps.meta.outputs.image_tag }})"
+          body: |
+            Automated image tag update from `mailsangja-server`.
+
+            Source commit: ${{ steps.meta.outputs.source_commit_url }}
+            Workflow run: ${{ steps.meta.outputs.workflow_run_url }}
+
+            Updated images:
+            - `ghcr.io/mailsangja/mailsangja-core:${{ steps.meta.outputs.image_tag }}`
+            - `ghcr.io/mailsangja/mailsangja-worker:${{ steps.meta.outputs.image_tag }}`
+
+            Scope:
+            - `apps/mailsangja/core.yaml`
+            - `apps/mailsangja/worker.yaml`
+
+            `apps/mailsangja/postgres.yaml` is intentionally unchanged.
+            Merge this PR to let Argo CD sync the new application images.
+          add-paths: |
+            apps/mailsangja/core.yaml
+            apps/mailsangja/worker.yaml
+
+      - name: Print pull request result
+        if: steps.meta.outputs.should_update == 'true' && steps.create-pull-request.outputs.pull-request-operation != 'none'
+        run: echo "${{ steps.create-pull-request.outputs.pull-request-url }}"
