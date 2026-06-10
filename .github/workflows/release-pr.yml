@@ -98,8 +98,8 @@ jobs:
           core_image="ghcr.io/mailsangja/mailsangja-core:${IMAGE_TAG}"
           worker_image="ghcr.io/mailsangja/mailsangja-worker:${IMAGE_TAG}"
 
-          sed -i -E "s#image: ghcr.io/mailsangja/mailsangja-core:sha-[0-9a-f]{7,40}#image: ${core_image}#" apps/mailsangja/core.yaml
-          sed -i -E "s#image: ghcr.io/mailsangja/mailsangja-worker:sha-[0-9a-f]{7,40}#image: ${worker_image}#" apps/mailsangja/worker.yaml
+          sed -i -E "s#image: ghcr.io/mailsangja/mailsangja-core[^[:space:]]*#image: ${core_image}#" apps/mailsangja/core.yaml
+          sed -i -E "s#image: ghcr.io/mailsangja/mailsangja-worker[^[:space:]]*#image: ${worker_image}#" apps/mailsangja/worker.yaml
 
           grep -F "image: ${core_image}" apps/mailsangja/core.yaml >/dev/null
           grep -F "image: ${worker_image}" apps/mailsangja/worker.yaml >/dev/null
