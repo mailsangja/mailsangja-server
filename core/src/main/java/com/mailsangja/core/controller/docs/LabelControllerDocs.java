@@ -28,7 +28,7 @@ public interface LabelControllerDocs {
 
     @Operation(
             summary = "라벨 목록 조회",
-            description = "로그인한 사용자의 활성 라벨 목록을 displayOrder ASC 정렬로 반환합니다. 라벨별 읽지 않은 스레드 수와 민감 라벨 여부를 포함합니다.",
+            description = "로그인한 사용자의 활성 라벨 목록을 displayOrder ASC 정렬로 반환합니다. 라벨별 알림 정책, 읽지 않은 스레드 수와 민감 라벨 여부를 포함합니다.",
             security = @SecurityRequirement(name = "cookieAuth")
     )
     @ApiResponses({
