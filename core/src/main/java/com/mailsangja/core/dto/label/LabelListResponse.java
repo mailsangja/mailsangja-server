@@ -1,5 +1,6 @@
 package com.mailsangja.core.dto.label;
 
+import com.mailsangja.db.common.label.NotificationPolicy;
 import com.mailsangja.db.entity.label.Label;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -19,6 +20,9 @@ public record LabelListResponse(
         @Schema(description = "표시 순서", example = "0")
         int order,
 
+        @Schema(description = "알림 정책 (URGENT/INHERIT/SILENT)", example = "INHERIT")
+        NotificationPolicy notificationPolicy,
+
         @Schema(description = "AI 기능에서 제외할 민감 라벨 여부", example = "false")
         boolean isSensitive,
 
@@ -32,6 +36,7 @@ public record LabelListResponse(
                 label.getName(),
                 label.getColorCode(),
                 label.getDisplayOrder(),
+                label.getNotificationPolicy(),
                 label.isSensitive(),
                 unreadThreadCount
         );

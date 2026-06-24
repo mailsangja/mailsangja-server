@@ -68,8 +68,8 @@ class LabelFacadeTest {
     @Test
     void 라벨목록조회_미읽은스레드수매핑및누락시_0반환() {
         User user = user();
-        Label first = label("업무", 1);
-        Label second = label("개인", 2);
+        Label first = label("업무", 1, null, NotificationPolicy.URGENT);
+        Label second = label("개인", 2, null, NotificationPolicy.SILENT);
         when(labelQueryService.findAllActiveByUserId(user.getId())).thenReturn(List.of(first, second));
         when(labelQueryService.findUnreadThreadCountsByUserId(user.getId())).thenReturn(Map.of(first.getId(), 7L));
 
@@ -77,9 +77,11 @@ class LabelFacadeTest {
 
         assertEquals(2, responses.size());
         assertEquals(first.getId(), responses.get(0).id());
+        assertEquals(NotificationPolicy.URGENT, responses.get(0).notificationPolicy());
         assertEquals(first.isSensitive(), responses.get(0).isSensitive());
         assertEquals(7L, responses.get(0).unreadThreadCount());
         assertEquals(second.getId(), responses.get(1).id());
+        assertEquals(NotificationPolicy.SILENT, responses.get(1).notificationPolicy());
         assertEquals(second.isSensitive(), responses.get(1).isSensitive());
         assertEquals(0L, responses.get(1).unreadThreadCount());
     }
@@ -307,11 +309,15 @@ class LabelFacadeTest {
     }
 
     private Label label(String name, int order, LabelRule rule) {
+        return label(name, order, rule, NotificationPolicy.INHERIT);
+    }
+
+    private Label label(String name, int order, LabelRule rule, NotificationPolicy notificationPolicy) {
         return Label.builder()
                 .id(UUID.randomUUID())
                 .name(name)
                 .colorCode("#3366FF")
-                .notificationPolicy(NotificationPolicy.INHERIT)
+                .notificationPolicy(notificationPolicy)
                 .displayOrder(order)
                 .rule(rule)
                 .build();
