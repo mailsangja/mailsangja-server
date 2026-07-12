@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -595,6 +596,44 @@ class InitialMailSyncCommandServiceTest {
         assertEquals("snippet", thread.getLatestSnippet());
         assertEquals("alice@example.com", thread.getLatestParticipantAddress());
         assertEquals(sentAt, thread.getLastMessageAt());
+    }
+
+    @Test
+    void saveMissingMessagesFromThreadSnapshot_doesNotRestoreOrAggregateSoftDeletedMessage() {
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        LocalDateTime existingSentAt = LocalDateTime.of(2026, 6, 18, 10, 0);
+        thread.updateHistoryId("existing-history");
+        thread.updateLatestMessageInfo(
+                "existing subject",
+                "existing snippet",
+                "existing@example.com",
+                "Existing",
+                existingSentAt
+        );
+        thread.updateMessageCount(1);
+        Message deletedMessage = createMessage(UUID.randomUUID(), thread, "message-1");
+        deletedMessage.delete();
+
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.of(deletedMessage));
+
+        service.saveMissingMessagesFromThreadSnapshot(
+                mailAccount,
+                threadCommand(LocalDateTime.of(2026, 6, 19, 9, 32, 10))
+        );
+
+        assertEquals("existing-history", thread.getHistoryId());
+        assertEquals("existing subject", thread.getLatestSubject());
+        assertEquals("existing snippet", thread.getLatestSnippet());
+        assertEquals("existing@example.com", thread.getLatestParticipantAddress());
+        assertEquals("Existing", thread.getLatestParticipantName());
+        assertEquals(existingSentAt, thread.getLastMessageAt());
+        assertEquals(1, thread.getMessageCount());
+        verify(messageRepositoryPort, never()).save(any(Message.class));
     }
 
     private InitialMailSyncThreadSaveCommand threadCommand(LocalDateTime sentAt) {
