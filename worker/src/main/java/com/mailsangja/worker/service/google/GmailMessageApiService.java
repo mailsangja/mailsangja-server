@@ -342,7 +342,7 @@ public class GmailMessageApiService {
 
     private LocalDateTime resolveSentAt(GoogleMailThreadResponse.GoogleMailThreadMessageResponse messageResponse) {
         if (isBlank(messageResponse.internalDate())) {
-            return null;
+            throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
         try {

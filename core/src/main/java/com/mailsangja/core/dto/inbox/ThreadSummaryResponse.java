@@ -37,6 +37,11 @@ public record ThreadSummaryResponse(
         @Schema(description = "스레드에 적용된 라벨 목록")
         List<LabelSummary> labels
 ) {
+    public ThreadSummaryResponse {
+        latestSubject = latestSubject == null ? "" : latestSubject;
+        snippet = snippet == null ? "" : snippet;
+    }
+
     public record LabelSummary(
             @Schema(description = "라벨 ID") UUID labelId,
             @Schema(description = "라벨 이름") String name,
