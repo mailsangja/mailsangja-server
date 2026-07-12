@@ -1,5 +1,6 @@
 package com.mailsangja.core.service.google;
 
+import com.mailsangja.core.common.exception.mail.MailSendException;
 import com.mailsangja.core.config.properties.GoogleMailProperties;
 import com.mailsangja.core.dto.mail.GoogleMailMessageResult;
 import com.mailsangja.db.entity.mail.AttachmentDisposition;
@@ -18,8 +19,32 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GoogleMailMessageQueryServiceTest {
+
+    @Test
+    void getMessage_internalDate가없으면유효하지않은응답예외가발생한다() {
+        GoogleMailProperties properties = new GoogleMailProperties();
+        properties.setMessagesUri("https://gmail.googleapis.com/gmail/v1/users/me/messages");
+
+        RestClient restClient = RestClient.builder()
+                .requestFactory(new StubClientHttpRequestFactory("""
+                        {
+                          "id": "message-1",
+                          "threadId": "thread-1",
+                          "payload": {
+                            "headers": [
+                              {"name": "From", "value": "Alice <alice@example.com>"}
+                            ]
+                          }
+                        }
+                        """))
+                .build();
+        GoogleMailMessageQueryService service = new GoogleMailMessageQueryService(properties, restClient);
+
+        assertThrows(MailSendException.class, () -> service.getMessage("token", "message-1"));
+    }
 
     @Test
     void getMessage_본문이미지첨부의contentId와disposition을보존한다() {

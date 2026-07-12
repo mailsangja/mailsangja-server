@@ -191,7 +191,7 @@ public class GoogleMailMessageQueryService {
 
     private LocalDateTime resolveSentAt(String internalDate) {
         if (isBlank(internalDate)) {
-            return null;
+            throw new MailSendException(MailSendErrorCode.GOOGLE_MAIL_MESSAGE_RESULT_INVALID);
         }
 
         try {

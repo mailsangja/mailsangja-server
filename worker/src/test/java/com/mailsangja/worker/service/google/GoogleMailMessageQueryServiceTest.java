@@ -2,6 +2,7 @@ package com.mailsangja.worker.service.google;
 
 import com.mailsangja.db.entity.mail.Direction;
 import com.mailsangja.db.entity.mail.AttachmentDisposition;
+import com.mailsangja.worker.common.exception.mail.MailPushException;
 import com.mailsangja.worker.config.properties.GoogleMailInitialSyncProperties;
 import com.mailsangja.worker.dto.gmail.GoogleMailApiContext;
 import com.mailsangja.worker.dto.gmail.message.GoogleMailThreadResponse;
@@ -24,12 +25,49 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class GoogleMailMessageQueryServiceTest {
+
+    @Test
+    void getThreads_internalDate가없으면유효하지않은응답예외가발생한다() {
+        GoogleMailInitialSyncProperties properties = new GoogleMailInitialSyncProperties();
+        properties.setThreadsUri("https://gmail.googleapis.com/gmail/v1/users/me/threads");
+
+        RestClient restClient = RestClient.builder()
+                .requestFactory(new StubClientHttpRequestFactory("""
+                        {
+                          "id": "thread-1",
+                          "messages": [
+                            {
+                              "id": "message-1",
+                              "threadId": "thread-1",
+                              "labelIds": ["INBOX"],
+                              "payload": {
+                                "headers": [
+                                  {"name": "From", "value": "Alice <alice@example.com>"}
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                        """))
+                .build();
+        GmailMessageApiService service = new GmailMessageApiService(
+                properties,
+                restClient,
+                mock(GmailApiRateLimitService.class)
+        );
+
+        assertThrows(MailPushException.class, () -> service.getThreads(
+                new GoogleMailApiContext("token", "alice@example.com"),
+                List.of("thread-1")
+        ));
+    }
 
     @Test
     void getInitialThreadIds_fetchesThreadListUntilMaxThreads() {
