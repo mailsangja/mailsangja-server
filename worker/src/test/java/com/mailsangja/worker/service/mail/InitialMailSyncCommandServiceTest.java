@@ -548,6 +548,85 @@ class InitialMailSyncCommandServiceTest {
         assertEquals(2, outboundThread.getMessageCount());
     }
 
+    @Test
+    void saveMissingMessagesFromThreadSnapshot_updatesThreadSummaryFromInsertedMessage() {
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        LocalDateTime sentAt = LocalDateTime.of(2026, 6, 19, 9, 32, 10);
+
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.empty());
+        when(messageRepositoryPort.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenReturn(List.of(createMessage(UUID.randomUUID(), thread, "message-1")));
+        when(threadRepositoryPort.findAllByMailAccountIdAndGmailThreadIdAndDeletedAtIsNull(mailAccount.getId(), "thread-1"))
+                .thenReturn(List.of(thread));
+
+        service.saveMissingMessagesFromThreadSnapshot(mailAccount, threadCommand(sentAt));
+
+        assertEquals("history-1", thread.getHistoryId());
+        assertEquals("subject", thread.getLatestSubject());
+        assertEquals("snippet", thread.getLatestSnippet());
+        assertEquals("alice@example.com", thread.getLatestParticipantAddress());
+        assertEquals("Alice", thread.getLatestParticipantName());
+        assertEquals(sentAt, thread.getLastMessageAt());
+        assertEquals(1, thread.getMessageCount());
+    }
+
+    @Test
+    void saveMissingMessagesFromThreadSnapshot_repairsSummaryFromExistingActiveMessage() {
+        MailAccount mailAccount = createMailAccount();
+        Thread thread = createThread(mailAccount, "thread-1", Direction.INBOUND);
+        Message existingMessage = createMessage(UUID.randomUUID(), thread, "message-1");
+        LocalDateTime sentAt = LocalDateTime.of(2026, 6, 19, 9, 32, 10);
+
+        when(threadRepositoryPort.findByMailAccountIdAndGmailThreadIdAndDirectionAndDeletedAtIsNull(
+                mailAccount.getId(), "thread-1", Direction.INBOUND
+        )).thenReturn(Optional.of(thread));
+        when(messageRepositoryPort.findByThreadIdAndGmailMessageId(thread.getId(), "message-1"))
+                .thenReturn(Optional.of(existingMessage));
+
+        service.saveMissingMessagesFromThreadSnapshot(mailAccount, threadCommand(sentAt));
+
+        assertEquals("subject", thread.getLatestSubject());
+        assertEquals("snippet", thread.getLatestSnippet());
+        assertEquals("alice@example.com", thread.getLatestParticipantAddress());
+        assertEquals(sentAt, thread.getLastMessageAt());
+    }
+
+    private InitialMailSyncThreadSaveCommand threadCommand(LocalDateTime sentAt) {
+        return new InitialMailSyncThreadSaveCommand(
+                "thread-1",
+                "history-1",
+                List.of(new InitialMailSyncMessageSaveCommand(
+                        "message-1",
+                        "history-1",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        Direction.INBOUND,
+                        "subject",
+                        "alice@example.com",
+                        "Alice",
+                        List.of("me@example.com"),
+                        List.of("Me"),
+                        List.of(),
+                        List.of(),
+                        "snippet",
+                        false,
+                        sentAt,
+                        "body",
+                        null,
+                        List.of()
+                ))
+        );
+    }
+
     private MailAccount createMailAccount() {
         return MailAccount.builder()
                 .id(UUID.randomUUID())

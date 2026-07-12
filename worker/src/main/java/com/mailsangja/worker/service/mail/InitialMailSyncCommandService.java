@@ -59,7 +59,7 @@ public class InitialMailSyncCommandService {
                 .collect(Collectors.groupingBy(InitialMailSyncMessageSaveCommand::direction))
                 .forEach((direction, messageCommands) -> saveMissingMessagesByDirection(
                         mailAccount,
-                        command.gmailThreadId(),
+                        command,
                         direction,
                         messageCommands
                 ));
@@ -115,7 +115,7 @@ public class InitialMailSyncCommandService {
 
     private void saveMissingMessagesByDirection(
             MailAccount mailAccount,
-            String gmailThreadId,
+            InitialMailSyncThreadSaveCommand threadCommand,
             Direction direction,
             List<InitialMailSyncMessageSaveCommand> messageCommands
     ) {
@@ -123,7 +123,8 @@ public class InitialMailSyncCommandService {
             throw new MailPushException(MailPushErrorCode.GMAIL_MESSAGES_RESULT_INVALID);
         }
 
-        Thread thread = findOrCreateThread(mailAccount, gmailThreadId, direction);
+        Thread thread = findOrCreateThread(mailAccount, threadCommand.gmailThreadId(), direction);
+        ThreadAggregate aggregate = ThreadAggregate.from(thread);
         int insertedCount = 0;
 
         for (InitialMailSyncMessageSaveCommand messageCommand : messageCommands) {
@@ -139,17 +140,31 @@ public class InitialMailSyncCommandService {
             );
             if (anyMessage.isPresent()) {
                 // 활성 메시지는 이미 존재, 소프트 삭제된 메시지는 재삽입하지 않고 skip
+                if (!anyMessage.get().isDeleted()) {
+                    aggregate.merge(threadCommand, messageCommand, false);
+                }
                 continue;
             }
 
             Message message = Message.from(thread, messageCommand.toCreateValues());
             message.replaceAttachments(createAttachments(message, messageCommand.attachments()));
             messageRepositoryPort.save(message);
+            aggregate.merge(threadCommand, messageCommand, true);
             insertedCount++;
         }
 
+        thread.updateHistoryId(aggregate.historyId());
+        thread.updateLatestMessageInfoIfNewer(
+                aggregate.latestSubject(),
+                aggregate.latestSnippet(),
+                aggregate.latestParticipantAddress(),
+                aggregate.latestParticipantName(),
+                aggregate.lastMessageAt(),
+                aggregate.read()
+        );
+
         if (insertedCount > 0) {
-            synchronizeThreadMessageCount(mailAccount.getId(), gmailThreadId);
+            synchronizeThreadMessageCount(mailAccount.getId(), threadCommand.gmailThreadId());
         }
     }
 
