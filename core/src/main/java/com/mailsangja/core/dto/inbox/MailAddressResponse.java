@@ -11,6 +11,10 @@ public record MailAddressResponse(
         @Schema(description = "이메일 주소", example = "hramst0618@gmail.com")
         String email
 ) {
+    public MailAddressResponse {
+        email = email == null ? "" : email;
+    }
+
     public static MailAddressResponse of(String email, Map<String, String> contactNameByEmail) {
         return new MailAddressResponse(contactNameByEmail.get(email), email);
     }
